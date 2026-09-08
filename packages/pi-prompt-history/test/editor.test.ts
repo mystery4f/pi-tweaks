@@ -26,16 +26,27 @@ class FakeTerminal implements Terminal {
     }
 
     start(): void {}
+
     stop(): void {}
+
     async drainInput(): Promise<void> {}
+
     write(): void {}
+
     moveBy(): void {}
+
     hideCursor(): void {}
+
     showCursor(): void {}
+
     clearLine(): void {}
+
     clearFromCursor(): void {}
+
     clearScreen(): void {}
+
     setTitle(): void {}
+
     setProgress(): void {}
 }
 
@@ -77,6 +88,7 @@ function createEditorTestContext(branch: SessionEntry[] = [], hasUI = true): Edi
         editor.addToHistory = (text): void => {
             addedPrompts.push(text);
         };
+
         return editor;
     };
     const ctx = {
@@ -111,7 +123,7 @@ test("prompt history preloads prompts from the current branch in branch order", 
 
     applyPromptHistoryEditor(context.ctx);
     assert.equal(context.installedFactories.length, 1);
-    const factory = context.installedFactories[0];
+    const factory = context.installedFactories.at(0);
     if (factory === undefined) assert.fail("Expected installed editor factory");
     factory(...editorFactoryArgs());
     assert.deepEqual(context.addedPrompts, ["older current prompt", "newer current prompt"]);
@@ -154,6 +166,7 @@ test("prompt history preserves a configured host editor and its rendering", () =
 
     applyPromptHistoryEditor(ctx);
     assert.notEqual(installedFactory, undefined);
+
     if (installedFactory === undefined) return;
 
     const [tui, theme, keybindings] = editorFactoryArgs();
@@ -186,6 +199,7 @@ test("prompt history keeps Pi's default editor shortcut hook non-recursive", () 
 
     applyPromptHistoryEditor(ctx);
     assert.notEqual(installedFactory, undefined);
+
     if (installedFactory === undefined) return;
 
     const [testTui, theme, keybindings] = editorFactoryArgs();
@@ -194,6 +208,7 @@ test("prompt history keeps Pi's default editor shortcut hook non-recursive", () 
     const editor = installedFactory(testTui, theme, keybindings);
 
     assert.equal(editor instanceof CustomEditor, true);
+
     if (!(editor instanceof CustomEditor)) return;
 
     // Pi 0.84.3 delegates custom-editor shortcuts to its default editor. Returning that same
