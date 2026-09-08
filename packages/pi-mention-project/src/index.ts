@@ -1,25 +1,10 @@
-import type {
-    ContextEvent,
-    ExtensionAPI,
-    ExtensionHandler,
-    InputEvent,
-    InputEventResult,
-    SessionShutdownEvent,
-    SessionStartEvent,
-} from "@earendil-works/pi-coding-agent";
-
-import { createProjectMentionProvider } from "./autocomplete.ts";
-import { applyMentionProjectEditor } from "./editor.ts";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
-    contextContainsProjectMentionTrigger,
-    expandProjectMentions,
-    expandProjectMentionsInMessages,
-} from "./expand-mentions.ts";
-import {
-    createProjectDirectorySource,
-    listProjectDirectories,
-    type ProjectDirectory,
-} from "./projects.ts";
+    createListProvider,
+    registerMention,
+    type MentionExtensionApi,
+} from "@zigai/pi-mention-anything/api";
+import { listProjectDirectories } from "./projects.ts";
 import {
     applyMentionProjectCliFlags,
     loadMentionProjectSettings,
@@ -28,7 +13,6 @@ import {
     type MentionProjectSettings,
     type MentionProjectSettingsContext,
 } from "./settings.ts";
-import { createLazySelectionHistory, type SelectionHistory } from "./initial-suggestions.ts";
 
 function mentionProjectSettings(
     pi: Pick<ExtensionAPI, "getFlag">,
@@ -40,79 +24,10 @@ function mentionProjectSettings(
     });
 }
 
-type ProjectDirectoryLoader = (
-    settings: MentionProjectSettings,
-    cwd: string,
-) => Promise<ProjectDirectory[]>;
-
-type ProjectMentionContextResult = {
-    messages: ContextEvent["messages"];
-};
-
-type ProjectMentionContextHandler = (
-    event: ContextEvent,
-    ctx: MentionProjectSettingsContext,
-) => Promise<ProjectMentionContextResult | undefined>;
-
-type ProjectMentionInputHandler = (
-    event: InputEvent,
-    ctx: MentionProjectSettingsContext,
-) => Promise<InputEventResult>;
-
-export type ProjectMentionHandlerMap = {
-    session_start: ExtensionHandler<SessionStartEvent>;
-    session_shutdown: ExtensionHandler<SessionShutdownEvent>;
-    input: ProjectMentionInputHandler;
-    context: ProjectMentionContextHandler;
-};
-
-export type ProjectMentionExtensionApi = Pick<ExtensionAPI, "registerFlag" | "getFlag"> & {
-    on<TKey extends keyof ProjectMentionHandlerMap>(
-        event: TKey,
-        handler: ProjectMentionHandlerMap[TKey],
-    ): void;
-};
-
-export function createProjectMentionInputHandler(
-    pi: Pick<ExtensionAPI, "getFlag">,
-    loadProjects: ProjectDirectoryLoader = listProjectDirectories,
-): ProjectMentionInputHandler {
-    return async (event, ctx) => {
-        const settings = mentionProjectSettings(pi, ctx);
-        if (event.streamingBehavior === "steer" || !event.text.includes(settings.trigger)) {
-            return { action: "continue" };
-        }
-
-        const projects = await loadProjects(settings, ctx.cwd);
-        const expanded = expandProjectMentions(event.text, projects, settings.trigger);
-        if (expanded === event.text) return { action: "continue" };
-        return { action: "transform", text: expanded, images: event.images };
-    };
-}
-
-export function createProjectMentionContextHandler(
-    pi: Pick<ExtensionAPI, "getFlag">,
-    loadProjects: ProjectDirectoryLoader = listProjectDirectories,
-): ProjectMentionContextHandler {
-    return async (event, ctx) => {
-        const settings = mentionProjectSettings(pi, ctx);
-        if (!contextContainsProjectMentionTrigger(event.messages, settings.trigger))
-            return undefined;
-
-        const projects = await loadProjects(settings, ctx.cwd);
-        const messages = expandProjectMentionsInMessages(
-            event.messages,
-            projects,
-            settings.trigger,
-        );
-        if (messages === event.messages) return undefined;
-        return { messages };
-    };
-}
+export type ProjectMentionExtensionApi = Pick<ExtensionAPI, "registerFlag" | "getFlag"> &
+    MentionExtensionApi;
 
 export function registerProjectMentionExtension(pi: ProjectMentionExtensionApi): void {
-    let selectionHistory: SelectionHistory | undefined;
-
     pi.registerFlag(INCLUDE_NON_GIT_FLAG, {
         description: "Include non-Git child folders in pi-mention-project suggestions.",
         type: "boolean",
@@ -124,37 +39,39 @@ export function registerProjectMentionExtension(pi: ProjectMentionExtensionApi):
         default: false,
     });
 
-    pi.on("session_start", async (_event, ctx) => {
-        if (!ctx.hasUI) return;
-        await selectionHistory?.flush();
-        const settings = mentionProjectSettings(pi, ctx);
-        const history = createLazySelectionHistory({
-            onError: (message) => ctx.ui.notify(message, "warning"),
-        });
-        selectionHistory = history;
-        const projectSource = createProjectDirectorySource(settings, ctx.cwd);
-        void projectSource.refresh();
-
-        applyMentionProjectEditor(ctx, settings.trigger, () =>
-            projectSource.getCachedProjectNames(),
-        );
-        ctx.ui.addAutocompleteProvider((current) =>
-            createProjectMentionProvider(
-                current,
-                settings,
-                (options) => projectSource.getProjects(options),
-                history,
-            ),
-        );
+    registerMention(pi, {
+        id: "project",
+        configuration(ctx) {
+            const settings = mentionProjectSettings(pi, ctx);
+            return {
+                trigger: settings.trigger,
+                completionSuffix: settings.completionSuffix,
+                initialSuggestions: settings.initialSuggestions,
+                expansionPolicy: "selected-or-resolved",
+                cache: true,
+                cacheTtlMs: 5_000,
+                refreshOnStartup: true,
+            };
+        },
+        provider(ctx) {
+            const settings = mentionProjectSettings(pi, ctx);
+            return createListProvider(async (request) => {
+                const projects = await listProjectDirectories(settings, ctx.cwd, {
+                    signal: request.signal,
+                });
+                return projects.map((project) => ({
+                    id: project.path,
+                    label: project.name,
+                    segment: project.name,
+                    description: project.path,
+                    searchText: `${project.name} ${project.path}`,
+                    selectable: true,
+                    navigable: false,
+                    replacement: project.path,
+                }));
+            });
+        },
     });
-
-    pi.on("session_shutdown", async () => {
-        const history = selectionHistory;
-        await history?.flush();
-        if (selectionHistory === history) selectionHistory = undefined;
-    });
-    pi.on("input", createProjectMentionInputHandler(pi));
-    pi.on("context", createProjectMentionContextHandler(pi));
 }
 
 export default function (pi: ExtensionAPI): void {

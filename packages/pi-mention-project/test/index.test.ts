@@ -6,15 +6,19 @@ import { afterAll, test } from "vitest";
 
 import { CONFIG_DIR_NAME, type ContextEvent } from "@earendil-works/pi-coding-agent";
 
-import {
-    createProjectMentionContextHandler,
-    createProjectMentionInputHandler,
-    registerProjectMentionExtension,
-    type ProjectMentionExtensionApi,
-    type ProjectMentionHandlerMap,
-} from "../src/index.ts";
-import type { ProjectDirectory } from "../src/projects.ts";
+import { registerProjectMentionExtension, type ProjectMentionExtensionApi } from "../src/index.ts";
 import type { MentionProjectSettingsContext } from "../src/settings.ts";
+
+type ProjectMentionHandlerMap = {
+    context: (
+        event: ContextEvent,
+        ctx: MentionProjectSettingsContext,
+    ) => Promise<ContextExpansionResult | undefined>;
+    input: (
+        event: import("@earendil-works/pi-coding-agent").InputEvent,
+        ctx: MentionProjectSettingsContext,
+    ) => Promise<import("@earendil-works/pi-coding-agent").InputEventResult>;
+};
 
 const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const agentDir = await mkdtemp(path.join(tmpdir(), "pi-mention-project-index-agent-"));
@@ -38,34 +42,9 @@ function context(cwd: string): MentionProjectSettingsContext {
     };
 }
 
-function project(name: string, root = "/tmp/projects"): ProjectDirectory {
-    return {
-        name,
-        root,
-        path: `${root}/${name}`,
-    };
-}
-
 type ContextExpansionResult = {
     readonly messages?: ContextEvent["messages"];
 };
-
-function extensionApi(): Pick<ProjectMentionExtensionApi, "getFlag"> {
-    return {
-        getFlag() {
-            return false;
-        },
-    };
-}
-
-function isObject(value: unknown): value is object {
-    return (typeof value === "object" && value !== null) || typeof value === "function";
-}
-
-function isContextExpansionResult(value: unknown): value is ContextExpansionResult {
-    if (!isObject(value)) return false;
-    return !("messages" in value) || value.messages === undefined || Array.isArray(value.messages);
-}
 
 function isInputHandler(value: unknown): value is ProjectMentionHandlerMap["input"] {
     return typeof value === "function";
@@ -91,117 +70,51 @@ function getContextHandler(
     return handler;
 }
 
-test("context handler skips project directory scans when user messages have no trigger", async () => {
-    let loadCount = 0;
-    const handler = createProjectMentionContextHandler(extensionApi(), async () => {
-        loadCount += 1;
-        return [project("pi-tweaks")];
-    });
-    const messages: ContextEvent["messages"] = [
+type SharedRuntimeContext = {
+    readonly cwd: string;
+    readonly hasUI: boolean;
+    readonly signal: AbortSignal;
+    readonly ui: {
+        notify(): void;
+        readonly theme: { fg(color: string, value: string): string };
+    };
+    isProjectTrusted(): boolean;
+};
+
+type SharedStartHandler = (
+    event: { readonly type: "session_start" },
+    ctx: SharedRuntimeContext,
+) => void | Promise<void>;
+
+function isSharedStartHandler(value: unknown): value is SharedStartHandler {
+    return typeof value === "function";
+}
+
+async function startSharedRuntime(
+    handlers: ReadonlyMap<string, unknown>,
+    cwd: string,
+): Promise<void> {
+    const handler = handlers.get("session_start");
+    if (!isSharedStartHandler(handler)) throw new Error("Expected session_start handler");
+    await handler(
+        { type: "session_start" },
         {
-            role: "user",
-            content: [{ type: "text", text: "Please inspect the current workspace" }],
-            timestamp: 1,
+            ...context(cwd),
+            hasUI: false,
+            signal: new AbortController().signal,
+            ui: {
+                notify() {},
+                theme: {
+                    fg(_color: string, value: string) {
+                        return value;
+                    },
+                },
+            },
         },
-    ];
-
-    const result = await handler({ type: "context", messages }, context(process.cwd()));
-
-    assert.equal(result, undefined);
-    assert.equal(loadCount, 0);
-});
-
-test("context handler scans and expands past user messages after the trigger is present", async () => {
-    let loadCount = 0;
-    const handler = createProjectMentionContextHandler(extensionApi(), async () => {
-        loadCount += 1;
-        return [project("pi-tweaks"), project("work-api")];
-    });
-    const messages: ContextEvent["messages"] = [
-        {
-            role: "user",
-            content: [{ type: "text", text: "Earlier we discussed #pi-tweaks" }],
-            timestamp: 1,
-        },
-        {
-            role: "user",
-            content: [{ type: "text", text: "Now compare it with #work-api" }],
-            timestamp: 2,
-        },
-    ];
-
-    const result = await handler({ type: "context", messages }, context(process.cwd()));
-
-    assert.equal(loadCount, 1);
-    assert.notEqual(result, undefined);
-    const firstExpanded = result?.messages[0];
-    assert.equal(firstExpanded?.role, "user");
-    if (firstExpanded?.role !== "user" || !Array.isArray(firstExpanded.content)) {
-        assert.fail("expected expanded past user text message");
-    }
-    const firstText = firstExpanded.content[0];
-    assert.equal(firstText?.type, "text");
-    if (firstText?.type !== "text") assert.fail("expected past text content");
-    assert.equal(firstText.text, "Earlier we discussed /tmp/projects/pi-tweaks");
-
-    const latestExpanded = result?.messages[1];
-    assert.equal(latestExpanded?.role, "user");
-    if (latestExpanded?.role !== "user" || !Array.isArray(latestExpanded.content)) {
-        assert.fail("expected expanded latest user text message");
-    }
-    const latestText = latestExpanded.content[0];
-    assert.equal(latestText?.type, "text");
-    if (latestText?.type !== "text") assert.fail("expected latest text content");
-    assert.equal(latestText.text, "Now compare it with /tmp/projects/work-api");
-});
-
-test("input handler expands project mentions in queued follow-up messages", async () => {
-    let loadCount = 0;
-    const handler = createProjectMentionInputHandler(extensionApi(), async () => {
-        loadCount += 1;
-        return [project("skills")];
-    });
-
-    const result = await handler(
-        {
-            type: "input",
-            text: "Install the skill into my #skills repo",
-            source: "interactive",
-            streamingBehavior: "followUp",
-        },
-        context(process.cwd()),
     );
+}
 
-    assert.equal(loadCount, 1);
-    assert.deepEqual(result, {
-        action: "transform",
-        text: "Install the skill into my /tmp/projects/skills repo",
-        images: undefined,
-    });
-});
-
-test("input handler leaves steering messages unchanged without scanning projects", async () => {
-    let loadCount = 0;
-    const handler = createProjectMentionInputHandler(extensionApi(), async () => {
-        loadCount += 1;
-        return [project("skills")];
-    });
-
-    const result = await handler(
-        {
-            type: "input",
-            text: "Switch to #skills instead",
-            source: "interactive",
-            streamingBehavior: "steer",
-        },
-        context(process.cwd()),
-    );
-
-    assert.equal(loadCount, 0);
-    assert.deepEqual(result, { action: "continue" });
-});
-
-test("mention project rewrites submitted prompts and expands provider context", async () => {
+test("mention project preserves submitted prompts and expands provider context", async () => {
     const cwd = await mkdtemp(path.join(tmpdir(), "pi-mention-project-index-cwd-"));
     const registeredHandlers = new Map<string, unknown>();
 
@@ -229,8 +142,9 @@ test("mention project rewrites submitted prompts and expands provider context", 
 
         assert.deepEqual(
             [...registeredHandlers.keys()],
-            ["session_start", "session_shutdown", "input", "context"],
+            ["session_start", "input", "context", "session_shutdown"],
         );
+        await startSharedRuntime(registeredHandlers, cwd);
         const inputResult = await getInputHandler(registeredHandlers)(
             {
                 type: "input",
@@ -239,11 +153,7 @@ test("mention project rewrites submitted prompts and expands provider context", 
             },
             context(cwd),
         );
-        assert.deepEqual(inputResult, {
-            action: "transform",
-            text: `Please inspect ${path.join(cwd, "pi-tweaks")}`,
-            images: undefined,
-        });
+        assert.deepEqual(inputResult, { action: "continue" });
 
         const messages: ContextEvent["messages"] = [
             {
@@ -257,28 +167,96 @@ test("mention project rewrites submitted prompts and expands provider context", 
             context(cwd),
         );
 
-        const original = messages[0];
-        assert.equal(original?.role, "user");
-        if (original?.role === "user" && Array.isArray(original.content)) {
-            assert.equal(original.content[0]?.type, "text");
-            if (original.content[0]?.type === "text") {
-                assert.equal(original.content[0].text, "Please inspect #pi-tweaks");
-            }
+        assert.deepEqual(messages, [
+            {
+                role: "user",
+                content: [{ type: "text", text: "Please inspect #pi-tweaks" }],
+                timestamp: 1,
+            },
+        ]);
+        assert.deepEqual(result?.messages, [
+            {
+                role: "user",
+                content: [{ type: "text", text: `Please inspect ${path.join(cwd, "pi-tweaks")}` }],
+                timestamp: 1,
+            },
+        ]);
+    } finally {
+        await rm(cwd, { recursive: true, force: true });
+    }
+});
+
+test("registered project mentions preserve queued input and expand multiple context blocks", async () => {
+    const cwd = await mkdtemp(path.join(tmpdir(), "pi-mention-project-context-"));
+    const handlers = new Map<string, unknown>();
+    try {
+        await mkdir(path.join(cwd, "work api", ".git"), { recursive: true });
+        await mkdir(path.join(cwd, "skills", ".git"), { recursive: true });
+        const configDir = path.join(cwd, CONFIG_DIR_NAME, "extension-settings");
+        await mkdir(configDir, { recursive: true });
+        await writeFile(
+            path.join(configDir, "pi-mention-project.json"),
+            JSON.stringify({ roots: ["."], trigger: "##" }),
+        );
+        registerProjectMentionExtension({
+            registerFlag() {},
+            getFlag() {
+                return false;
+            },
+            on(event, handler) {
+                handlers.set(event, handler);
+            },
+        });
+        await startSharedRuntime(handlers, cwd);
+        const input = getInputHandler(handlers);
+        for (const streamingBehavior of ["followUp", "steer"] as const) {
+            assert.deepEqual(
+                await input(
+                    {
+                        type: "input",
+                        source: "interactive",
+                        streamingBehavior,
+                        text: 'Compare ##"work api" with ##skills',
+                    },
+                    context(cwd),
+                ),
+                { action: "continue" },
+            );
         }
-        assert.equal(isContextExpansionResult(result), true);
-        if (!isContextExpansionResult(result)) assert.fail("expected context expansion result");
-        const expandedMessages = result.messages;
-        assert.notEqual(expandedMessages, undefined);
-        if (expandedMessages === undefined) assert.fail("expected expanded messages");
-        const expanded = expandedMessages[0];
-        assert.equal(expanded?.role, "user");
-        if (expanded?.role !== "user" || !Array.isArray(expanded.content)) {
-            assert.fail("expected expanded user text message");
-        }
-        const text = expanded.content[0];
-        assert.equal(text?.type, "text");
-        if (text?.type !== "text") assert.fail("expected text content");
-        assert.equal(text.text, `Please inspect ${path.join(cwd, "pi-tweaks")}`);
+        const image = { type: "image", data: "aGVsbG8=", mimeType: "image/png" } as const;
+        const messages: ContextEvent["messages"] = [
+            { role: "user", content: 'Earlier ##"work api"', timestamp: 1 },
+            {
+                role: "user",
+                content: [
+                    image,
+                    { type: "text", text: "Now ##skills" },
+                    { type: "text", text: "Keep ##missing and #skills literal" },
+                ],
+                timestamp: 2,
+            },
+        ];
+        const original = structuredClone(messages);
+        const handler = getContextHandler(handlers);
+        const result = await handler({ type: "context", messages }, context(cwd));
+        assert.deepEqual(result?.messages, [
+            { role: "user", content: `Earlier ${path.join(cwd, "work api")}`, timestamp: 1 },
+            {
+                role: "user",
+                content: [
+                    image,
+                    { type: "text", text: `Now ${path.join(cwd, "skills")}` },
+                    { type: "text", text: "Keep ##missing and #skills literal" },
+                ],
+                timestamp: 2,
+            },
+        ]);
+        assert.deepEqual(messages, original);
+        assert.deepEqual(await handler({ type: "context", messages }, context(cwd)), result);
+        const plain: ContextEvent["messages"] = [
+            { role: "user", content: "No mention here", timestamp: 3 },
+        ];
+        assert.equal(await handler({ type: "context", messages: plain }, context(cwd)), undefined);
     } finally {
         await rm(cwd, { recursive: true, force: true });
     }

@@ -3,7 +3,6 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { projectNameSet } from "./mention-syntax.ts";
 import type { MentionProjectSettings } from "./settings.ts";
 
 export type ProjectDirectory = {
@@ -18,13 +17,6 @@ function compareProjectNames(left: string, right: string): number {
 
 export type ProjectDirectoryLoadOptions = {
     readonly signal?: AbortSignal;
-};
-
-export type ProjectDirectorySource = {
-    getCachedProjects(): ProjectDirectory[];
-    getCachedProjectNames(): ReadonlySet<string>;
-    getProjects(options?: ProjectDirectoryLoadOptions): Promise<ProjectDirectory[]>;
-    refresh(options?: ProjectDirectoryLoadOptions): Promise<ProjectDirectory[]>;
 };
 
 function expandHome(root: string): string {
@@ -157,50 +149,4 @@ export async function listProjectDirectories(
         projects.push(...(await listRootProjectDirectories(root, settings, options)));
     }
     return uniqueProjectsByName(projects);
-}
-
-export function createProjectDirectorySource(
-    settings: MentionProjectSettings,
-    cwd: string,
-    ttlMs = 5_000,
-): ProjectDirectorySource {
-    let cachedProjects: ProjectDirectory[] = [];
-    let cachedProjectNames: ReadonlySet<string> = new Set();
-    let lastRefreshMs: number | undefined;
-    let refreshInFlight: Promise<ProjectDirectory[]> | undefined;
-
-    const refresh = (options?: ProjectDirectoryLoadOptions): Promise<ProjectDirectory[]> => {
-        if (isAborted(options)) return Promise.resolve([...cachedProjects]);
-        if (refreshInFlight !== undefined) return refreshInFlight;
-
-        refreshInFlight = listProjectDirectories(settings, cwd, options)
-            .then((projects) => {
-                if (isAborted(options)) return [...cachedProjects];
-                cachedProjects = projects;
-                cachedProjectNames = projectNameSet(cachedProjects);
-                lastRefreshMs = Date.now();
-                return [...cachedProjects];
-            })
-            .finally(() => {
-                refreshInFlight = undefined;
-            });
-        return refreshInFlight;
-    };
-
-    return {
-        getCachedProjects() {
-            return [...cachedProjects];
-        },
-        getCachedProjectNames() {
-            return cachedProjectNames;
-        },
-        getProjects(options?: ProjectDirectoryLoadOptions) {
-            if (isAborted(options)) return Promise.resolve([...cachedProjects]);
-            if (lastRefreshMs !== undefined && Date.now() - lastRefreshMs < ttlMs) {
-                return Promise.resolve([...cachedProjects]);
-            }
-            return refresh(options);
-        },
-        refresh,
-    };
 }

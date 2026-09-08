@@ -88,8 +88,8 @@ function isGeneratedDefaultLayer(layer: SettingsLayer): boolean {
         return false;
     }
 
+    if (!("initialSuggestions" in layer)) return true;
     const initialSuggestions = layer.initialSuggestions;
-    if (initialSuggestions === undefined) return true;
     if (!Value.Check(initialSuggestionsSchema, initialSuggestions)) return false;
     const parsed = Value.Parse(initialSuggestionsSchema, initialSuggestions);
     return parsed.strategy === "frecency" && parsed.pinned.length === 0;
@@ -140,8 +140,8 @@ function normalizeLegacyRoots(value: string | string[]): string[] | undefined {
 
 function loadLegacySettings(ctx: MentionProjectSettingsContext): LegacyMentionProjectSettings {
     const paths = legacySettingsPaths(ctx);
-    const globalSettingsPath = paths[0];
-    const projectSettingsPath = paths[1];
+    const globalSettingsPath = paths.at(0);
+    const projectSettingsPath = paths.at(1);
     let globalSettings: LegacyMentionProjectSettings = {};
     if (globalSettingsPath !== undefined) globalSettings = readLegacySettings(globalSettingsPath);
     let projectSettings: LegacyMentionProjectSettings = {};
