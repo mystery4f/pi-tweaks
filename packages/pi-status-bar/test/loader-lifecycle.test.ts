@@ -1,13 +1,9 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeAll, beforeEach, describe, test, vi } from "vitest";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import {
-    Loader,
-    TuiMainScreen,
-    visibleWidth,
-    type TUI,
-    type Terminal,
-} from "@earendil-works/pi-tui";
+import { Loader, TuiMainScreen, visibleWidth } from "@earendil-works/pi-tui";
+
+import { FakeTerminal, RenderCountingTui } from "./tui-fixture.ts";
 
 import statusBarExtension from "../src/index.ts";
 import {
@@ -43,9 +39,11 @@ function isTuiInternals(value: unknown): value is TuiInternals {
     ) {
         return false;
     }
+
     for (const line of value.previousLines) {
         if (typeof line !== "string") return false;
     }
+
     return true;
 }
 
@@ -57,36 +55,12 @@ function isLoaderPrototypeOwner(value: unknown): value is LoaderPrototypeOwner {
         typeof value.updateDisplay === "function"
     );
 }
+
 function parseLoaderPrototypeOwner(
     value: LoaderPrototypeBoundary,
 ): LoaderPrototypeOwner | undefined {
     if (!isLoaderPrototypeOwner(value)) return undefined;
     return value;
-}
-
-class FakeTerminal implements Terminal {
-    columns = 48;
-    rows = 10;
-    writes: string[] = [];
-
-    get kittyProtocolActive(): boolean {
-        return false;
-    }
-
-    start(): void {}
-    stop(): void {}
-    async drainInput(): Promise<void> {}
-    write(data: string): void {
-        this.writes.push(data);
-    }
-    moveBy(): void {}
-    hideCursor(): void {}
-    showCursor(): void {}
-    clearLine(): void {}
-    clearFromCursor(): void {}
-    clearScreen(): void {}
-    setTitle(): void {}
-    setProgress(): void {}
 }
 
 function getTuiInternals(tui: TuiMainScreen): TuiInternals {
@@ -101,29 +75,23 @@ function getLoaderPrototype(): LoaderPrototypeOwner {
     if (prototype === undefined) {
         throw new Error("Expected Loader.updateDisplay to be callable");
     }
+
     return prototype;
 }
 
-function createExtensionApi(): ExtensionAPI {
-    const api: Partial<ExtensionAPI> = {
+function createExtensionApi(): Pick<ExtensionAPI, "on" | "appendEntry"> {
+    const api: Pick<ExtensionAPI, "on" | "appendEntry"> = {
         appendEntry(): void {},
         on(): void {},
     };
-    // SAFETY: Extension registration uses only `on` and `appendEntry` in these
-    // loader-focused tests.
-    return api as ExtensionAPI;
+
+    return api;
 }
 
 function createLoader(frames: string[] = ["⠙"]): LoaderFixture {
-    let renders = 0;
-    const ui = {
-        requestRender(): void {
-            renders += 1;
-        },
-    };
-    // SAFETY: Loader only calls requestRender on its TUI dependency here.
+    const ui = new RenderCountingTui();
     const loader = new Loader(
-        ui as TUI,
+        ui,
         (text) => text,
         (text) => text,
         "Working...",
@@ -131,7 +99,8 @@ function createLoader(frames: string[] = ["⠙"]): LoaderFixture {
             frames,
         },
     );
-    return { loader, renderCount: () => renders };
+
+    return { loader, renderCount: () => ui.renderRequests };
 }
 
 function visibleLoaderLines(loader: Loader): string[] {

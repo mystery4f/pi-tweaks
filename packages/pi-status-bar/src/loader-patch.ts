@@ -13,34 +13,41 @@ const STATIC_LOADER_REFRESH_INTERVAL_MS = 1_000;
 
 type LoaderMethod = (this: Loader) => void;
 type LoaderRenderMethod = (this: Loader, width: number) => string[];
+
 type LoaderPrototype = {
     start: LoaderMethod;
     stop: LoaderMethod;
     updateDisplay: LoaderMethod;
     render: LoaderRenderMethod;
 };
+
 type LoaderPatchController = {
     readonly version: number;
     acquire(): () => void;
 };
+
 type PatchState = typeof globalThis & {
     [LOADER_TIME_PATCH_CONTROLLER_KEY]?: LoaderPatchController;
 };
+
 type LoaderDisplay = {
     readonly leftText: string;
     readonly messageColorFn: (text: string) => string;
     readonly startedAt: number;
 };
+
 type LoaderTimer = {
     startedAt: number;
     accumulatedPausedMs: number;
     resetVersion: number;
     pausedAt?: number;
 };
+
 type LoaderElapsed = {
     readonly elapsedMs: number;
     readonly startedAt: number;
 };
+
 type LoaderOwner = {
     readonly frames: readonly string[];
     readonly currentFrame: number;
@@ -52,15 +59,18 @@ type LoaderOwner = {
     readonly updateDisplay: () => void;
     readonly paddingX: number;
 };
+
 type LoaderBoundary = Loader | LoaderOwner;
 type LoaderPrototypeBoundary = Loader | LoaderPrototype;
 
 function isLoaderOwner(value: unknown): value is LoaderOwner {
     if (typeof value !== "object" || value === null) return false;
     if (!("frames" in value) || !Array.isArray(value.frames)) return false;
+
     for (const frame of value.frames) {
         if (typeof frame !== "string") return false;
     }
+
     return (
         "currentFrame" in value &&
         typeof value.currentFrame === "number" &&
@@ -137,6 +147,7 @@ function getLoaderTimer(loader: Loader, now: number): LoaderTimer {
         };
         loaderTimers.set(loader, timer);
     }
+
     return timer;
 }
 
@@ -189,6 +200,7 @@ function applyStatusBarDisplay(loader: Loader): void {
     if (snapshot.active.timerVisible) {
         message = `${baseMessage} (${formatElapsed(Math.floor(elapsed.elapsedMs / 1000))})`;
     }
+
     const leftText = `${indicator}${internals.messageColorFn(message)}`;
 
     loaderDisplays.set(loader, {
@@ -255,12 +267,13 @@ function updateActiveLoaderRefreshInterval(): void {
         clearActiveLoaderRefreshInterval();
         return;
     }
+
     if (activeLoaderRefreshInterval !== undefined) return;
     activeLoaderRefreshInterval = setInterval(
         requestActiveLoaderRenders,
         STATIC_LOADER_REFRESH_INTERVAL_MS,
     );
-    activeLoaderRefreshInterval.unref?.();
+    activeLoaderRefreshInterval.unref();
 }
 
 export function installLoaderPatch(): () => void {
@@ -286,8 +299,10 @@ export function installLoaderPatch(): () => void {
                     predecessor.call(this);
                     return;
                 }
+
                 const existingTimer = loaderTimers.get(this);
                 const startedAt = Date.now();
+
                 predecessor.call(this);
                 activeLoaders.add(this);
                 loaderTimers.set(
@@ -323,6 +338,7 @@ export function installLoaderPatch(): () => void {
         (predecessor) =>
             function patchedUpdateDisplay(this: Loader): void {
                 predecessor.call(this);
+
                 if (active && activeLoaders.has(this)) applyStatusBarDisplay(this);
             },
     );
@@ -342,6 +358,7 @@ export function installLoaderPatch(): () => void {
         version: LOADER_TIME_PATCH_VERSION,
         acquire(): () => void {
             leaseCount += 1;
+
             if (!active) {
                 active = true;
                 unsubscribeStatusBarUpdates ??= subscribeStatusBarUpdates(
@@ -362,7 +379,9 @@ export function installLoaderPatch(): () => void {
                 clearActiveLoaderRefreshInterval();
 
                 const loaders = [...activeLoaders];
+
                 activeLoaders.clear();
+
                 for (const loader of loaders) {
                     loaderTimers.delete(loader);
                     loaderDisplays.delete(loader);
@@ -372,7 +391,9 @@ export function installLoaderPatch(): () => void {
                 updatePatch.dispose();
                 stopPatch.dispose();
                 startPatch.dispose();
+
                 for (const loader of loaders) requestLoaderUpdate(loader);
+
                 if (state[LOADER_TIME_PATCH_CONTROLLER_KEY] === controller) {
                     delete state[LOADER_TIME_PATCH_CONTROLLER_KEY];
                 }

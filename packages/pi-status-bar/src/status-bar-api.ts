@@ -15,6 +15,7 @@ export type StatusBarSpinnerConfig = {
 export type StatusBarTimerConfig = {
     /** Whether the active elapsed timer is visible. */
     readonly visible?: boolean;
+
     /** Whether the active elapsed timer is paused. */
     readonly paused?: boolean;
 };
@@ -22,8 +23,10 @@ export type StatusBarTimerConfig = {
 export type StatusBarActiveConfig = {
     /** Text used instead of Pi's active loader message. */
     readonly text?: string;
+
     /** Active spinner override. */
     readonly spinner?: StatusBarSpinnerConfig;
+
     /** Active timer override. */
     readonly timer?: StatusBarTimerConfig;
 };
@@ -31,10 +34,13 @@ export type StatusBarActiveConfig = {
 export type StatusBarIdleConfig = {
     /** Text used instead of the default post-run summary. */
     readonly text?: string;
+
     /** Whether the idle status bar widget is visible. */
     readonly visible?: boolean;
+
     /** Whether to append the default last-run summary after custom idle text. */
     readonly showLastRunSummary?: boolean;
+
     /** Whether to include model token throughput in the last-run summary. */
     readonly showTokensPerSecond?: boolean;
 };
@@ -47,22 +53,31 @@ export type StatusBarConfig = {
 export type StatusBarHandle = {
     /** Replace the active working text. Empty text clears the override. */
     setActiveText(text: string): void;
+
     /** Replace the idle status text. Empty text clears the override. */
     setIdleText(text: string): void;
+
     /** Replace active spinner frames. Empty frames clear the override. */
     setSpinner(spinner: StatusBarSpinnerConfig): void;
+
     /** Pause the active elapsed timer. */
     pauseTimer(): void;
+
     /** Resume the active elapsed timer. */
     resumeTimer(): void;
+
     /** Reset the active elapsed timer baseline. */
     resetTimer(): void;
+
     /** Hide the active elapsed timer. */
     hideTimer(): void;
+
     /** Show the active elapsed timer. */
     showTimer(): void;
+
     /** Clear this handle's status-bar override while keeping the handle alive. */
     clear(): void;
+
     /** Remove this status-bar override. Stale handles become inert after disposal. */
     dispose(): void;
 };
@@ -70,16 +85,22 @@ export type StatusBarHandle = {
 export type StatusBarSegmentRegistration = {
     /** Namespaced custom segment id, for example `my-extension.status`. */
     readonly id: string;
+
     /** Lifecycle states where the segment should render. Defaults to both states. */
     readonly states?: readonly StatusBarStateName[];
+
     /** Side where the segment should render. Currently only `right` is supported. */
     readonly side?: StatusBarSide;
+
     /** Initial visible text. Empty or whitespace-only text hides the segment. */
     readonly text?: string;
+
     /** Lower values render first. Defaults to 100. */
     readonly priority?: number;
+
     /** Render the segment dimmed. */
     readonly dimmed?: boolean;
+
     /** Render the segment italic. */
     readonly italic?: boolean;
 };
@@ -87,8 +108,10 @@ export type StatusBarSegmentRegistration = {
 export type StatusBarSegmentHandle = {
     /** Replace this segment's visible text. Empty text hides the segment. */
     setText(text: string): void;
+
     /** Hide this segment while keeping its registration. */
     clear(): void;
+
     /** Remove this segment registration. Stale handles become inert after disposal. */
     dispose(): void;
 };
@@ -111,12 +134,14 @@ export type StatusBarSnapshot = {
         readonly timerPaused: boolean;
         readonly timerResetVersion: number;
     };
+
     readonly idle: {
         readonly text?: string;
         readonly visible: boolean;
         readonly showLastRunSummary: boolean;
         readonly showTokensPerSecond: boolean;
     };
+
     readonly segments: readonly StatusBarSegmentSnapshot[];
 };
 
@@ -154,6 +179,7 @@ type StatusBarState = {
 type StatusBarGlobal = typeof globalThis & {
     [STATUS_BAR_STATE]?: StatusBarState;
 };
+
 // SAFETY: This intersection only adds one optional symbol-keyed slot to the
 // existing global object and does not change its runtime representation.
 const statusBarGlobal = globalThis as StatusBarGlobal;
@@ -169,6 +195,7 @@ function getStatusBarState(): StatusBarState {
         };
         statusBarGlobal[STATUS_BAR_STATE] = state;
     }
+
     return state;
 }
 
@@ -203,9 +230,7 @@ function parseSegmentId(id: string): string {
     );
 }
 
-function parseStates(
-    states: readonly StatusBarStateName[] | undefined,
-): readonly StatusBarStateName[] {
+function parseStates(states: readonly string[] | undefined): readonly StatusBarStateName[] {
     if (states === undefined) return ["active", "idle"];
 
     const parsed: StatusBarStateName[] = [];
@@ -224,7 +249,7 @@ function parseStates(
     return parsed;
 }
 
-function parseSide(side: StatusBarSide | undefined): StatusBarSide {
+function parseSide(side: string | undefined): StatusBarSide {
     if (side === undefined || side === "right") return "right";
     throw new Error(`[pi-status-bar] Status bar segment side must be "right".`);
 }
@@ -257,13 +282,14 @@ function emitStatusBarUpdates(state: StatusBarState): void {
 
 function applyStatusBarConfig(target: MutableStatusBarOverride, config: StatusBarConfig): boolean {
     let changed = false;
-
     let activeText: string | undefined;
     if (config.active?.text !== undefined) {
         activeText = sanitizeText(config.active.text);
     }
+
     if (target.activeText !== activeText) {
         changed = true;
+
         if (activeText === undefined) {
             delete target.activeText;
         } else {
@@ -274,6 +300,7 @@ function applyStatusBarConfig(target: MutableStatusBarOverride, config: StatusBa
     const spinnerFrames = sanitizeFrames(config.active?.spinner?.frames);
     if (target.spinnerFrames !== spinnerFrames) {
         changed = true;
+
         if (spinnerFrames === undefined) {
             delete target.spinnerFrames;
         } else {
@@ -284,6 +311,7 @@ function applyStatusBarConfig(target: MutableStatusBarOverride, config: StatusBa
     const timerVisible = config.active?.timer?.visible;
     if (target.timerVisible !== timerVisible) {
         changed = true;
+
         if (timerVisible === undefined) {
             delete target.timerVisible;
         } else {
@@ -294,6 +322,7 @@ function applyStatusBarConfig(target: MutableStatusBarOverride, config: StatusBa
     const timerPaused = config.active?.timer?.paused;
     if (target.timerPaused !== timerPaused) {
         changed = true;
+
         if (timerPaused === undefined) {
             delete target.timerPaused;
         } else {
@@ -305,8 +334,10 @@ function applyStatusBarConfig(target: MutableStatusBarOverride, config: StatusBa
     if (config.idle?.text !== undefined) {
         idleText = sanitizeText(config.idle.text);
     }
+
     if (target.idleText !== idleText) {
         changed = true;
+
         if (idleText === undefined) {
             delete target.idleText;
         } else {
@@ -317,6 +348,7 @@ function applyStatusBarConfig(target: MutableStatusBarOverride, config: StatusBa
     const idleVisible = config.idle?.visible;
     if (target.idleVisible !== idleVisible) {
         changed = true;
+
         if (idleVisible === undefined) {
             delete target.idleVisible;
         } else {
@@ -327,6 +359,7 @@ function applyStatusBarConfig(target: MutableStatusBarOverride, config: StatusBa
     const idleShowLastRunSummary = config.idle?.showLastRunSummary;
     if (target.idleShowLastRunSummary !== idleShowLastRunSummary) {
         changed = true;
+
         if (idleShowLastRunSummary === undefined) {
             delete target.idleShowLastRunSummary;
         } else {
@@ -337,6 +370,7 @@ function applyStatusBarConfig(target: MutableStatusBarOverride, config: StatusBa
     const idleShowTokensPerSecond = config.idle?.showTokensPerSecond;
     if (target.idleShowTokensPerSecond !== idleShowTokensPerSecond) {
         changed = true;
+
         if (idleShowTokensPerSecond === undefined) {
             delete target.idleShowTokensPerSecond;
         } else {
@@ -375,6 +409,7 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
             disposed = true;
             return;
         }
+
         if (!mutator(current)) return;
         emitStatusBarUpdates(state);
     }
@@ -384,11 +419,13 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
             updateOwned((current) => {
                 const nextText = sanitizeText(text);
                 if (current.activeText === nextText) return false;
+
                 if (nextText === undefined) {
                     delete current.activeText;
                 } else {
                     current.activeText = nextText;
                 }
+
                 return true;
             });
         },
@@ -396,11 +433,13 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
             updateOwned((current) => {
                 const nextText = sanitizeText(text);
                 if (current.idleText === nextText) return false;
+
                 if (nextText === undefined) {
                     delete current.idleText;
                 } else {
                     current.idleText = nextText;
                 }
+
                 return true;
             });
         },
@@ -408,11 +447,13 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
             updateOwned((current) => {
                 const frames = sanitizeFrames(spinner.frames);
                 if (current.spinnerFrames === frames) return false;
+
                 if (frames === undefined) {
                     delete current.spinnerFrames;
                 } else {
                     current.spinnerFrames = frames;
                 }
+
                 return true;
             });
         },
@@ -436,6 +477,7 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
                 disposed = true;
                 return;
             }
+
             state.timerResetVersion += 1;
             emitStatusBarUpdates(state);
         },
@@ -459,6 +501,7 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
         dispose(): void {
             const current = getOwnedOverride(state, owner, isDisposed);
             disposed = true;
+
             if (current === undefined) return;
             delete state.override;
             emitStatusBarUpdates(state);
@@ -494,6 +537,7 @@ export function registerStatusBarSegment(
     if (registration.text !== undefined) {
         text = sanitizeText(registration.text);
     }
+
     if (text !== undefined) {
         segment.text = text;
     }
@@ -511,6 +555,7 @@ export function registerStatusBarSegment(
             disposed = true;
             return undefined;
         }
+
         return current;
     }
 
@@ -521,11 +566,13 @@ export function registerStatusBarSegment(
 
             const nextText = sanitizeText(text);
             if (current.text === nextText) return;
+
             if (nextText === undefined) {
                 delete current.text;
             } else {
                 current.text = nextText;
             }
+
             emitStatusBarUpdates(state);
         },
         clear(): void {
@@ -538,6 +585,7 @@ export function registerStatusBarSegment(
         dispose(): void {
             const current = getOwnedSegment();
             disposed = true;
+
             if (current === undefined) return;
             state.segments.delete(id);
             emitStatusBarUpdates(state);
@@ -549,6 +597,7 @@ export function registerStatusBarSegment(
 export function subscribeStatusBarUpdates(listener: () => void): () => void {
     const state = getStatusBarState();
     state.listeners.add(listener);
+
     return () => {
         state.listeners.delete(listener);
     };

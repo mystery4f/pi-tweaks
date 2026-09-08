@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { test, vi } from "vitest";
-import type { ExtensionAPI, SessionEntry } from "@earendil-works/pi-coding-agent";
+import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { Loader, type TUI } from "@earendil-works/pi-tui";
 
-import statusBarExtension from "../src/index.ts";
+import { RenderCountingTui } from "./tui-fixture.ts";
+
+import { createStatusBarLifecycle } from "../src/index.ts";
 import { resetStatusBarStateForTests } from "../src/status-bar-api.ts";
 import {
     resetWorkedForWidgetCache,
@@ -14,23 +16,20 @@ import {
 
 type LifecycleEvent = {
     readonly message?: {
-        readonly role?: string;
+        readonly role: "user" | "assistant";
         readonly stopReason?: string;
         readonly usage?: { readonly output: number; readonly reasoning?: number };
     };
-    readonly assistantMessageEvent?: { readonly type: string };
+
+    readonly assistantMessageEvent?: Parameters<
+        ReturnType<typeof createStatusBarLifecycle>["message_update"]
+    >[0]["assistantMessageEvent"];
 };
 type WidgetFactory = (
     tui: TUI,
     theme: { fg(role: string, text: string): string },
 ) => { render(width: number): string[] };
-type LifecycleContext = {
-    readonly hasUI: true;
-    readonly isIdle: () => boolean;
-    readonly sessionManager: { getBranch(): readonly SessionEntry[] };
-    readonly ui: { setWidget(key: string, nextWidget: WidgetFactory | undefined): void };
-};
-type EventHandler = (event: LifecycleEvent, ctx: LifecycleContext) => void | Promise<void>;
+type LifecycleContext = Parameters<ReturnType<typeof createStatusBarLifecycle>["agent_start"]>[1];
 type LifecycleHarness = {
     readonly appendEntries: WorkedForState[];
     readonly context: LifecycleContext;
@@ -52,6 +51,7 @@ function isLoaderPrototypeOwner(value: unknown): value is LoaderPrototypeOwner {
         typeof value.updateDisplay === "function"
     );
 }
+
 function parseLoaderPrototypeOwner(
     value: LoaderPrototypeBoundary,
 ): LoaderPrototypeOwner | undefined {
@@ -60,43 +60,36 @@ function parseLoaderPrototypeOwner(
 }
 
 function createHarness(): LifecycleHarness {
-    const handlers = new Map<string, EventHandler>();
     const appendEntries: WorkedForState[] = [];
     let widget: WidgetFactory | undefined;
     let branch: SessionEntry[] = [];
     let idle = true;
 
-    const api = {
-        appendEntry(customType: string, data: WorkedForState): void {
-            assert.equal(customType, WORKED_FOR_STATE_ENTRY);
-            appendEntries.push(data);
-            branch = [
-                ...branch,
-                {
-                    type: "custom",
-                    id: `entry-${branch.length}`,
-                    parentId: null,
-                    timestamp: "2026-07-30T00:00:00.000Z",
-                    customType,
-                    data,
-                },
-            ];
-        },
-        on(event: string, handler: EventHandler): void {
-            handlers.set(event, handler);
-        },
-    };
-    // SAFETY: Registration uses only the `on` and `appendEntry` methods supplied
-    // by this fixture; handlers receive the lifecycle shapes modeled above.
-    statusBarExtension(api as ExtensionAPI);
+    const handlers = createStatusBarLifecycle((data) => {
+        appendEntries.push(data);
+        branch = [
+            ...branch,
+            {
+                type: "custom",
+                id: `entry-${branch.length}`,
+                parentId: null,
+                timestamp: "2026-07-30T00:00:00.000Z",
+                customType: WORKED_FOR_STATE_ENTRY,
+                data,
+            },
+        ];
+    });
 
     const context: LifecycleContext = {
         hasUI: true,
+        cwd: process.cwd(),
+        isProjectTrusted: () => false,
         isIdle: () => idle,
         sessionManager: {
             getBranch: () => branch,
         },
         ui: {
+            notify() {},
             setWidget(key: string, nextWidget: WidgetFactory | undefined): void {
                 assert.equal(key, WIDGET_KEY);
                 widget = nextWidget;
@@ -109,12 +102,46 @@ function createHarness(): LifecycleHarness {
         context,
         currentWidget: () => widget,
         hasHandler(event: string): boolean {
-            return handlers.has(event);
+            return Object.hasOwn(handlers, event);
         },
         async invoke(event: string, payload: LifecycleEvent = {}): Promise<void> {
-            const handler = handlers.get(event);
-            if (handler === undefined) throw new Error(`Missing ${event} handler`);
-            await handler(payload, context);
+            switch (event) {
+                case "message_start":
+                    assert.ok(payload.message);
+                    await handlers.message_start({ message: payload.message });
+                    break;
+                case "message_update":
+                    assert.ok(payload.message);
+                    assert.ok(payload.assistantMessageEvent);
+                    await handlers.message_update({
+                        message: payload.message,
+                        assistantMessageEvent: payload.assistantMessageEvent,
+                    });
+
+                    break;
+                case "message_end": {
+                    assert.ok(payload.message);
+
+                    if (payload.message.role === "assistant") {
+                        assert.ok(payload.message.usage);
+                        await handlers.message_end({
+                            message: { role: "assistant", usage: payload.message.usage },
+                        });
+                    } else {
+                        await handlers.message_end({ message: { role: payload.message.role } });
+                    }
+                    break;
+                }
+                case "session_start":
+                case "session_tree":
+                case "agent_start":
+                case "agent_settled":
+                case "session_shutdown":
+                    await handlers[event]({ type: event }, context);
+                    break;
+                default:
+                    throw new Error(`Missing ${event} handler`);
+            }
         },
         setIdle(nextIdle: boolean): void {
             idle = nextIdle;
@@ -124,8 +151,7 @@ function createHarness(): LifecycleHarness {
 
 function renderedWidgetText(widget: WidgetFactory | undefined): string {
     if (widget === undefined) throw new Error("Expected widget factory");
-    // SAFETY: The widget factory under test does not read its TUI argument.
-    const component = widget({} as TUI, { fg: (_role, text) => text });
+    const component = widget(new RenderCountingTui(), { fg: (_role, text) => text });
     return component.render(80)[0] ?? "";
 }
 
@@ -239,6 +265,7 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
     if (prototype === undefined) {
         throw new Error("Expected patched Loader.updateDisplay");
     }
+
     const statusUpdateDisplay = prototype.updateDisplay;
     const laterUpdateDisplay = function laterUpdateDisplay(this: Loader): void {
         statusUpdateDisplay.call(this);
@@ -249,15 +276,9 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
     assert.equal(harness.currentWidget(), undefined);
     assert.equal(prototype.updateDisplay, laterUpdateDisplay);
 
-    let renders = 0;
-    const ui = {
-        requestRender(): void {
-            renders += 1;
-        },
-    };
-    // SAFETY: Loader only calls requestRender on its TUI dependency here.
+    const ui = new RenderCountingTui();
     const concurrentLoader = new Loader(
-        ui as TUI,
+        ui,
         (text) => text,
         (text) => text,
         "Working...",
@@ -279,9 +300,8 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
     await concurrentHarness.invoke("session_shutdown");
     assert.equal(prototype.updateDisplay, laterUpdateDisplay);
 
-    // SAFETY: Loader only calls requestRender on its TUI dependency here.
     const unpatchedLoader = new Loader(
-        ui as TUI,
+        ui,
         (text) => text,
         (text) => text,
         "Working...",
@@ -292,6 +312,6 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
         ["", " ⠙ Working..."],
     );
     unpatchedLoader.stop();
-    assert.ok(renders >= 3);
+    assert.ok(ui.renderRequests >= 3);
     vi.useRealTimers();
 });

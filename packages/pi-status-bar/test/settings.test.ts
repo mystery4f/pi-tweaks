@@ -77,6 +77,7 @@ test("loadStatusBarSettings scaffolds missing global config and schema", async (
     } finally {
         rmSync(agentDir, { recursive: true, force: true });
         rmSync(cwd, { recursive: true, force: true });
+
         if (originalAgentDir === undefined) {
             delete process.env.PI_CODING_AGENT_DIR;
         } else {
@@ -91,7 +92,7 @@ test("status bar right messages default to disabled", () => {
     assert.equal(loaded.config.rightMessages.enabled, false);
     assert.equal(loaded.config.statusBar.active?.timer?.visible, true);
     assert.equal(loaded.config.statusBar.idle?.showLastRunSummary, true);
-    assert.equal(loaded.config.statusBar.idle?.showTokensPerSecond, true);
+    assert.equal(loaded.config.statusBar.idle.showTokensPerSecond, true);
     assert.equal(loaded.config.rightMessages.dimmed, true);
     assert.equal(loaded.config.rightMessages.italic, true);
     assert.deepEqual(loaded.config.rightMessages.messages, []);

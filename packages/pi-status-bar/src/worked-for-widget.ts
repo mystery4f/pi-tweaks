@@ -10,10 +10,12 @@ import { getStatusBarSnapshot } from "./status-bar-api.ts";
 
 export const WIDGET_KEY = "pi-status-bar.worked-for";
 export const WORKED_FOR_STATE_ENTRY = "pi-status-bar.worked-for";
-
 let workedForWidgetSignatures = new WeakMap<object, string>();
 
-type StatusBarWidgetFactory = (tui: TUI, theme: Theme) => Component & { dispose?(): void };
+type StatusBarWidgetFactory = (
+    tui: TUI,
+    theme: Pick<Theme, "fg">,
+) => Component & { dispose?(): void };
 
 export type WorkedForState = {
     readonly durationMs: number;
@@ -47,6 +49,7 @@ function isWorkedForState(data: WorkedForEntryData): data is WorkedForState {
     if (!("tokensPerSecond" in data) || data.tokensPerSecond === undefined) {
         return true;
     }
+
     return (
         typeof data.tokensPerSecond === "number" &&
         Number.isFinite(data.tokensPerSecond) &&
@@ -59,6 +62,7 @@ function parseWorkedForState(data: WorkedForEntryData): WorkedForState | undefin
     if (data.tokensPerSecond === undefined) {
         return { durationMs: data.durationMs };
     }
+
     return { durationMs: data.durationMs, tokensPerSecond: data.tokensPerSecond };
 }
 
@@ -76,11 +80,12 @@ export function getWorkedForStateFromBranch(ctx: {
             state = parsed;
         }
     }
+
     return state;
 }
 
 export function clearWorkedForWidget(ctx: WorkedForWidgetContext): void {
-    if (ctx.hasUI !== true) return;
+    if (!ctx.hasUI) return;
     workedForWidgetSignatures.delete(ctx.ui);
     ctx.ui.setWidget(WIDGET_KEY, undefined);
 }
@@ -103,7 +108,7 @@ export function setWorkedForWidget(
     workedForText?: string,
     tokensPerSecond?: number,
 ): void {
-    if (ctx.hasUI !== true) return;
+    if (!ctx.hasUI) return;
 
     const snapshot = getStatusBarSnapshot();
     if (!snapshot.idle.visible) {
@@ -126,6 +131,7 @@ export function setWorkedForWidget(
     ) {
         nextSignature = `${snapshot.idle.text ?? ""}\0${idleSegments}\0${workedForText ?? ""}\0${tokensPerSecond ?? ""}\0${snapshot.idle.showLastRunSummary}\0${snapshot.idle.showTokensPerSecond}`;
     }
+
     if (nextSignature === workedForWidgetSignatures.get(ctx.ui)) {
         return;
     }
@@ -135,6 +141,7 @@ export function setWorkedForWidget(
         ctx.ui.setWidget(WIDGET_KEY, undefined);
         return;
     }
+
     workedForWidgetSignatures.set(ctx.ui, nextSignature);
 
     ctx.ui.setWidget(WIDGET_KEY, (_tui, theme) => ({
@@ -144,6 +151,7 @@ export function setWorkedForWidget(
             if (snapshot.idle.text !== undefined) {
                 parts.push(snapshot.idle.text);
             }
+
             if (snapshot.idle.showLastRunSummary && workedForText !== undefined) {
                 let summary = `Worked for ${workedForText}.`;
                 if (
@@ -154,11 +162,14 @@ export function setWorkedForWidget(
                 ) {
                     summary = `${summary} [${tokensPerSecond.toFixed(1)} tok/s]`;
                 }
+
                 parts.push(summary);
             }
+
             if (idleSegments.length > 0) {
                 parts.push(idleSegments);
             }
+
             const text = parts.join(" · ");
             const truncated = truncateToWidth(text, Math.max(0, width - 1), "");
             return [theme.fg("dim", ` ${truncated}`)];
