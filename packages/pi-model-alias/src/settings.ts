@@ -43,6 +43,7 @@ const ModelAliasesConfigSchema = Type.Object(
 
 type ParsedAliasConfig = Static<typeof aliasConfigSchema>;
 type ParsedProviderAliasConfig = Static<typeof providerAliasConfigSchema>;
+
 export type ModelAliasConfigInput = {
     readonly $schema?: unknown;
     readonly aliases?: unknown;
@@ -75,8 +76,10 @@ function parseModelAliasesConfig(
         if (errors.length > messages.length) {
             suffix = `; and ${errors.length - messages.length} more`;
         }
+
         throw new Error(`pi-model-alias config.json is invalid: ${messages.join("; ")}${suffix}`);
     }
+
     return Value.Parse(ModelAliasesConfigSchema, value);
 }
 
@@ -96,6 +99,7 @@ function normalizeProviderAliasConfig(entry: ParsedProviderAliasConfig): Provide
 
 function validateUniqueAliases(aliases: readonly AliasConfig[]): void {
     const seenAliases = new Map<string, number>();
+
     aliases.forEach((entry, index) => {
         const aliasKey = `${entry.provider}\0${entry.alias}`;
         const duplicateIndex = seenAliases.get(aliasKey);
@@ -104,12 +108,14 @@ function validateUniqueAliases(aliases: readonly AliasConfig[]): void {
                 `aliases[${index}] duplicates aliases[${duplicateIndex}] for provider "${entry.provider}" and alias "${entry.alias}".`,
             );
         }
+
         seenAliases.set(aliasKey, index);
     });
 }
 
 function validateUniqueProviderAliases(providerAliases: readonly ProviderAliasConfig[]): void {
     const seenProviders = new Map<string, number>();
+
     providerAliases.forEach((entry, index) => {
         const duplicateIndex = seenProviders.get(entry.provider);
         if (duplicateIndex !== undefined) {
@@ -117,6 +123,7 @@ function validateUniqueProviderAliases(providerAliases: readonly ProviderAliasCo
                 `providerAliases[${index}] duplicates providerAliases[${duplicateIndex}] for provider "${entry.provider}".`,
             );
         }
+
         seenProviders.set(entry.provider, index);
     });
 }
@@ -125,8 +132,10 @@ export function decodeModelAliasSettings(config: ModelAliasConfigInput): ModelAl
     const parsed = parseModelAliasesConfig(config);
     const aliases = (parsed.aliases ?? []).map(normalizeAliasConfig);
     const providerAliases = (parsed.providerAliases ?? []).map(normalizeProviderAliasConfig);
+
     validateUniqueAliases(aliases);
     validateUniqueProviderAliases(providerAliases);
+
     return {
         aliases,
         providerAliases,
@@ -151,6 +160,7 @@ export function loadModelAliasSettings(
     let configPath = getGlobalConfigPath();
     if (useProjectConfig) configPath = projectConfigPath;
     let mtimeMs = -1;
+
     try {
         mtimeMs = statSync(configPath).mtimeMs;
     } catch {
@@ -171,9 +181,11 @@ export function loadModelAliasSettings(
             },
         },
     );
+
     configPath = loadedLayers.globalConfigPath;
     if (useProjectConfig) configPath = projectConfigPath;
     mtimeMs = -1;
+
     try {
         mtimeMs = statSync(configPath).mtimeMs;
     } catch {
@@ -182,17 +194,19 @@ export function loadModelAliasSettings(
 
     try {
         const configDiagnostics = loadedLayers.diagnostics.filter(
-            (diagnostic) => diagnostic.path === configPath && diagnostic.severity === "error",
+            (diagnostic) => diagnostic.path === configPath,
         );
         if (configDiagnostics.length > 0) {
             throw new Error(configDiagnostics.map((diagnostic) => diagnostic.message).join("; "));
         }
+
         let layer = loadedLayers.globalSettingsLayer;
         if (useProjectConfig) layer = loadedLayers.projectSettingsLayer;
         const config = layer ?? {};
         if (!isModelAliasConfigInput(config)) {
             throw new Error("pi-model-alias config.json is invalid: root must be an object");
         }
+
         const loaded: LoadedModelAliasSettings = {
             path: configPath,
             mtimeMs,
@@ -209,6 +223,7 @@ export function loadModelAliasSettings(
             settings: { aliases: [], providerAliases: [], stableProviderColumn: true },
             diagnostic: `Failed to load ${configPath}: ${message}`,
         };
+
         state.configCache = loaded;
         return loaded;
     }

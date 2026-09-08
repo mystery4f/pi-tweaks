@@ -8,7 +8,7 @@ const SEARCH_COUNTER_RENDER_PATCH_KEY = Symbol.for(
 
 const searchCounterByInput = new WeakMap<object, string>();
 const providerRowLayoutByComponent = new WeakMap<object, ProviderRowLayout>();
-const responsiveProviderRowComponents = new WeakSet<object>();
+const responsiveProviderRowComponents = new WeakSet();
 
 export type ProviderRow = {
     readonly modelText: string;
@@ -74,11 +74,11 @@ function fitProviderRow(layout: ProviderRowLayout, width: number): string {
     const provider = truncateToWidth(layout.providerText, maximumProviderWidth, "…");
     const modelWidth = Math.max(0, availableWidth - visibleWidth(provider) - gapWidth);
     const checkmarkWidth = visibleWidth(layout.checkmark);
-
     let model = truncateToWidth(layout.modelPrefix, modelWidth, "…");
     if (checkmarkWidth > 0 && checkmarkWidth < modelWidth) {
         model = `${truncateToWidth(layout.modelPrefix, modelWidth - checkmarkWidth, "…")}${layout.checkmark}`;
     }
+
     return truncateToWidth(`${model}${gap}${provider}`, availableWidth, "");
 }
 
@@ -98,6 +98,7 @@ function setResponsiveProviderRow(
     }
 
     const originalRender = component.render.bind(component);
+
     component.render = function responsiveProviderRowRender(
         this: RenderableTextComponent,
         width: number,
@@ -106,6 +107,7 @@ function setResponsiveProviderRow(
         if (currentLayout !== undefined) {
             setTextComponentValue(this, fitProviderRow(currentLayout, width));
         }
+
         return originalRender(width);
     };
     responsiveProviderRowComponents.add(component);
@@ -118,6 +120,7 @@ function removeModelNameDetail(container: ListContainer): void {
     if (detailIndex === -1) return;
 
     container.children.splice(detailIndex, 1);
+
     const spacerIndex = detailIndex - 1;
     if (spacerIndex >= 0 && textComponentValue(container.children[spacerIndex]) === undefined) {
         container.children.splice(spacerIndex, 1);
@@ -141,7 +144,9 @@ function takeScrollCounter(container: ListContainer): string | undefined {
     if (scrollIndex === -1) return undefined;
 
     const text = textComponentValue(container.children[scrollIndex]);
+
     container.children.splice(scrollIndex, 1);
+
     return text;
 }
 
@@ -157,10 +162,11 @@ export function setSearchCounter(
     if (input[SEARCH_COUNTER_RENDER_PATCH_KEY] === true) return;
 
     const originalRender = input.render;
+
     input.render = function renderWithSearchCounter(this: SearchInput, width: number): string[] {
         const lines = originalRender.call(this, width);
         const counterText = searchCounterByInput.get(this);
-        const firstLine = lines[0];
+        const firstLine = lines.at(0);
         if (counterText === undefined || firstLine === undefined) return lines;
 
         const baseLine = firstLine.replace(/ +$/, "");
@@ -190,8 +196,10 @@ export function formatProviderRows(
 ): string | undefined {
     if (rows.length === 0) {
         const counter = takeScrollCounter(container);
+
         removeModelNameDetail(container);
         removeModelCatalogStatusSpacer(container);
+
         return counter;
     }
 
@@ -199,6 +207,7 @@ export function formatProviderRows(
     if (widthRows.length > 0) {
         modelWidth = Math.max(...widthRows.map((row) => visibleWidth(row.modelText)));
     }
+
     rows.forEach((row, index) => {
         const component = container.children[index];
         const text = textComponentValue(component);
@@ -225,7 +234,9 @@ export function formatProviderRows(
     });
 
     const counter = takeScrollCounter(container);
+
     removeModelNameDetail(container);
     removeModelCatalogStatusSpacer(container);
+
     return counter;
 }

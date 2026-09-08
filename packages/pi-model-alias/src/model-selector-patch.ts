@@ -2,12 +2,7 @@ import { ModelSelectorComponent } from "@earendil-works/pi-coding-agent";
 import { installLinkedMethodPatch } from "@zigai/pi-extension-internals";
 
 import { warnProviderDisplayPatchUnavailable } from "./internal-imports.ts";
-import {
-    getAliasForModel,
-    getAliasModelIdCollision,
-    type ModelAliasSettings,
-    type ModelLike,
-} from "./model-aliasing.ts";
+import { getAliasForModel, type ModelAliasSettings, type ModelLike } from "./model-aliasing.ts";
 import { applyProviderDisplayNames, getProviderAlias } from "./provider-aliasing.ts";
 import {
     formatProviderRows,
@@ -17,8 +12,10 @@ import {
     type ProviderRow,
     type SearchInput,
 } from "./provider-row.ts";
-import type { ModelAliasRuntimeState } from "./registry-patch.ts";
+import type { AliasPolicy } from "./alias-policy.ts";
 import { installScopedModelsProviderPatchFromPi } from "./scoped-model-selector-patch.ts";
+
+type SelectorPolicy = Pick<AliasPolicy, "forModels">;
 
 const MODEL_SELECTOR_PROVIDER_PATCH_KEY = Symbol.for(
     "zigai.pi-model-alias.model-selector-provider-patched",
@@ -33,7 +30,7 @@ type ModelSelectorItem = {
     model: ModelLike;
 };
 
-type RuntimeStateHolder = { state: ModelAliasRuntimeState };
+type RuntimeStateHolder = { state: SelectorPolicy };
 
 type ModelSelectorPatchSurface = {
     [MODEL_SELECTOR_PROVIDER_PATCH_KEY]?: true;
@@ -115,29 +112,21 @@ function isModelSelectorInstance(
 
 function setPatchState(
     target: ModelSelectorPatchSurface,
-    state: ModelAliasRuntimeState,
+    state: SelectorPolicy,
 ): RuntimeStateHolder {
     const existingState = target[MODEL_SELECTOR_PROVIDER_STATE_KEY];
     if (existingState !== undefined) {
         existingState.state = state;
         return existingState;
     }
+
     const patchState = { state };
     target[MODEL_SELECTOR_PROVIDER_STATE_KEY] = patchState;
     return patchState;
 }
 
-function getSettings(
-    target: ModelSelectorPatchTarget,
-    state: ModelAliasRuntimeState,
-): ModelAliasSettings {
-    const loaded = state.loadSettings();
-    if (loaded.diagnostic !== undefined) return loaded.settings;
-    const nativeModels = target.allModels.map((item) => item.model);
-    if (getAliasModelIdCollision(loaded.settings, nativeModels) === undefined) {
-        return loaded.settings;
-    }
-    return { ...loaded.settings, aliases: [], providerAliases: [] };
+function getSettings(target: ModelSelectorPatchTarget, state: SelectorPolicy): ModelAliasSettings {
+    return state.forModels(target.allModels.map((item) => item.model));
 }
 
 function applyModelSelectorAliases(
@@ -149,13 +138,11 @@ function applyModelSelectorAliases(
         if (alias === undefined) return item;
         return { ...item, id: alias.alias };
     });
+
     return applyProviderDisplayNames(modelAliased, settings);
 }
 
-function setModelSelectorAliases(
-    target: ModelSelectorPatchTarget,
-    state: ModelAliasRuntimeState,
-): void {
+function setModelSelectorAliases(target: ModelSelectorPatchTarget, state: SelectorPolicy): void {
     const settings = getSettings(target, state);
     target.allModels = applyModelSelectorAliases(target.allModels, settings);
     target.scopedModelItems = applyModelSelectorAliases(target.scopedModelItems, settings);
@@ -181,7 +168,7 @@ type ModelSelectorSearch = {
 
 function getSearchItems(
     target: ModelSelectorPatchTarget,
-    state: ModelAliasRuntimeState,
+    state: SelectorPolicy,
 ): ModelSelectorSearch {
     const items = target.activeModels;
     const settings = getSettings(target, state);
@@ -199,20 +186,20 @@ function getSearchItems(
         if (providerAlias !== undefined) {
             provider = `${providerAlias.name} ${item.model.provider}`;
         }
+
         const modelSearchTerms = [item.model.name, modelAlias?.name, item.model.id]
             .filter((term): term is string => term !== undefined && term.length > 0)
             .join(" ");
         const searchItem = { ...item, provider, model: { ...item.model, name: modelSearchTerms } };
         originals.set(searchItem, item);
+
         return searchItem;
     });
+
     return { items: searchItems, originals };
 }
 
-function formatModelSelectorList(
-    target: ModelSelectorPatchTarget,
-    state: ModelAliasRuntimeState,
-): void {
+function formatModelSelectorList(target: ModelSelectorPatchTarget, state: SelectorPolicy): void {
     const container = target.listContainer;
     if (container === undefined) return;
 
@@ -229,18 +216,21 @@ function formatModelSelectorList(
 }
 
 export function installModelSelectorProviderPatch(
-    state: ModelAliasRuntimeState,
+    state: SelectorPolicy,
     prototype?: ModelSelectorPatchTarget | null,
 ): void {
     let target: ModelSelectorPatchSurface | null | undefined = prototype;
     if (target === undefined && isModelSelectorPatchSurface(ModelSelectorComponent.prototype)) {
         target = ModelSelectorComponent.prototype;
     }
+
     if (!isModelSelectorPatchSurface(target)) {
         warnProviderDisplayPatchUnavailable("model picker provider alias patch");
         return;
     }
+
     const patchState = setPatchState(target, state);
+
     if (target[MODEL_SELECTOR_PROVIDER_PATCH_KEY] === true) return;
 
     const originalLoadModelsFromSnapshot = target.loadModelsFromSnapshot;
@@ -248,6 +238,7 @@ export function installModelSelectorProviderPatch(
 
     target.loadModelsFromSnapshot = function loadModelsFromSnapshotWithAliases(): void {
         originalLoadModelsFromSnapshot.call(this);
+
         if (isModelSelectorInstance(this)) setModelSelectorAliases(this, patchState.state);
     };
 
@@ -256,14 +247,17 @@ export function installModelSelectorProviderPatch(
             originalFilterModels.call(this, query);
             return;
         }
+
         const originalActiveModels = this.activeModels;
         const search = getSearchItems(this, patchState.state);
         this.activeModels = search.items;
+
         try {
             originalFilterModels.call(this, query);
         } finally {
             this.activeModels = originalActiveModels;
         }
+
         this.filteredModels = this.filteredModels.map((item) => search.originals.get(item) ?? item);
         this.updateList();
     };
@@ -274,12 +268,15 @@ export function installModelSelectorProviderPatch(
                 predecessor.call(this);
                 return;
             }
+
             const originalFilteredModels = this.filteredModels;
             const settings = getSettings(this, patchState.state);
+
             this.filteredModels = originalFilteredModels.map((item) => ({
                 ...item,
                 id: getModelDisplayId(item.model, settings),
             }));
+
             try {
                 predecessor.call(this);
                 formatModelSelectorList(this, patchState.state);
@@ -294,16 +291,15 @@ export function installModelSelectorProviderPatch(
 
 export type ProviderAliasUiPatchOptions = {
     readonly modelSelectorPrototype?: ModelSelectorPatchTarget;
-    readonly installScopedModelsProviderPatchFromPi?: (
-        state: ModelAliasRuntimeState,
-    ) => Promise<void>;
+    readonly installScopedModelsProviderPatchFromPi?: (state: SelectorPolicy) => Promise<void>;
 };
 
 export async function installProviderAliasUiPatches(
-    state: ModelAliasRuntimeState,
+    state: SelectorPolicy,
     options: ProviderAliasUiPatchOptions = {},
 ): Promise<void> {
     installModelSelectorProviderPatch(state, options.modelSelectorPrototype);
+
     const installScopedPatch =
         options.installScopedModelsProviderPatchFromPi ?? installScopedModelsProviderPatchFromPi;
     await installScopedPatch(state);

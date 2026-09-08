@@ -1,3 +1,4 @@
+import { AliasPolicy } from "../src/alias-policy.ts";
 import assert from "node:assert/strict";
 import { ModelSelectorComponent } from "@earendil-works/pi-coding-agent";
 import { test } from "vitest";
@@ -7,7 +8,7 @@ import {
     installProviderAliasUiPatches,
 } from "../src/model-selector-patch.ts";
 import { installScopedModelsProviderPatch } from "../src/scoped-model-selector-patch.ts";
-import type { ModelAliasRuntimeState } from "../src/registry-patch.ts";
+
 import type { LoadedModelAliasSettings } from "../src/settings.ts";
 
 type ModelSelectorPrototype = NonNullable<Parameters<typeof installModelSelectorProviderPatch>[1]>;
@@ -28,12 +29,12 @@ function loadedConfig(providerName: string): LoadedModelAliasSettings {
     };
 }
 
-function runtimeState(providerName: string): ModelAliasRuntimeState {
-    return {
+function runtimeState(providerName: string): AliasPolicy {
+    return new AliasPolicy({
         loadSettings() {
             return loadedConfig(providerName);
         },
-    };
+    });
 }
 
 function modelItem(): ModelSelectorItem {
@@ -134,7 +135,7 @@ test("provider alias UI patch waits for scoped selector patch installation", asy
 
     const installPromise = installProviderAliasUiPatches(runtimeState("Provider"), {
         modelSelectorPrototype: prototype,
-        installScopedModelsProviderPatchFromPi() {
+        async installScopedModelsProviderPatchFromPi() {
             return scopedInstallFinished;
         },
     });
@@ -146,6 +147,7 @@ test("provider alias UI patch waits for scoped selector patch installation", asy
     assert.equal(pendingResult, "pending");
 
     assert.notEqual(finishScopedInstall, undefined);
+
     if (finishScopedInstall === undefined) assert.fail("expected scoped install finisher");
     finishScopedInstall();
 
