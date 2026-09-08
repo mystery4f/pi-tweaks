@@ -5,6 +5,7 @@ import {
     type FooterSlotSnapshot,
     type SegmentColors,
 } from "./footer-model.ts";
+
 const CUSTOM_SLOT_COLORS = {
     bg: "",
     fg: "",
@@ -18,10 +19,13 @@ const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
 export type FooterSlotRegistration = {
     /** Namespaced custom slot id, for example `my-extension.status`. */
     readonly id: string;
+
     /** Side used when the user has not placed or hidden this slot in config. */
     readonly defaultSide?: FooterSide;
+
     /** Initial visible text. Empty or whitespace-only text hides the slot. */
     readonly text?: string;
+
     /** Optional colors preserved for compatibility with block footer variants. */
     readonly colors?: SegmentColors;
 };
@@ -30,8 +34,10 @@ export type FooterSlotRegistration = {
 export type FooterSlotHandle = {
     /** Replace this slot's visible text. Empty or whitespace-only text hides the slot. */
     setText(text: string): void;
+
     /** Hide this slot while keeping its registration and default placement. */
     clear(): void;
+
     /** Remove this slot registration. Stale handles become inert after disposal. */
     dispose(): void;
 };
@@ -64,6 +70,7 @@ function getFooterSlotState(): FooterSlotState {
         };
         globalState[FOOTER_SLOT_STATE] = state;
     }
+
     return state;
 }
 
@@ -74,12 +81,11 @@ function parseFooterCustomSlotId(value: string): FooterCustomSlotId {
         );
     }
 
-    // SAFETY: CUSTOM_SLOT_ID_REGEX requires at least one dot-separated namespace segment;
-    // TypeScript cannot represent that regex-established FooterCustomSlotId brand.
-    return value as FooterCustomSlotId;
+    const separator = value.indexOf(".");
+    return `${value.slice(0, separator)}.${value.slice(separator + 1)}`;
 }
 
-function parseFooterSide(value: FooterSide | undefined): FooterSide | undefined {
+function parseFooterSide(value: string | undefined): FooterSide | undefined {
     if (value === undefined) return undefined;
     if (value === "left" || value === "right") return value;
     throw new Error(`[pi-footer] Custom footer slot defaultSide must be "left" or "right".`);
@@ -188,6 +194,7 @@ export function registerFooterSlot(registration: FooterSlotRegistration): Footer
             } else {
                 current.text = nextVisibleText;
             }
+
             emitFooterSlotUpdates(state);
         },
         clear(): void {
@@ -201,6 +208,7 @@ export function registerFooterSlot(registration: FooterSlotRegistration): Footer
         dispose(): void {
             const current = getOwnedSlot();
             disposed = true;
+
             if (current === undefined) return;
 
             state.slots.delete(id);
@@ -236,5 +244,6 @@ export function getFooterSlotSnapshots(): FooterSlotSnapshot[] {
             snapshots.push(snapshot);
         }
     }
+
     return snapshots;
 }

@@ -20,15 +20,18 @@ const TRANSITION_STATE_KEY = "__zigaiPiFooterTransitionState__";
 const BRIDGE_FOOTER_TTL_MS = 15_000;
 
 type FooterComponent = ReturnType<typeof createFooterComponent>;
+
 type FooterTui = {
     requestRender(): void;
     setClearOnShrink?(enabled: boolean): void;
 };
+
 type FooterFactory = (
     tui: FooterTui,
     theme: PlainFooterTheme,
     footerData: FooterData,
 ) => FooterComponent;
+
 type LiveFooterContext = FooterContext & {
     ui: {
         setFooter(factory: FooterFactory | undefined): void;
@@ -68,6 +71,7 @@ function isPatchableInteractiveModePrototype(
     if ((typeof value !== "object" && typeof value !== "function") || value === null) {
         return false;
     }
+
     return (
         "resetExtensionUI" in value &&
         typeof value.resetExtensionUI === "function" &&
@@ -84,6 +88,7 @@ function getTransitionState(): FooterTransitionState {
         state = { liveInstallGeneration: 0 };
         globalState[TRANSITION_STATE_KEY] = state;
     }
+
     return state;
 }
 
@@ -118,6 +123,7 @@ function cloneModel(ctx: FooterContext): FooterModel | undefined {
     if (model.name !== undefined) {
         cloned.name = model.name;
     }
+
     const providerDisplayName = resolveProviderDisplayName(ctx, model.provider);
     if (providerDisplayName !== undefined) {
         cloned.providerDisplayName = providerDisplayName;
@@ -159,6 +165,7 @@ function shouldBridgeFooter(
 ): boolean {
     if (kind === undefined) return false;
     if (state.latestSnapshot === undefined) return false;
+
     // Session replacements tear down extension UI after `session_shutdown`, but
     // `/reload` calls `resetExtensionUI()` before the shutdown event. Treat an
     // otherwise-active footer with no pending reason as that pre-shutdown reload
@@ -189,7 +196,8 @@ function installBridgeFooter(host: FooterResetHost, snapshot: FooterSnapshot): v
         if (!isFooterComponent(footer) || footer[FOOTER_COMPONENT_KIND] !== "bridge") return;
         host.setExtensionFooter(undefined);
     }, BRIDGE_FOOTER_TTL_MS);
-    timeout.unref?.();
+
+    timeout.unref();
 }
 
 function bridgeAfterFooterReset(
@@ -223,6 +231,7 @@ export function patchFooterReset(): void {
                 if (isFooterComponent(this.customFooter)) {
                     footerKind = this.customFooter[FOOTER_COMPONENT_KIND];
                 }
+
                 const state = getTransitionState();
                 const snapshot = state.latestSnapshot;
 

@@ -20,6 +20,7 @@ type PatchableTuiInstance = {
     previousWidth: number;
     previousHeight: number;
     previousViewportTop: number;
+
     terminal: {
         columns: number;
         rows: number;
@@ -55,10 +56,12 @@ type BottomChromeSpacingResult = {
 function isComponentContainer(component: Component): component is ComponentContainer {
     return "children" in component && Array.isArray(component.children);
 }
+
 function isPatchableTuiPrototype(value: unknown): value is PatchableTuiPrototype {
     if ((typeof value !== "object" && typeof value !== "function") || value === null) {
         return false;
     }
+
     return "render" in value && typeof value.render === "function";
 }
 
@@ -66,6 +69,7 @@ function containsFooterComponent(component: Component, visited = new Set<Compone
     if (isFooterComponent(component)) return true;
     if (visited.has(component)) return false;
     visited.add(component);
+
     if (!isComponentContainer(component)) return false;
 
     return component.children.some((child) => containsFooterComponent(child, visited));
@@ -73,7 +77,8 @@ function containsFooterComponent(component: Component, visited = new Set<Compone
 
 function getFooterChildIndex(tui: PatchableTuiInstance): number | undefined {
     const index = tui.children.length - 1;
-    const lastChild = tui.children[index];
+    if (index < 0) return undefined;
+    const lastChild = tui.children.at(index);
     if (lastChild === undefined) return undefined;
     if (!containsFooterComponent(lastChild)) return undefined;
     return index;
@@ -104,6 +109,7 @@ function getFirstChangedLineIndex(
         const line = lines[index] ?? "";
         if (previousLine !== line) return index;
     }
+
     return undefined;
 }
 
@@ -145,7 +151,7 @@ function getFocusedTopLevelChildIndex(
     if (focusedComponent === undefined || focusedComponent === null) return undefined;
 
     for (let index = 0; index <= footerIndex; index += 1) {
-        const child = tui.children[index];
+        const child = tui.children.at(index);
         if (child !== undefined && containsComponent(child, focusedComponent)) return index;
     }
 
@@ -162,6 +168,7 @@ function countRenderedChildLines(
         if (range.index < startIndex || range.index > endIndex) continue;
         count += range.end - range.start;
     }
+
     return count;
 }
 
@@ -179,6 +186,7 @@ function getAnchoredTailStartIndex(tui: PatchableTuiInstance): number | undefine
     if (focusedIndex >= BOTTOM_CHROME_PRECEDING_SIBLINGS) {
         return focusedIndex - BOTTOM_CHROME_PRECEDING_SIBLINGS;
     }
+
     return focusedIndex;
 }
 
@@ -186,6 +194,7 @@ function enterChildLineRangesFrame(tui: PatchableTuiInstance, width: number): ()
     const existingFrame = tui[CHILD_LINE_RANGES_FRAME_KEY];
     if (existingFrame?.width === width) {
         existingFrame.depth += 1;
+
         return () => {
             existingFrame.depth -= 1;
             if (existingFrame.depth === 0 && tui[CHILD_LINE_RANGES_FRAME_KEY] === existingFrame) {
@@ -196,6 +205,7 @@ function enterChildLineRangesFrame(tui: PatchableTuiInstance, width: number): ()
 
     const frame: ChildLineRangesFrame = { width, depth: 1, recording: false };
     tui[CHILD_LINE_RANGES_FRAME_KEY] = frame;
+
     return () => {
         frame.depth -= 1;
         if (frame.depth === 0 && tui[CHILD_LINE_RANGES_FRAME_KEY] === frame) {
@@ -220,12 +230,13 @@ function renderWithChildLineRanges(
     }> = [];
     const ranges: ChildLineRange[] = [];
     let start = 0;
+
     frame.recording = true;
     frame.ranges = ranges;
 
     try {
         for (let index = 0; index < tui.children.length; index += 1) {
-            const child = tui.children[index];
+            const child = tui.children.at(index);
             if (child === undefined) continue;
 
             const originalRender = child.render.bind(child);
@@ -248,6 +259,7 @@ function renderWithChildLineRanges(
                 Object.defineProperty(original.child, "render", original.ownDescriptor);
             }
         }
+
         frame.recording = false;
     }
 }
@@ -288,9 +300,10 @@ function getRangeForChild(
 
 function hasVisibleLine(lines: readonly string[], start: number, end: number): boolean {
     for (let index = start; index < end; index += 1) {
-        const line = lines[index];
+        const line = lines.at(index);
         if (line !== undefined && line.trim().length > 0) return true;
     }
+
     return false;
 }
 
@@ -313,8 +326,9 @@ function compactBottomChromeSpacing(
     }
 
     const gapIndex = focusedRange.start - 1;
-    const gapLine = lines[gapIndex];
-    if (gapIndex < 0 || gapLine === undefined || gapLine.trim().length > 0) {
+    if (gapIndex < 0) return { lines: [...lines], removedRows: 0 };
+    const gapLine = lines.at(gapIndex);
+    if (gapLine === undefined || gapLine.trim().length > 0) {
         return { lines: [...lines], removedRows: 0 };
     }
 
@@ -381,10 +395,10 @@ function padAtVisibleBoundary(
     const tailStart = Math.max(0, lines.length - tailLength);
     const rowsBeforeTail = Math.max(0, targetLength - insertIndex - tailLength);
     const result: string[] = [];
-
     appendPreviousRowsUntil(result, tui, insertIndex);
     appendRowsBeforeAnchoredTail(result, lines, insertIndex, tailStart, rowsBeforeTail);
     result.push(...lines.slice(tailStart));
+
     return result;
 }
 
@@ -405,6 +419,7 @@ export function installFooterShrinkPaddingPatch(): { dispose(): void } | undefin
         (predecessor) =>
             function (this: PatchableTuiInstance, width: number): string[] {
                 const leaveFrame = enterChildLineRangesFrame(this, width);
+
                 try {
                     const renderedLines = renderWithChildLineRanges(this, width, predecessor);
                     const lines = compactBottomChromeSpacing(this, renderedLines, width);
