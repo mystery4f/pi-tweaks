@@ -2,57 +2,25 @@ import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { test } from "vitest";
 
 import plainUserMessagesExtension from "../src/index.ts";
-
-type UserMessageInstance = {
-    render(width: number): string[];
-};
-
-type UserMessageConstructor = {
-    new (text: string): UserMessageInstance;
-    readonly prototype: { readonly render?: UserMessageInstance["render"] };
-};
+import { userMessageRuntime } from "../src/user-message-runtime.ts";
 
 type ThemeRuntimeModule = {
     readonly initTheme: (settings: undefined, watch: boolean) => void;
-};
-
-type ThemeRuntimeModuleView = {
-    readonly initTheme?: ThemeRuntimeModule["initTheme"];
-};
-
-type UserMessageModuleView = {
-    readonly UserMessageComponent?: UserMessageConstructor;
-};
-type ParsedUserMessageModule = {
-    readonly UserMessageComponent: UserMessageConstructor;
 };
 
 function isThemeRuntimeModule(value: unknown): value is ThemeRuntimeModule {
     if ((typeof value !== "object" && typeof value !== "function") || value === null) {
         return false;
     }
-    // SAFETY: The namespace-object check permits reading initTheme, whose callable
-    // contract is verified before this predicate returns true.
-    return typeof (value as ThemeRuntimeModuleView).initTheme === "function";
-}
 
-function isUserMessageModule(value: unknown): value is ParsedUserMessageModule {
-    if ((typeof value !== "object" && typeof value !== "function") || value === null) {
-        return false;
-    }
-    // SAFETY: The namespace-object check permits reading the dynamic component export;
-    // its constructor and render prototype contracts are both verified below.
-    const component = (value as UserMessageModuleView).UserMessageComponent;
-    const prototype = component?.prototype;
-    return typeof component === "function" && typeof prototype?.render === "function";
+    return "initTheme" in value && typeof value.initTheme === "function";
 }
 
 type LifecycleApi = {
-    readonly api: ExtensionAPI;
+    readonly api: NonNullable<Parameters<typeof plainUserMessagesExtension>[0]>;
     readonly shutdownHandlers: Array<() => void>;
 };
 
@@ -64,11 +32,12 @@ function createLifecycleApi(): LifecycleApi {
         },
     };
 
-    // SAFETY: The extension reads only the on method implemented by this test seam.
-    return { api: api as ExtensionAPI, shutdownHandlers };
+    return { api, shutdownHandlers };
 }
 
-async function loadUserMessageConstructor(): Promise<UserMessageConstructor> {
+async function loadUserMessageConstructor(): Promise<
+    NonNullable<ReturnType<typeof userMessageRuntime.parse>>
+> {
     const codingAgentEntry = fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"));
     const themePath = pathToFileURL(
         join(dirname(codingAgentEntry), "modes/interactive/theme/theme.js"),
@@ -77,16 +46,19 @@ async function loadUserMessageConstructor(): Promise<UserMessageConstructor> {
     if (!isThemeRuntimeModule(themeModule)) {
         assert.fail("missing theme module");
     }
+
     themeModule.initTheme.call(themeModule, undefined, false);
 
     const userMessagePath = pathToFileURL(
         join(dirname(codingAgentEntry), "modes/interactive/components/user-message.js"),
     ).href;
     const userMessageModule: unknown = await import(userMessagePath);
-    if (!isUserMessageModule(userMessageModule)) {
+    const component = userMessageRuntime.parse(userMessageModule);
+    if (component === undefined) {
         assert.fail("missing UserMessageComponent");
     }
-    return userMessageModule.UserMessageComponent;
+
+    return component;
 }
 
 test("renders Markdown heading syntax literally in user messages", async () => {
