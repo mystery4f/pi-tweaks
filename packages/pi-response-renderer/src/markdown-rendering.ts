@@ -10,8 +10,7 @@ const BEL = String.fromCharCode(0x07);
 const ANSI_OSC_REGEX = new RegExp(`${ESC}\\][^${BEL}]*${BEL}`, "g");
 const ANSI_CSI_REGEX = new RegExp(`${ESC}\\[[0-9;?]*[ -/]*[@-~]`, "g");
 const ANSI_SGR_REGEX = new RegExp(`${ESC}\\[([0-9;]*)m`, "g");
-
-const fencesHiddenInstances = new WeakSet<object>();
+const fencesHiddenInstances = new WeakSet();
 
 function stripAnsi(text: string): string {
     return text.replace(ANSI_OSC_REGEX, "").replace(ANSI_CSI_REGEX, "");
@@ -28,6 +27,7 @@ export function stripItalicAnsi(text: string): string {
         if (filtered.length === 0) {
             return "";
         }
+
         return `\u001b[${filtered.join(";")}m`;
     });
 }
@@ -47,7 +47,6 @@ function isIntroLine(line: string): boolean {
 function isIntroducedBlockLine(line: string): boolean {
     const plainLine = stripAnsi(line);
     const trimmedStart = plainLine.trimStart();
-
     return (
         /^[-*+]\s+/.test(trimmedStart) ||
         /^\d+[.)]\s+/.test(trimmedStart) ||
@@ -65,6 +64,7 @@ function isTableLine(line: string): boolean {
     // Rendered Markdown tables start with box-drawing characters.
     return /^[\u2500-\u257F]/.test(stripAnsi(line).trimStart());
 }
+
 export type MarkdownRender = (this: Markdown, width: number) => string[];
 
 type StyledMarkdownInstance = {
@@ -108,6 +108,7 @@ function isMarkdownTheme(value: unknown): value is MarkdownTheme {
         "strikethrough",
         "underline",
     ] as const;
+
     return functionKeys.every((key) => typeof ownDataDescriptor(value, key)?.value === "function");
 }
 
@@ -131,7 +132,9 @@ function isDefaultTextStyle(value: unknown): value is DefaultTextStyle {
     if ("bgColor" in value && value.bgColor !== undefined && typeof value.bgColor !== "function") {
         return false;
     }
+
     const booleanKeys = ["bold", "italic", "strikethrough", "underline"] as const;
+
     return booleanKeys.every((key) => {
         const property = ownDataDescriptor(value, key)?.value;
         return isBooleanOrUndefined(property);
@@ -153,6 +156,7 @@ function isMarkdownOptions(value: unknown): value is MarkdownOptions {
     ) {
         return false;
     }
+
     return (
         !("transform" in value) ||
         value.transform === undefined ||
@@ -195,6 +199,7 @@ function getStylePrefix(styleFn: (text: string) => string): string {
     if (sentinelIndex >= 0) {
         return styled.slice(0, sentinelIndex);
     }
+
     return "";
 }
 
@@ -211,6 +216,7 @@ function getFenceSequence(line: string): string | undefined {
     if (match === null) {
         return undefined;
     }
+
     return match[1];
 }
 
@@ -254,6 +260,7 @@ function markdownPaddingX(markdownInstance: StyledMarkdownInstance): number {
     if (paddingX !== undefined && Number.isFinite(paddingX) && paddingX >= 0) {
         return paddingX;
     }
+
     return 0;
 }
 
@@ -293,6 +300,7 @@ function cacheHeadingLineTexts(
         options: markdownInstance.options,
         value,
     });
+
     return value;
 }
 
@@ -306,10 +314,12 @@ export function resolveHeadingLineTexts(
     if (text === undefined) {
         return EMPTY_HEADING_LINE_TEXTS;
     }
+
     const theme = markdownInstance.theme;
     if (theme === undefined) {
         return EMPTY_HEADING_LINE_TEXTS;
     }
+
     const paddingX = markdownPaddingX(markdownInstance);
     const cached = headingLineTextsByMarkdown.get(instance);
     if (
@@ -366,6 +376,7 @@ export function resolveHeadingPrefix(instance: Markdown): string {
     if (typeof theme?.heading !== "function") {
         return "";
     }
+
     return getStylePrefix(theme.heading);
 }
 
@@ -377,6 +388,7 @@ function isRenderedHeadingLine(
     if (headingPrefix.length > 0 && line.trimStart().startsWith(headingPrefix)) {
         return true;
     }
+
     return headingLineTexts.has(normalizeRenderedLine(line));
 }
 
@@ -423,8 +435,10 @@ function shouldCollapseBlankLine(
     headingPrefix: string,
     headingLineTexts: ReadonlySet<string>,
 ): boolean {
-    const previousLine = lines[index - 1];
-    const nextLine = lines[index + 1];
+    // Array.at(-1) wraps; the first line has no predecessor.
+    if (index === 0) return false;
+    const previousLine = lines.at(index - 1);
+    const nextLine = lines.at(index + 1);
     if (previousLine === undefined || nextLine === undefined) {
         return false;
     }
