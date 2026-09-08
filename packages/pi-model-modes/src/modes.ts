@@ -1,35 +1,10 @@
+import { ALL_THINKING_LEVELS } from "./thinking-levels.ts";
 import { getSupportedThinkingLevels, type Api, type Model } from "@earendil-works/pi-ai";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { SessionStartEvent, ThemeColor } from "@earendil-works/pi-coding-agent";
 
-function defineThinkingLevels<const Levels extends readonly ThinkingLevel[]>(
-    levels: Levels & ([ThinkingLevel] extends [Levels[number]] ? unknown : never),
-): Levels {
-    return levels;
-}
-
 export const DEFAULT_MODE_ORDER = ["default"] as const;
 export const CUSTOM_MODE_NAME = "custom" as const;
-
-export const MODE_UI_CONFIGURE = "Configure modes…";
-export const MODE_UI_ADD = "Add mode…";
-export const MODE_UI_DEFAULT_MODEL = "Set default model…";
-export const MODE_UI_THINKING_COLORS_ON = "Thinking border colors: on";
-export const MODE_UI_THINKING_COLORS_OFF = "Thinking border colors: off";
-export const MODE_UI_THINKING_STATUS_ON = "Thinking level status: on";
-export const MODE_UI_THINKING_STATUS_OFF = "Thinking level status: off";
-export const MODE_UI_BACK = "Back";
-
-export const ALL_THINKING_LEVELS = defineThinkingLevels([
-    "off",
-    "minimal",
-    "low",
-    "medium",
-    "high",
-    "xhigh",
-    "max",
-] as const);
-export const THINKING_UNSET_LABEL = "(don't change)";
 
 export type ModeName = string;
 
@@ -37,6 +12,7 @@ export type ModeSpec = {
     provider?: string;
     modelId?: string;
     thinkingLevel?: ThinkingLevel;
+
     /**
      * Optional theme color token to use for the editor border.
      * If unset, the default editor border is used unless thinking-derived
@@ -142,6 +118,7 @@ export function cloneModesFile(file: ModesFile): ModesFile {
     for (const [name, spec] of Object.entries(file.modes)) {
         modes[name] = cloneModeSpec(spec);
     }
+
     const cloned: ModesFile = {
         version: file.version,
         currentMode: file.currentMode,
@@ -187,13 +164,13 @@ export function computeModesPatch(
     const modesPatch: Record<string, ModeSpecPatch | null> = {};
 
     for (const key of keys) {
-        const before = base.modes[key];
-        const after = next.modes[key];
-
+        const before = modeSpec(base.modes, key);
+        const after = modeSpec(next.modes, key);
         if (after === undefined) {
             if (before !== undefined) modesPatch[key] = null;
             continue;
         }
+
         if (before === undefined) {
             modesPatch[key] = { ...after };
             continue;
@@ -212,6 +189,7 @@ export function computeModesPatch(
         if (before.color !== after.color) {
             diff.color = after.color ?? null;
         }
+
         if (Object.keys(diff).length > 0) {
             modesPatch[key] = diff;
         }
@@ -228,6 +206,7 @@ export function computeModesPatch(
     ) {
         return null;
     }
+
     return patch;
 }
 
@@ -245,6 +224,7 @@ export function applyModesPatch(target: ModesFile, patch: ModesPatch): void {
     }
 
     if (patch.modes === undefined) return;
+
     for (const [mode, specPatch] of Object.entries(patch.modes)) {
         if (specPatch === null) {
             delete target.modes[mode];
@@ -253,6 +233,7 @@ export function applyModesPatch(target: ModesFile, patch: ModesPatch): void {
 
         const targetSpec = modeSpec(target.modes, mode) ?? {};
         target.modes[mode] = targetSpec;
+
         if ("provider" in specPatch) {
             if (specPatch.provider === null || specPatch.provider === undefined) {
                 delete targetSpec.provider;
@@ -260,6 +241,7 @@ export function applyModesPatch(target: ModesFile, patch: ModesPatch): void {
                 targetSpec.provider = specPatch.provider;
             }
         }
+
         if ("modelId" in specPatch) {
             if (specPatch.modelId === null || specPatch.modelId === undefined) {
                 delete targetSpec.modelId;
@@ -267,6 +249,7 @@ export function applyModesPatch(target: ModesFile, patch: ModesPatch): void {
                 targetSpec.modelId = specPatch.modelId;
             }
         }
+
         if ("thinkingLevel" in specPatch) {
             if (specPatch.thinkingLevel === null || specPatch.thinkingLevel === undefined) {
                 delete targetSpec.thinkingLevel;
@@ -274,6 +257,7 @@ export function applyModesPatch(target: ModesFile, patch: ModesPatch): void {
                 targetSpec.thinkingLevel = specPatch.thinkingLevel;
             }
         }
+
         if ("color" in specPatch) {
             if (specPatch.color === null || specPatch.color === undefined) {
                 delete targetSpec.color;
@@ -282,17 +266,6 @@ export function applyModesPatch(target: ModesFile, patch: ModesPatch): void {
             }
         }
     }
-}
-
-export function isThinkingLevel(value: string): value is ThinkingLevel {
-    return ALL_THINKING_LEVELS.some((level) => level === value);
-}
-
-export function normalizeThinkingLevel(
-    level: ThinkingLevel | undefined,
-): ThinkingLevel | undefined {
-    if (level !== undefined && isThinkingLevel(level)) return level;
-    return undefined;
 }
 
 function isModeColor(value: string): value is NonNullable<ModeSpec["color"]> {
@@ -358,6 +331,7 @@ export function findModeForModel(
     for (const name of orderedModeNames(modes)) {
         if (modeUsesModel(modes[name], provider, modelId)) return name;
     }
+
     return null;
 }
 
@@ -381,31 +355,8 @@ export function isDefaultModeName(name: string): boolean {
     return DEFAULT_MODE_ORDER.some((defaultName) => defaultName === name);
 }
 
-function isReservedModeName(name: string): boolean {
-    return (
-        name === CUSTOM_MODE_NAME ||
-        name === MODE_UI_CONFIGURE ||
-        name === MODE_UI_ADD ||
-        name === MODE_UI_BACK
-    );
-}
-
 export function normalizeModeNameInput(name: string | undefined): string {
     return (name ?? "").trim();
-}
-
-export function validateModeNameOrError(
-    name: string,
-    existing: Record<string, ModeSpec>,
-    options?: { allowExisting?: boolean },
-): string | null {
-    if (name.length === 0) return "Mode name cannot be empty";
-    if (/\s/.test(name)) return "Mode name cannot contain whitespace";
-    if (isReservedModeName(name)) return `Mode name "${name}" is reserved`;
-    if (options?.allowExisting !== true && modeSpec(existing, name) !== undefined) {
-        return `Mode "${name}" already exists`;
-    }
-    return null;
 }
 
 export function getModeThinkingLevels(model: Model<Api> | undefined): readonly ThinkingLevel[] {

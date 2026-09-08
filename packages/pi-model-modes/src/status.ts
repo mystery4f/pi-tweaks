@@ -42,7 +42,9 @@ function isStatusPatchState(value: unknown): value is StatusPatchState {
     ) {
         return false;
     }
+
     const { predicate, handle } = value;
+
     return (
         typeof predicate === "object" &&
         predicate !== null &&
@@ -99,6 +101,7 @@ export function restoreThinkingLevelStatusPatch(prototype?: InteractiveModeProto
         delete prototype[STATUS_PATCH_MARKER];
         return;
     }
+
     state.handle.dispose();
     delete prototype[STATUS_PATCH_MARKER];
 }
@@ -115,10 +118,12 @@ export async function applyThinkingLevelStatusPatch(
             prototype = loadedModule.InteractiveMode.prototype;
         }
     }
+
     if (prototype === undefined) {
         if (options.loadInteractiveModeModule !== undefined) {
             warnPiInternalPatchUnavailable(PATCH_SCOPE, PATCH_FEATURE);
         }
+
         return () => {};
     }
 
@@ -126,8 +131,10 @@ export async function applyThinkingLevelStatusPatch(
     if (isStatusPatchState(existing)) {
         existing.predicate.current =
             options.shouldShowThinkingLevelStatus ?? existing.predicate.current;
+
         return () => restoreThinkingLevelStatusPatch(prototype);
     }
+
     if (existing !== undefined) {
         delete prototype[STATUS_PATCH_MARKER];
     }
@@ -140,15 +147,15 @@ export async function applyThinkingLevelStatusPatch(
         "showStatus",
         (predecessor): ShowStatus =>
             function patchedShowStatus(message: string): void {
-                if (
-                    message.startsWith(THINKING_LEVEL_STATUS_PREFIX) &&
-                    predicate.current() === false
-                ) {
+                if (message.startsWith(THINKING_LEVEL_STATUS_PREFIX) && !predicate.current()) {
                     return;
                 }
+
                 predecessor.call(this, message);
             },
     );
+
     prototype[STATUS_PATCH_MARKER] = { predicate, handle };
+
     return () => restoreThinkingLevelStatusPatch(prototype);
 }

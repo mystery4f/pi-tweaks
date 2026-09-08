@@ -14,7 +14,7 @@ export class ThinkingStatusPatchSession {
         private readonly install: InstallThinkingLevelStatusPatch = applyThinkingLevelStatusPatch,
     ) {}
 
-    activate(shouldShowThinkingLevelStatus: () => boolean): Promise<void> {
+    async activate(shouldShowThinkingLevelStatus: () => boolean): Promise<void> {
         if (this.activation !== undefined) return this.activation;
 
         const generation = this.generation;
@@ -23,8 +23,10 @@ export class ThinkingStatusPatchSession {
                 restore();
                 return;
             }
+
             this.restore = restore;
         });
+
         this.activation = pending;
         return pending;
     }
@@ -32,7 +34,9 @@ export class ThinkingStatusPatchSession {
     reset(): void {
         this.generation += 1;
         this.activation = undefined;
+
         const restore = this.restore;
+
         this.restore = (): void => {};
         restore();
     }

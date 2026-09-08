@@ -233,9 +233,9 @@ test("applyModesPatch merges into the latest file without deleting unrelated mod
     });
 
     assert.equal(latest.currentMode, "review");
-    assert.equal(latest.modes.default?.provider, "openai");
-    assert.equal(latest.modes.default?.modelId, "gpt-5");
-    assert.equal(latest.modes.default?.thinkingLevel, undefined);
+    assert.equal(latest.modes.default.provider, "openai");
+    assert.equal(latest.modes.default.modelId, "gpt-5");
+    assert.equal(latest.modes.default.thinkingLevel, undefined);
     assert.equal(latest.modes.docs, undefined);
     assert.deepEqual(latest.modes.local, {
         provider: "ollama",

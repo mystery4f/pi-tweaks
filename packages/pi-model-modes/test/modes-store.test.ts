@@ -97,6 +97,7 @@ test("scaffoldGlobalModesConfig creates missing global config and schema", async
         assert.match(await readFile(schemaPath, "utf8"), /Pi Model Modes settings/);
     } finally {
         await rm(agentDir, { recursive: true, force: true });
+
         if (originalAgentDir === undefined) {
             delete process.env.PI_CODING_AGENT_DIR;
         } else {
@@ -137,6 +138,7 @@ test("mode cycle shortcuts are optional and read from global config", async () =
         );
     } finally {
         await rm(agentDir, { recursive: true, force: true });
+
         if (originalAgentDir === undefined) {
             delete process.env.PI_CODING_AGENT_DIR;
         } else {
@@ -173,6 +175,7 @@ test("mode config writes reject unknown config keys", async () => {
         assert.equal(await readFile(configPath, "utf8"), invalidConfig);
     } finally {
         await rm(agentDir, { recursive: true, force: true });
+
         if (originalAgentDir === undefined) {
             delete process.env.PI_CODING_AGENT_DIR;
         } else {
@@ -294,7 +297,7 @@ test("ModesStore merges a local patch into the latest file under its lock", asyn
         const saved = await store.saveChanges(filePath, baseline, next, fallback);
 
         assert.equal(saved?.data.modes.default?.thinkingLevel, "high");
-        assert.deepEqual(saved?.data.modes.remote, { provider: "remote", modelId: "new" });
+        assert.deepEqual(saved.data.modes.remote, { provider: "remote", modelId: "new" });
     } finally {
         await rm(dir, { recursive: true, force: true });
     }

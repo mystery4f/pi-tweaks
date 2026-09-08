@@ -29,33 +29,36 @@ export default function (pi: ExtensionAPI) {
             sessionSettings = loadModelModesSettings(context);
             sessionSettingsContext = context;
         }
+
         return sessionSettings;
     };
     const controller = new ModeController(pi, new ModesStore(resolveSessionSettings));
     const picker = new ModePicker(controller);
     const statusPatchSession = new ThinkingStatusPatchSession();
     let editorHandle: { dispose(): void } | undefined;
-
     const registrationContext = { cwd: process.cwd(), projectTrusted: false };
     const shortcuts = getConfiguredModeShortcuts(registrationContext);
     if (shortcuts.forward !== undefined && isShortcutId(shortcuts.forward)) {
         pi.registerShortcut(shortcuts.forward, {
             description: "Cycle to the next configured mode",
-            handler: (ctx) => controller.cycle(ctx, 1),
+            handler: async (ctx) => controller.cycle(ctx, 1),
         });
     }
+
     if (shortcuts.backward !== undefined && isShortcutId(shortcuts.backward)) {
         pi.registerShortcut(shortcuts.backward, {
             description: "Cycle to the previous configured mode",
-            handler: (ctx) => controller.cycle(ctx, -1),
+            handler: async (ctx) => controller.cycle(ctx, -1),
         });
     }
 
-    registerModeSelectorShortcuts(pi, (ctx) => picker.select(ctx));
+    registerModeSelectorShortcuts(pi, async (ctx) => picker.select(ctx));
 
     pi.on("session_start", async (event, ctx) => {
         sessionGeneration += 1;
+
         const generation = sessionGeneration;
+
         statusPatchSession.reset();
         sessionSettings = undefined;
         sessionSettingsContext = undefined;
@@ -67,6 +70,7 @@ export default function (pi: ExtensionAPI) {
                 ctx.ui.notify(formatModelModesSettingsDiagnostic(diagnostic), diagnostic.severity);
             }
         }
+
         controller.setUseThinkingBorderColors(
             loaded.settings[USE_THINKING_BORDER_COLORS_SETTINGS_KEY],
         );
@@ -81,11 +85,13 @@ export default function (pi: ExtensionAPI) {
 
         if (ctx.mode === "tui") {
             await statusPatchSession.activate(() => controller.thinkingLevelStatusEnabled);
+
             if (generation !== sessionGeneration) return;
         }
+
         await controller.handleSessionActivated(ctx, event);
     });
-    pi.on("model_select", (event, ctx) => controller.handleModelSelect(ctx, event));
+    pi.on("model_select", async (event, ctx) => controller.handleModelSelect(ctx, event));
     pi.on("session_shutdown", () => {
         sessionGeneration += 1;
         sessionSettings = undefined;

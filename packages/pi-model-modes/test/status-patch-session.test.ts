@@ -8,6 +8,7 @@ test("status patch activation is shared and restored once on reset", async () =>
     let restores = 0;
     const session = new ThinkingStatusPatchSession(async () => {
         installs += 1;
+
         return () => {
             restores += 1;
         };
@@ -43,7 +44,7 @@ test("status patch completion after reset restores the stale installation", asyn
     let resolveInstall: ((restore: () => void) => void) | undefined;
     let restores = 0;
     const session = new ThinkingStatusPatchSession(
-        () =>
+        async () =>
             new Promise((resolve) => {
                 resolveInstall = resolve;
             }),

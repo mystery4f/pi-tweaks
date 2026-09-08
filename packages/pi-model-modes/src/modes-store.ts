@@ -5,12 +5,12 @@ import path from "node:path";
 import { Type, type Static } from "typebox";
 import { Value } from "typebox/value";
 
+import { normalizeThinkingLevel } from "./thinking-levels.ts";
 import {
     applyModesPatch,
     computeModesPatch,
     createDefaultModes,
     ensureDefaultModeEntries,
-    normalizeThinkingLevel,
     parseModeColor,
     type DefaultModelSpec,
     type ModesFile,
@@ -91,8 +91,10 @@ const modesFileJsonDecoder = {
             if (errors.length > messages.length) {
                 suffix = `; and ${errors.length - messages.length} more`;
             }
+
             throw new Error(`${label} is invalid: ${messages.join("; ")}${suffix}`);
         }
+
         return Value.Parse(ModesFileJsonSchema, value);
     },
 };
@@ -146,6 +148,7 @@ export function getGlobalAgentDir(): string {
 }
 
 const EXTENSION_ID = "pi-model-modes";
+
 export function getGlobalModesPath(): string {
     return getPiGlobalSettingsPath(EXTENSION_ID);
 }
@@ -184,8 +187,10 @@ export async function getMtimeMs(filePath: string): Promise<number | null> {
     }
 }
 
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+async function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
 }
 
 function throwError(cause: unknown): never {
@@ -202,7 +207,7 @@ export async function withFileLock<T>(filePath: string, fn: () => Promise<T>): P
     await ensureDirForFile(lockPath);
 
     const start = Date.now();
-    while (true) {
+    for (;;) {
         try {
             const handle = await fs.open(lockPath, "wx");
             try {
@@ -237,6 +242,7 @@ export async function withFileLock<T>(filePath: string, fn: () => Promise<T>): P
             if (Date.now() - start > 5_000) {
                 throw new Error(`Timed out waiting for lock: ${lockPath}`);
             }
+
             await sleep(40 + Math.random() * 80);
         }
     }
@@ -251,7 +257,6 @@ export async function atomicWriteUtf8(filePath: string, content: string): Promis
         dir,
         `.${base}.tmp.${process.pid}.${Math.random().toString(16).slice(2)}`,
     );
-
     await fs.writeFile(tempPath, content, "utf8");
 
     try {
@@ -275,7 +280,7 @@ async function readConfigObject(filePath: string): Promise<ModesFileJson> {
         return modesFileJsonDecoder.parse(parsedJson, filePath);
     } catch (cause: unknown) {
         if (getErrorCode(cause) === "ENOENT") return {};
-        throwLoadError(filePath, cause);
+        return throwLoadError(filePath, cause);
     }
 }
 
@@ -305,6 +310,7 @@ export class ModesStore {
         ) {
             return loaded.projectConfigPath;
         }
+
         return loaded.globalConfigPath;
     }
 
@@ -321,6 +327,7 @@ export class ModesStore {
             for (const [key, value] of Object.entries(parsed.modes ?? {})) {
                 modes[key] = sanitizeModeSpec(value);
             }
+
             const file: ModesFile = {
                 version: 1,
                 currentMode: parsed.currentMode ?? "default",
@@ -329,6 +336,7 @@ export class ModesStore {
             const defaultModel = sanitizeDefaultModelSpec(parsed.defaultModel);
             if (defaultModel !== undefined) file.defaultModel = defaultModel;
             ensureDefaultModeEntries(file, fallbackMode);
+
             return file;
         } catch (cause: unknown) {
             if (getErrorCode(cause) === "ENOENT") return createDefaultModes(fallbackMode);
@@ -351,6 +359,7 @@ export class ModesStore {
             applyModesPatch(latest, patch);
             ensureDefaultModeEntries(latest, fallbackMode);
             await this.save(filePath, latest);
+
             return { data: latest, mtimeMs: await getMtimeMs(filePath) };
         });
     }

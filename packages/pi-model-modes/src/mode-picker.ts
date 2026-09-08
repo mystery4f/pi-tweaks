@@ -7,25 +7,15 @@ import {
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 
+import { isThinkingLevel } from "./thinking-levels.ts";
 import type { ModeController } from "./mode-controller.ts";
 import {
     CUSTOM_MODE_NAME,
     isDefaultModeName,
     getModeThinkingLevels,
-    isThinkingLevel,
-    MODE_UI_ADD,
-    MODE_UI_BACK,
-    MODE_UI_CONFIGURE,
-    MODE_UI_DEFAULT_MODEL,
-    MODE_UI_THINKING_COLORS_OFF,
-    MODE_UI_THINKING_COLORS_ON,
-    MODE_UI_THINKING_STATUS_OFF,
-    MODE_UI_THINKING_STATUS_ON,
     modeSpec,
     normalizeModeNameInput,
     orderedModeNames,
-    THINKING_UNSET_LABEL,
-    validateModeNameOrError,
     type DefaultModelSpec,
     type ModeSpec,
 } from "./modes.ts";
@@ -36,7 +26,42 @@ import {
     shouldUseThinkingBorderColors,
 } from "./settings.ts";
 
+const MODE_UI_CONFIGURE = "Configure modes…";
+const MODE_UI_ADD = "Add mode…";
+const MODE_UI_DEFAULT_MODEL = "Set default model…";
+const MODE_UI_THINKING_COLORS_ON = "Thinking border colors: on";
+const MODE_UI_THINKING_COLORS_OFF = "Thinking border colors: off";
+const MODE_UI_THINKING_STATUS_ON = "Thinking level status: on";
+const MODE_UI_THINKING_STATUS_OFF = "Thinking level status: off";
+const MODE_UI_BACK = "Back";
+const THINKING_UNSET_LABEL = "(don't change)";
+
+function isReservedModeName(name: string): boolean {
+    return (
+        name === CUSTOM_MODE_NAME ||
+        name === MODE_UI_CONFIGURE ||
+        name === MODE_UI_ADD ||
+        name === MODE_UI_BACK
+    );
+}
+
+function validateModeNameOrError(
+    name: string,
+    existing: Record<string, ModeSpec>,
+    options?: { allowExisting?: boolean },
+): string | null {
+    if (name.length === 0) return "Mode name cannot be empty";
+    if (/\s/.test(name)) return "Mode name cannot contain whitespace";
+    if (isReservedModeName(name)) return `Mode name "${name}" is reserved`;
+    if (options?.allowExisting !== true && modeSpec(existing, name) !== undefined) {
+        return `Mode "${name}" already exists`;
+    }
+
+    return null;
+}
+
 const MODE_SELECTOR_SHORTCUTS = ["ctrl+shift+m"] as const;
+
 type ShortcutRegistrar = Pick<ExtensionAPI, "registerShortcut">;
 type ShortcutHandler = Parameters<ExtensionAPI["registerShortcut"]>[1]["handler"];
 
@@ -51,6 +76,7 @@ export function registerModeSelectorShortcuts(
         });
     }
 }
+
 function readModelRuntime(registry: ExtensionContext["modelRegistry"]): ModelRuntime | undefined {
     const descriptor = Object.getOwnPropertyDescriptor(registry, "runtime");
     const candidate: unknown = descriptor?.value;
@@ -68,19 +94,24 @@ export class ModePicker {
 
     async select(ctx: ExtensionContext): Promise<void> {
         if (!ctx.hasUI) return;
-        while (true) {
+
+        for (;;) {
             await this.controller.ensure(ctx);
+
             const names = orderedModeNames(this.controller.modes.modes);
             const choice = await ctx.ui.select(`Mode (current: ${this.controller.currentMode})`, [
                 ...names,
                 MODE_UI_CONFIGURE,
             ]);
             if (choice === undefined || choice.length === 0) return;
+
             if (choice === MODE_UI_CONFIGURE) {
                 await this.configure(ctx);
                 continue;
             }
+
             await this.handleChoice(ctx, choice);
+
             return;
         }
     }
@@ -89,6 +120,7 @@ export class ModePicker {
         if (this.controller.currentMode === CUSTOM_MODE_NAME && choice !== CUSTOM_MODE_NAME) {
             const action = await ctx.ui.select(`Mode "${choice}"`, ["use", "store"]);
             if (action === undefined || action.length === 0) return;
+
             if (action === "store") {
                 await this.controller.storeSelection(
                     ctx,
@@ -100,12 +132,14 @@ export class ModePicker {
                 return;
             }
         }
+
         await this.controller.applyMode(ctx, choice);
     }
 
     private async configure(ctx: ExtensionContext): Promise<void> {
-        while (true) {
+        for (;;) {
             await this.controller.ensure(ctx);
+
             const settingsContext = this.controller.getSettingsContext(ctx);
             const colorsEnabled = this.controller.thinkingBorderColorsEnabled;
             const statusEnabled = this.controller.thinkingLevelStatusEnabled;
@@ -122,15 +156,18 @@ export class ModePicker {
                 MODE_UI_BACK,
             ]);
             if (choice === undefined || choice.length === 0 || choice === MODE_UI_BACK) return;
+
             if (choice === MODE_UI_ADD) {
                 const created = await this.add(ctx);
                 if (created !== undefined) await this.edit(ctx, created);
                 continue;
             }
+
             if (choice === MODE_UI_DEFAULT_MODEL) {
                 await this.setDefaultModel(ctx);
                 continue;
             }
+
             if (choice === MODE_UI_THINKING_COLORS_ON || choice === MODE_UI_THINKING_COLORS_OFF) {
                 const next = !colorsEnabled;
                 try {
@@ -142,15 +179,19 @@ export class ModePicker {
                     );
                     continue;
                 }
+
                 this.controller.setUseThinkingBorderColors(
                     shouldUseThinkingBorderColors(settingsContext),
                 );
                 this.controller.requestRender();
+
                 let stateLabel = "disabled";
                 if (next) stateLabel = "enabled";
                 ctx.ui.notify(`Thinking border colors ${stateLabel}`, "info");
+
                 continue;
             }
+
             if (choice === MODE_UI_THINKING_STATUS_ON || choice === MODE_UI_THINKING_STATUS_OFF) {
                 const next = !statusEnabled;
                 try {
@@ -162,14 +203,18 @@ export class ModePicker {
                     );
                     continue;
                 }
+
                 this.controller.setShowThinkingLevelStatus(
                     shouldShowThinkingLevelStatus(settingsContext),
                 );
+
                 let stateLabel = "disabled";
                 if (next) stateLabel = "enabled";
                 ctx.ui.notify(`Thinking level status ${stateLabel}`, "info");
+
                 continue;
             }
+
             await this.edit(ctx, choice);
         }
     }
@@ -192,6 +237,7 @@ export class ModePicker {
         );
         if (thinkingLevel === undefined) return;
         const defaultModel: DefaultModelSpec = selectedModel;
+
         if (thinkingLevel !== null) defaultModel.thinkingLevel = thinkingLevel;
         await this.controller.setDefaultModel(ctx, defaultModel);
         ctx.ui.notify(
@@ -202,7 +248,8 @@ export class ModePicker {
 
     private async add(ctx: ExtensionContext): Promise<string | undefined> {
         await this.controller.ensure(ctx);
-        while (true) {
+
+        for (;;) {
             const raw = await ctx.ui.input("New mode name", "e.g. docs, review, planning");
             if (raw === undefined) return undefined;
             const name = normalizeModeNameInput(raw);
@@ -211,8 +258,10 @@ export class ModePicker {
                 ctx.ui.notify(error, "warning");
                 continue;
             }
+
             await this.controller.addMode(ctx, name);
             ctx.ui.notify(`Added mode "${name}"`, "info");
+
             return name;
         }
     }
@@ -222,8 +271,10 @@ export class ModePicker {
             ctx.ui.notify(`Cannot rename default mode "${oldName}"`, "warning");
             return oldName;
         }
+
         await this.controller.ensure(ctx);
-        while (true) {
+
+        for (;;) {
             const raw = await ctx.ui.input(`Rename mode "${oldName}"`, oldName);
             if (raw === undefined) return undefined;
             const newName = normalizeModeNameInput(raw);
@@ -233,64 +284,79 @@ export class ModePicker {
                 ctx.ui.notify(error, "warning");
                 continue;
             }
+
             await this.controller.renameMode(ctx, oldName, newName);
             ctx.ui.notify(`Renamed "${oldName}" → "${newName}"`, "info");
+
             return newName;
         }
     }
 
     private async edit(ctx: ExtensionContext, initialName: string): Promise<void> {
         let name = initialName;
-        while (true) {
+
+        for (;;) {
             await this.controller.ensure(ctx);
+
             const spec = modeSpec(this.controller.modes.modes, name);
             if (spec === undefined) return;
             let modelLabel = "(no model)";
             if (spec.provider !== undefined && spec.modelId !== undefined) {
                 modelLabel = `${spec.provider}/${spec.modelId}`;
             }
+
             const actions = ["Change name", "Change model", "Change thinking level"];
             if (!isDefaultModeName(name)) actions.push("Delete mode");
             actions.push(MODE_UI_BACK);
+
             const action = await ctx.ui.select(
                 `Edit mode "${name}"  model: ${modelLabel}  thinking: ${spec.thinkingLevel ?? THINKING_UNSET_LABEL}`,
                 actions,
             );
             if (action === undefined || action.length === 0 || action === MODE_UI_BACK) return;
+
             if (action === "Change name") {
                 const renamed = await this.rename(ctx, name);
                 if (renamed !== undefined) name = renamed;
                 continue;
             }
+
             if (action === "Change model") {
                 const selected = await this.pickModel(ctx, spec);
                 if (selected === undefined) continue;
                 await this.controller.updateMode(ctx, name, { ...spec, ...selected });
                 ctx.ui.notify(`Updated model for "${name}"`, "info");
+
                 if (this.controller.currentMode === name)
                     await this.controller.applyMode(ctx, name);
                 continue;
             }
+
             if (action === "Change thinking level") {
                 let model = ctx.model;
                 if (spec.provider !== undefined && spec.modelId !== undefined) {
                     model = ctx.modelRegistry.find(spec.provider, spec.modelId) ?? ctx.model;
                 }
+
                 const level = await this.pickThinkingLevel(ctx, spec.thinkingLevel, model);
                 if (level === undefined) continue;
                 const next = { ...spec };
                 if (level === null) delete next.thinkingLevel;
                 else next.thinkingLevel = level;
+
                 await this.controller.updateMode(ctx, name, next);
                 ctx.ui.notify(`Updated thinking level for "${name}"`, "info");
+
                 if (this.controller.currentMode === name)
                     await this.controller.applyMode(ctx, name);
                 continue;
             }
+
             if (action === "Delete mode") {
                 if (!(await ctx.ui.confirm("Delete mode", `Delete mode "${name}"?`))) continue;
                 await this.controller.deleteMode(ctx, name);
                 ctx.ui.notify(`Deleted mode "${name}"`, "info");
+
                 return;
             }
         }
@@ -306,6 +372,7 @@ export class ModePicker {
         if (current !== undefined && supported.includes(current)) {
             initial = current;
         }
+
         const options = [...supported, THINKING_UNSET_LABEL];
         const choice = await ctx.ui.select("Thinking level", [
             initial,
@@ -326,10 +393,12 @@ export class ModePicker {
             ctx.ui.notify("Model picker unavailable: Pi model runtime was not found.", "error");
             return undefined;
         }
+
         let current = ctx.model;
         if (spec.provider !== undefined && spec.modelId !== undefined) {
             current = ctx.modelRegistry.find(spec.provider, spec.modelId) ?? ctx.model;
         }
+
         return ctx.ui.custom(
             (tui, _theme, _keybindings, done) =>
                 new ModelSelectorComponent(
@@ -338,10 +407,6 @@ export class ModePicker {
                     runtime,
                     [],
                     (model) => {
-                        if (model.id === undefined) {
-                            done(undefined);
-                            return;
-                        }
                         done({ provider: model.provider, modelId: model.id });
                     },
                     () => done(undefined),

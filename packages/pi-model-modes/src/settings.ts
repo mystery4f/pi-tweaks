@@ -49,6 +49,7 @@ const SETTINGS_LOCK_TIMEOUT_MS = 5_000;
 const STALE_SETTINGS_LOCK_MS = 30_000;
 const EXTENSION_ID = "pi-model-modes";
 const BUNDLED_SETTINGS_SCHEMA_URL = new URL("../config.schema.json", import.meta.url);
+
 export type ModeShortcuts = Static<typeof modeShortcutsSchema>;
 
 const SettingsObjectSchema = Type.Object(
@@ -64,8 +65,10 @@ const SettingsObjectSchema = Type.Object(
     },
     { additionalProperties: false },
 );
+
 type SettingsObject = Static<typeof SettingsObjectSchema>;
 type ModelModesSettings = ResolvedSettings<typeof modelModesSettingsDefinition>;
+
 type ModeDisplaySettings = {
     readonly useThinkingBorderColors: ModelModesSettings[typeof USE_THINKING_BORDER_COLORS_SETTINGS_KEY];
     readonly showThinkingLevelStatus: ModelModesSettings[typeof SHOW_THINKING_LEVEL_STATUS_SETTINGS_KEY];
@@ -74,6 +77,7 @@ type ModeDisplaySettings = {
 type NodeErrorWithCode = Error & {
     readonly code: string;
 };
+
 export type SettingsReadContext = {
     readonly cwd: string;
     readonly projectTrusted: boolean;
@@ -109,6 +113,7 @@ export function formatModelModesSettingsDiagnostic(diagnostic: SettingsDiagnosti
     if (diagnostic.code === "bundled-schema-read-failed") {
         return `${prefix} Bundled settings schema could not be read: ${fileURLToPath(BUNDLED_SETTINGS_SCHEMA_URL)}.`;
     }
+
     return `${prefix} ${diagnostic.message}: ${diagnostic.path}`;
 }
 
@@ -149,7 +154,7 @@ function withSettingsLock<T>(settingsPath: string, fn: () => T): T {
     mkdirSync(dirname(lockPath), { recursive: true });
 
     const start = Date.now();
-    while (true) {
+    for (;;) {
         try {
             const fd = openSync(lockPath, "wx");
             try {
@@ -170,6 +175,7 @@ function withSettingsLock<T>(settingsPath: string, fn: () => T): T {
                 } catch {
                     // Ignore cleanup failures.
                 }
+
                 try {
                     unlinkSync(lockPath);
                 } catch {
@@ -192,6 +198,7 @@ function withSettingsLock<T>(settingsPath: string, fn: () => T): T {
             if (Date.now() - start > SETTINGS_LOCK_TIMEOUT_MS) {
                 throw new Error(`Timed out waiting for lock: ${lockPath}`);
             }
+
             sleepSync(40 + Math.random() * 80);
         }
     }
@@ -219,14 +226,18 @@ function atomicWriteUtf8Sync(filePath: string, content: string): void {
             } catch {
                 // Ignore missing target before retrying the rename.
             }
+
             renameSync(tempPath, filePath);
+
             return;
         }
+
         try {
             unlinkSync(tempPath);
         } catch {
             // Ignore cleanup failures.
         }
+
         throwError(error);
     }
 }
@@ -251,10 +262,12 @@ const settingsObjectDecoder = {
             if (errors.length > messages.length) {
                 suffix = `; and ${errors.length - messages.length} more`;
             }
+
             throw new Error(
                 `${settingsPath} must contain a JSON object: ${messages.join("; ")}${suffix}`,
             );
         }
+
         return Value.Parse(SettingsObjectSchema, value);
     },
 };
@@ -270,6 +283,7 @@ function readSettingsObject(
     } catch (error: unknown) {
         if (getErrorCode(error) === "ENOENT") return {};
         if (options?.throwOnInvalid === true) throwError(error);
+
         // Ignore malformed config files while reading and fall back to defaults.
     }
 
@@ -281,7 +295,9 @@ function updateSettingsObject(
     update: (settings: SettingsObject) => void,
 ): void {
     loadModelModesSettings(context);
+
     const settingsPath = getSettingsPath();
+
     withSettingsLock(settingsPath, () => {
         const settings = readSettingsObject(settingsPath, { throwOnInvalid: true });
         update(settings);
