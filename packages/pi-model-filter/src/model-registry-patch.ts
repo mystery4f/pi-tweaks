@@ -1,5 +1,9 @@
-import { filterModels, isVisibleModel, type ModelLike } from "./model-filter.ts";
-import type { LoadedModelFilterSettings } from "./settings.ts";
+import {
+    filterModels,
+    isVisibleModel,
+    type ModelLike,
+    type ModelFilterSettings,
+} from "./model-filter.ts";
 
 const REGISTRY_PATCH_MARKER = Symbol.for("@zigai/pi-model-filter/registry-patched");
 const REGISTRY_RUNTIME_KEY = Symbol.for("@zigai/pi-model-filter/registry-runtime");
@@ -9,37 +13,32 @@ const ORIGINAL_REGISTRY_GET_AVAILABLE_KEY = Symbol.for(
 );
 const ORIGINAL_REGISTRY_FIND_KEY = Symbol.for("@zigai/pi-model-filter/registry-find");
 
-export type ModelFilterRuntimeState = {
-    loadSettings: () => LoadedModelFilterSettings;
-    reportedDiagnosticKey?: string;
-};
-
 export type BasicModelRegistry = {
-    getAll(): ModelLike[];
-    getAvailable(): ModelLike[];
-    find(provider: string, modelId: string): ModelLike | undefined;
+    getAll: (this: BasicModelRegistry) => ModelLike[];
+    getAvailable: (this: BasicModelRegistry) => ModelLike[];
+    find: (this: BasicModelRegistry, provider: string, modelId: string) => ModelLike | undefined;
 };
 
 export type PatchedModelRegistry = BasicModelRegistry & {
     [REGISTRY_PATCH_MARKER]?: boolean;
-    [REGISTRY_RUNTIME_KEY]?: ModelFilterRuntimeState;
-    [ORIGINAL_REGISTRY_GET_ALL_KEY]?: () => ModelLike[];
-    [ORIGINAL_REGISTRY_GET_AVAILABLE_KEY]?: () => ModelLike[];
-    [ORIGINAL_REGISTRY_FIND_KEY]?: (provider: string, modelId: string) => ModelLike | undefined;
+    [REGISTRY_RUNTIME_KEY]?: () => ModelFilterSettings;
+    [ORIGINAL_REGISTRY_GET_ALL_KEY]?: BasicModelRegistry["getAll"];
+    [ORIGINAL_REGISTRY_GET_AVAILABLE_KEY]?: BasicModelRegistry["getAvailable"];
+    [ORIGINAL_REGISTRY_FIND_KEY]?: BasicModelRegistry["find"];
 };
 
-export function requireModelFilterRuntime(
-    runtime: ModelFilterRuntimeState | undefined,
-): ModelFilterRuntimeState {
-    if (runtime !== undefined) return runtime;
-    throw new Error("Pi model filter runtime is not initialized.");
+function requireSettingsAccessor(
+    accessor: (() => ModelFilterSettings) | undefined,
+): () => ModelFilterSettings {
+    if (accessor !== undefined) return accessor;
+    throw new Error("Pi model filter policy is not initialized.");
 }
 
 export function installRegistryPatch(
     registry: PatchedModelRegistry,
-    state: ModelFilterRuntimeState,
+    getSettings: () => ModelFilterSettings,
 ): void {
-    registry[REGISTRY_RUNTIME_KEY] = state;
+    registry[REGISTRY_RUNTIME_KEY] = getSettings;
 
     if (
         typeof registry.getAll !== "function" ||
@@ -51,24 +50,24 @@ export function installRegistryPatch(
 
     if (registry[REGISTRY_PATCH_MARKER] === true) return;
 
-    registry[ORIGINAL_REGISTRY_GET_ALL_KEY] = registry["getAll"];
-    registry[ORIGINAL_REGISTRY_GET_AVAILABLE_KEY] = registry["getAvailable"];
-    registry[ORIGINAL_REGISTRY_FIND_KEY] = registry["find"];
+    registry[ORIGINAL_REGISTRY_GET_ALL_KEY] = registry.getAll;
+    registry[ORIGINAL_REGISTRY_GET_AVAILABLE_KEY] = registry.getAvailable;
+    registry[ORIGINAL_REGISTRY_FIND_KEY] = registry.find;
 
     registry.getAll = function getAll(this: PatchedModelRegistry) {
         const models = this[ORIGINAL_REGISTRY_GET_ALL_KEY]?.call(this) ?? [];
-        const runtime = requireModelFilterRuntime(
+        const runtime = requireSettingsAccessor(
             this[REGISTRY_RUNTIME_KEY] ?? registry[REGISTRY_RUNTIME_KEY],
         );
-        return filterModels(models, runtime.loadSettings().settings);
+        return filterModels(models, runtime());
     };
 
     registry.getAvailable = function getAvailable(this: PatchedModelRegistry) {
         const models = this[ORIGINAL_REGISTRY_GET_AVAILABLE_KEY]?.call(this) ?? [];
-        const runtime = requireModelFilterRuntime(
+        const runtime = requireSettingsAccessor(
             this[REGISTRY_RUNTIME_KEY] ?? registry[REGISTRY_RUNTIME_KEY],
         );
-        return filterModels(models, runtime.loadSettings().settings);
+        return filterModels(models, runtime());
     };
 
     registry.find = function find(this: PatchedModelRegistry, provider: string, modelId: string) {
@@ -76,10 +75,10 @@ export function installRegistryPatch(
         const model = finder?.call(this, provider, modelId);
         if (model === undefined) return undefined;
 
-        const runtime = requireModelFilterRuntime(
+        const runtime = requireSettingsAccessor(
             this[REGISTRY_RUNTIME_KEY] ?? registry[REGISTRY_RUNTIME_KEY],
         );
-        if (!isVisibleModel(model, runtime.loadSettings().settings)) return undefined;
+        if (!isVisibleModel(model, runtime())) return undefined;
         return model;
     };
 

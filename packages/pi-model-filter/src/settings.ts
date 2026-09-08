@@ -73,6 +73,7 @@ export function loadModelFilterSettings(
     let configPath = getGlobalConfigPath();
     if (useProjectConfig) configPath = projectConfigPath;
     let mtimeMs = -1;
+
     try {
         mtimeMs = statSync(configPath).mtimeMs;
     } catch {
@@ -93,9 +94,11 @@ export function loadModelFilterSettings(
             },
         },
     );
+
     configPath = loadedLayers.globalConfigPath;
     if (useProjectConfig) configPath = projectConfigPath;
     mtimeMs = -1;
+
     try {
         mtimeMs = statSync(configPath).mtimeMs;
     } catch {
@@ -104,11 +107,12 @@ export function loadModelFilterSettings(
 
     try {
         const configDiagnostics = loadedLayers.diagnostics.filter(
-            (diagnostic) => diagnostic.path === configPath && diagnostic.severity === "error",
+            (diagnostic) => diagnostic.path === configPath,
         );
         if (configDiagnostics.length > 0) {
             throw new Error(configDiagnostics.map((diagnostic) => diagnostic.message).join("; "));
         }
+
         let layer = loadedLayers.globalSettingsLayer;
         if (useProjectConfig) layer = loadedLayers.projectSettingsLayer;
         const loaded: LoadedModelFilterSettings = {
