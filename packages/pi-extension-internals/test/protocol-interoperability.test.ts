@@ -3,16 +3,47 @@ import type * as PatchProtocolModule from "../src/linked-method-patch.ts";
 
 import { expect, test } from "vitest";
 
-type EditorProtocol = typeof EditorProtocolModule;
-type PatchProtocol = typeof PatchProtocolModule;
+type EditorProtocol = Pick<typeof EditorProtocolModule, "registerEditorEnhancer">;
+type PatchProtocol = Pick<
+    typeof PatchProtocolModule,
+    "installLinkedRenderPatch" | "installKeyedLinkedMethodPatch"
+>;
 
-async function loadProtocolCopy<T>(relativePath: string, copy: string): Promise<T> {
-    const moduleUrl = new URL(`${relativePath}?copy=${copy}`, import.meta.url).href;
-    // Dynamic import is the behavior under test: query-distinct URLs force separate module copies.
-    // SAFETY: Each caller supplies a checked source-module URL and immediately exercises the
-    // expected public functions through their runtime contracts; ES module imports always
-    // resolve to a namespace object.
-    return import(moduleUrl) as Promise<T>;
+function isEditorProtocol(value: unknown): value is EditorProtocol {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        "registerEditorEnhancer" in value &&
+        typeof value.registerEditorEnhancer === "function"
+    );
+}
+
+function isPatchProtocol(value: unknown): value is PatchProtocol {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        "installLinkedRenderPatch" in value &&
+        typeof value.installLinkedRenderPatch === "function" &&
+        "installKeyedLinkedMethodPatch" in value &&
+        typeof value.installKeyedLinkedMethodPatch === "function"
+    );
+}
+
+// Query-distinct URLs load independent copies of these exact, compiler-checked source modules.
+// Validate the consumed exports before exercising their composition contracts.
+async function loadEditorProtocolCopy(copy: string): Promise<EditorProtocol> {
+    const moduleUrl = new URL(`../src/editor-enhancer-registry.ts?copy=${copy}`, import.meta.url)
+        .href;
+    const imported: unknown = await import(moduleUrl);
+    if (!isEditorProtocol(imported)) throw new Error("Invalid editor protocol module");
+    return imported;
+}
+
+async function loadPatchProtocolCopy(copy: string): Promise<PatchProtocol> {
+    const moduleUrl = new URL(`../src/linked-method-patch.ts?copy=${copy}`, import.meta.url).href;
+    const imported: unknown = await import(moduleUrl);
+    if (!isPatchProtocol(imported)) throw new Error("Invalid linked-patch protocol module");
+    return imported;
 }
 
 class EditorUi {
@@ -39,11 +70,8 @@ class Renderer {
 }
 
 test("independently loaded editor protocol copies share registrations and disposal", async () => {
-    const first = await loadProtocolCopy<EditorProtocol>("../src/editor-enhancer-registry.ts", "a");
-    const second = await loadProtocolCopy<EditorProtocol>(
-        "../src/editor-enhancer-registry.ts",
-        "b",
-    );
+    const first = await loadEditorProtocolCopy("a");
+    const second = await loadEditorProtocolCopy("b");
     expect(first.registerEditorEnhancer).not.toBe(second.registerEditorEnhancer);
 
     const ui = new EditorUi();
@@ -69,8 +97,8 @@ test("independently loaded editor protocol copies share registrations and dispos
 });
 
 test("independently loaded linked patch copies compose and rewire each other", async () => {
-    const first = await loadProtocolCopy<PatchProtocol>("../src/linked-method-patch.ts", "a");
-    const second = await loadProtocolCopy<PatchProtocol>("../src/linked-method-patch.ts", "b");
+    const first = await loadPatchProtocolCopy("a");
+    const second = await loadPatchProtocolCopy("b");
     expect(first.installLinkedRenderPatch).not.toBe(second.installLinkedRenderPatch);
 
     const lower = first.installLinkedRenderPatch(
@@ -96,11 +124,8 @@ test("independently loaded linked patch copies compose and rewire each other", a
 });
 
 test("independently loaded keyed patch copies update one shared registration", async () => {
-    const first = await loadProtocolCopy<PatchProtocol>("../src/linked-method-patch.ts", "keyed-a");
-    const second = await loadProtocolCopy<PatchProtocol>(
-        "../src/linked-method-patch.ts",
-        "keyed-b",
-    );
+    const first = await loadPatchProtocolCopy("keyed-a");
+    const second = await loadPatchProtocolCopy("keyed-b");
     const marker = Symbol.for("zigai.pi-extension-internals.test.copy-keyed");
     const firstHandle = first.installKeyedLinkedMethodPatch(
         Renderer.prototype,

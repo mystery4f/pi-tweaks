@@ -16,18 +16,23 @@ type InstalledRegistryView = {
     [EDITOR_ENHANCER_PROTOCOL]?: unknown;
     enhancers: Map<unknown, unknown>;
 };
-type UiWithRegistryView = {
-    [EDITOR_ENHANCER_REGISTRY]?: InstalledRegistryView;
-};
 
-/** Reads the registry that registerEditorEnhancer installs on a UI host. */
+function isInstalledRegistry(value: unknown): value is InstalledRegistryView {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        "enhancers" in value &&
+        value.enhancers instanceof Map
+    );
+}
+
+/** Reads and validates the portion of the installed protocol exercised by these tests. */
 function installedRegistry(ui: EditorUi): InstalledRegistryView {
-    // SAFETY: The test reads the registry immediately after registerEditorEnhancer installed
-    // it under the process-global symbol declared above.
-    const registry = (ui as UiWithRegistryView)[EDITOR_ENHANCER_REGISTRY];
-    if (registry === undefined) {
+    const registry: unknown = Object.getOwnPropertyDescriptor(ui, EDITOR_ENHANCER_REGISTRY)?.value;
+    if (!isInstalledRegistry(registry)) {
         throw new TypeError("Expected an installed editor enhancer registry");
     }
+
     return registry;
 }
 
@@ -59,6 +64,7 @@ class FailingEditorUi extends EditorUi {
             this.failSet = false;
             throw new Error("set editor failed");
         }
+
         super.setEditorComponent(factory);
     }
 }
@@ -68,10 +74,46 @@ function renderEditor(ui: EditorUi): Editor {
     if (factory === undefined) {
         throw new Error("Expected an installed editor factory");
     }
+
     return factory("prompt", 3);
 }
 
 describe("registerEditorEnhancer", () => {
+    test("updates the live editor when Pi constructs factories synchronously", () => {
+        class SynchronousUi extends EditorUi {
+            active: Editor = [];
+
+            override setEditorComponent(
+                factory: EditorFactory<FactoryArgs, Editor> | undefined,
+            ): void {
+                super.setEditorComponent(factory);
+                this.active = factory?.("prompt", 3) ?? [];
+            }
+        }
+
+        const ui = new SynchronousUi();
+        const ctx = { hasUI: true, ui };
+        const first = registerEditorEnhancer(
+            ctx,
+            enhancerKey("synchronous-first"),
+            () => ["base"],
+            (editor) => [...editor, "first"],
+        );
+        expect(ui.active).toEqual(["base", "first"]);
+        const second = registerEditorEnhancer(
+            ctx,
+            enhancerKey("synchronous-second"),
+            () => ["unused"],
+            (editor) => [...editor, "second"],
+        );
+        expect(ui.active).toEqual(["base", "first", "second"]);
+        first.update((editor) => [...editor, "updated"]);
+        expect(ui.active).toEqual(["base", "updated", "second"]);
+        first.dispose();
+        expect(ui.active).toEqual(["base", "second"]);
+        second.dispose();
+        expect(ui.active).toEqual([]);
+    });
     test("replaces keyed enhancers without reordering and forwards factory arguments", () => {
         const ui = new EditorUi();
         const ctx = { hasUI: true, ui };
@@ -128,6 +170,52 @@ describe("registerEditorEnhancer", () => {
         second.dispose();
 
         expect(ui.getEditorComponent()).toBe(rebasedFactory);
+    });
+
+    test("failed live removal preserves enhancer ordering and can be retried", () => {
+        const ui = new FailingEditorUi();
+        const ctx = { hasUI: true, ui };
+        const first = registerEditorEnhancer(
+            ctx,
+            enhancerKey("remove-first"),
+            () => ["base"],
+            (editor) => [...editor, "first"],
+        );
+        const second = registerEditorEnhancer(
+            ctx,
+            enhancerKey("remove-second"),
+            () => ["unused"],
+            (editor) => [...editor, "second"],
+        );
+        ui.failNextSet();
+        expect(() => first.dispose()).toThrow("set editor failed");
+        expect(renderEditor(ui)).toEqual(["base", "first", "second"]);
+        first.dispose();
+        expect(renderEditor(ui)).toEqual(["base", "second"]);
+        second.dispose();
+    });
+
+    test("removal does not reclaim an editor installed by another owner", () => {
+        const ui = new EditorUi();
+        const ctx = { hasUI: true, ui };
+        const first = registerEditorEnhancer(
+            ctx,
+            enhancerKey("external-first"),
+            () => ["base"],
+            (editor) => [...editor, "first"],
+        );
+        const second = registerEditorEnhancer(
+            ctx,
+            enhancerKey("external-second"),
+            () => ["unused"],
+            (editor) => [...editor, "second"],
+        );
+        const external: EditorFactory<FactoryArgs, Editor> = () => ["outside"];
+        ui.setEditorComponent(external);
+        first.dispose();
+        expect(ui.getEditorComponent()).toBe(external);
+        second.dispose();
+        expect(ui.getEditorComponent()).toBe(external);
     });
 
     test("returns an inert handle when no UI is available", () => {

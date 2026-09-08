@@ -19,17 +19,18 @@ function isCodingAgentPackageDirectory(directory: string): boolean {
 
 function findEntrypointPackageDirectory(): string | undefined {
     if (process.env.PI_CODING_AGENT !== "true") return undefined;
-    const entrypoint = process.argv[1];
+    const entrypoint = process.argv.at(1);
     if (entrypoint === undefined || entrypoint.length === 0) return undefined;
 
     let directory = dirname(realpathSync(entrypoint));
-    while (true) {
+    for (;;) {
         if (
             isCodingAgentPackageDirectory(directory) &&
             existsSync(join(directory, "package.json"))
         ) {
             return directory;
         }
+
         const parent = dirname(directory);
         if (parent === directory) return undefined;
         directory = parent;
@@ -47,7 +48,7 @@ const ENTRYPOINT_IMPORT_PATTERN = /(?:\bfrom\s*|(?:^|;)\s*import\s*)["'](\.\/[^"
 
 function resolvePiEntrypointModuleUrls(): string[] {
     if (process.env.PI_CODING_AGENT !== "true") return [];
-    const entrypoint = process.argv[1];
+    const entrypoint = process.argv.at(1);
     if (entrypoint === undefined || entrypoint.length === 0 || !existsSync(entrypoint)) return [];
 
     const packageDirectory = resolve(resolveRunningPiPackageDirectory());
@@ -64,7 +65,7 @@ function resolvePiEntrypointModuleUrls(): string[] {
     const source = readFileSync(entrypointPath, "utf8");
     const moduleUrls: string[] = [];
     for (const match of source.matchAll(ENTRYPOINT_IMPORT_PATTERN)) {
-        const specifier = match[1];
+        const specifier = match.at(1);
         if (specifier === undefined) continue;
         const modulePath = resolve(dirname(entrypointPath), specifier);
         const moduleWithinPackage = relative(packageDirectory, modulePath);
@@ -75,17 +76,21 @@ function resolvePiEntrypointModuleUrls(): string[] {
         ) {
             continue;
         }
+
         moduleUrls.push(pathToFileURL(modulePath).href);
     }
+
     return [...new Set(moduleUrls)];
 }
 
 /** Resolves a path relative to the running Pi coding-agent distribution. */
 function resolvePiInternalModuleUrl(relativePath: string): string {
     const codingAgentDirectory = resolve(resolveRunningPiPackageDirectory(), "dist");
+
     if (relativePath.length === 0 || isAbsolute(relativePath)) {
         throw new TypeError("Pi internal module path must be relative to the coding-agent package");
     }
+
     const modulePath = resolve(codingAgentDirectory, relativePath);
     const pathWithinPackage = relative(codingAgentDirectory, modulePath);
     if (
@@ -96,6 +101,7 @@ function resolvePiInternalModuleUrl(relativePath: string): string {
     ) {
         throw new TypeError("Pi internal module path escapes the coding-agent package");
     }
+
     return pathToFileURL(modulePath).href;
 }
 
@@ -109,6 +115,7 @@ export function warnPiInternalPatchUnavailable(
     if (cause instanceof Error && cause.message.length > 0) {
         suffix = `: ${cause.message}`;
     }
+
     console.warn(`[${scope}] ${feature} unavailable; Pi internals may have changed${suffix}`);
 }
 
@@ -129,6 +136,7 @@ export async function loadPiInternalModule<T>(
         const parsed = await parseImportedModule(resolvePiInternalModuleUrl(relativePath), options);
         if (parsed !== undefined) return parsed;
         warnPiInternalPatchUnavailable(options.scope, options.feature);
+
         return undefined;
     } catch (cause: unknown) {
         warnPiInternalPatchUnavailable(options.scope, options.feature, cause);
@@ -146,12 +154,14 @@ export async function loadPiRuntimeModule<T>(
             const parsed = await parseImportedModule(moduleUrl, options);
             if (parsed !== undefined) return parsed;
         }
+
         const fallback = await parseImportedModule(
             resolvePiInternalModuleUrl(fallbackRelativePath),
             options,
         );
         if (fallback !== undefined) return fallback;
         warnPiInternalPatchUnavailable(options.scope, options.feature);
+
         return undefined;
     } catch (cause: unknown) {
         warnPiInternalPatchUnavailable(options.scope, options.feature, cause);
