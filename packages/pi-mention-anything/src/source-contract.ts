@@ -21,6 +21,7 @@ export type Candidate = {
     readonly replacement?: string;
     readonly data?: JsonValue;
 };
+
 const MAX_ID_LENGTH = 4096;
 const MAX_TEXT_LENGTH = 16_384;
 const MAX_REPLACEMENT_LENGTH = 1_048_576;
@@ -39,6 +40,7 @@ function createJsonValueSchema(depth: number): TSchema {
     ];
     if (depth > 0) {
         const nested = createJsonValueSchema(depth - 1);
+
         variants.push(
             Type.Array(nested, { maxItems: MAX_JSON_COLLECTION_ITEMS }),
             Type.Object(
@@ -51,6 +53,7 @@ function createJsonValueSchema(depth: number): TSchema {
             ),
         );
     }
+
     return Type.Union(variants);
 }
 
@@ -104,6 +107,7 @@ export type DiscoveryResponse = {
     readonly items: readonly Candidate[];
     readonly nextCursor?: string;
 };
+
 export const discoveryResponseSchema = Type.Object(
     {
         items: Type.Array(candidateSchema, { maxItems: MAX_DISCOVERY_ITEMS }),
@@ -131,6 +135,7 @@ export type Resolution =
           readonly replacement?: string;
       }
     | { readonly status: "unresolved"; readonly reason: string };
+
 export const resolutionSchema = Type.Union([
     Type.Object(
         {
@@ -157,6 +162,7 @@ export function parseResolution(value: unknown): Resolution {
                 throw new Error(`resolved path ancestor at index ${index} must be navigable`);
         }
     }
+
     return resolution;
 }
 

@@ -39,6 +39,7 @@ function parseHistory(text: string): Map<string, Selection> {
     if (!Value.Check(selectionHistorySchema, parsed)) {
         throw new Error("selection history has an invalid structure");
     }
+
     const history = Value.Parse(selectionHistorySchema, parsed);
     return new Map(Object.entries(history.selections));
 }
@@ -47,6 +48,7 @@ function historyFile(selections: ReadonlyMap<string, Selection>): SelectionHisto
     const recentSelections = [...selections.entries()]
         .sort((left, right) => right[1].lastSelectedAt - left[1].lastSelectedAt)
         .slice(0, MAX_HISTORY_ENTRIES);
+
     return {
         version: HISTORY_VERSION,
         selections: Object.fromEntries(recentSelections),
@@ -55,12 +57,15 @@ function historyFile(selections: ReadonlyMap<string, Selection>): SelectionHisto
 
 async function atomicWrite(filePath: string, content: string): Promise<void> {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
+
     const temporaryPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+
     try {
         await fs.writeFile(temporaryPath, content, { encoding: "utf8", flag: "wx" });
         await fs.rename(temporaryPath, filePath);
     } catch (cause) {
         await fs.rm(temporaryPath, { force: true }).catch(() => undefined);
+
         throw cause;
     }
 }
@@ -90,6 +95,7 @@ export function createSelectionHistory(options: SelectionHistoryOptions): Select
                 if (!isNodeErrorWithCode(cause) || cause.code !== "ENOENT") reportError();
                 selections = new Map();
             });
+
         return loadTask;
     };
 
@@ -107,6 +113,7 @@ export function createSelectionHistory(options: SelectionHistoryOptions): Select
             pendingWrites = pendingWrites
                 .then(async () => {
                     await ensureLoaded();
+
                     const previous = selections.get(name);
                     selections.set(name, {
                         count: (previous?.count ?? 0) + 1,

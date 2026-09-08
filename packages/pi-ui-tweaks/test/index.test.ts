@@ -13,6 +13,7 @@ import {
     type UiTweaksLifecycleContext,
 } from "../src/index.ts";
 import { captureConsoleWarnings } from "./capture-console-warnings.ts";
+
 type SelectListPrototypeFixture = {
     readonly render?: (width: number) => string[];
 };
@@ -33,6 +34,7 @@ function registerLifecycleHandlers(): Map<string, LifecycleHandler> {
         },
     };
     registerUiTweaksLifecycle(api);
+
     return handlers;
 }
 

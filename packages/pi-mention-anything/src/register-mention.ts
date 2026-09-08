@@ -7,9 +7,11 @@ import { sharedHub, type MentionHub } from "./mention-hub.ts";
 export type MentionProviderContext = Pick<ExtensionContext, "cwd" | "isProjectTrusted">;
 export type MentionContext = MentionProviderContext;
 export type MentionExtensionApi = Pick<ExtensionAPI, "on">;
+
 type ControllerConfiguration<T> = T extends SourceControllerOptions
     ? Omit<T, "sourceId" | "cwd" | "trusted" | "onError">
     : never;
+
 export type MentionConfiguration = ControllerConfiguration<SourceControllerOptions> & {
     readonly trigger: string;
     readonly separator?: string;
@@ -18,10 +20,12 @@ export type MentionConfiguration = ControllerConfiguration<SourceControllerOptio
     readonly expansionPolicy?: "selected-only" | "selected-or-resolved";
     readonly replacementTemplate?: string;
 };
+
 export type MentionRegistration = {
     readonly id: string;
     readonly configuration: (ctx: MentionProviderContext) => MentionConfiguration;
     readonly provider: (ctx: MentionProviderContext) => Provider;
+
     readonly replacement?: (
         path: readonly Candidate[],
         ctx: MentionProviderContext,
@@ -36,11 +40,15 @@ export function registerMentionSources(
 ): void {
     let hub: MentionHub | undefined;
     let owned: symbol[] = [];
+
     pi.on("session_start", async (_event, ctx) => {
         if (hub !== undefined) for (const handle of owned) await hub.remove(handle);
         owned = [];
+
         const registrations = load(ctx);
+
         hub = undefined;
+
         if (registrations.length === 0) return;
         hub = sharedHub(ctx);
         for (const registration of registrations) owned.push(hub.add(registration));
@@ -57,12 +65,17 @@ export function registerMentionSources(
     });
     pi.on("session_shutdown", async () => {
         const previous = hub;
+
         hub = undefined;
+
         const handles = owned;
+
         owned = [];
+
         if (previous !== undefined) for (const handle of handles) await previous.remove(handle);
     });
 }
+
 /** Register a domain provider; the shared hub owns editor, cache and expansion lifetimes. */
 export function registerMention(
     pi: Pick<ExtensionAPI, "on">,

@@ -21,6 +21,7 @@ export default function (pi: ExtensionAPI): void {
                     navigable: true,
                     replacement: `tree node ${parent}/${segment}`,
                 }));
+
                 return candidates;
             }),
     });

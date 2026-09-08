@@ -58,6 +58,7 @@ export const THEME_FOREGROUND_COLORS = defineThemeColors([
 ] as const);
 
 export type ThemeForegroundColor = (typeof THEME_FOREGROUND_COLORS)[number];
+
 export const DEFAULT_URL_COLOR_SETTING = "#87d7ff";
 
 export const themeForegroundColorSchema = Type.Union(

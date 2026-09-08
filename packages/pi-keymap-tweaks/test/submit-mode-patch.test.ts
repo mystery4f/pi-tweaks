@@ -75,12 +75,14 @@ test("submit-mode patches transform input once and restore both predecessors", (
         if (!isPromptMethod(restoredPrompt) || !isHandleInputMethod(restoredHandleInput)) {
             assert.fail("Expected restored Pi methods");
         }
+
         assert.equal(restoredPrompt, prompt);
         assert.equal(restoredHandleInput, handleInput);
     } finally {
         handle?.dispose();
         restoreProperty(agentPrototype, "prompt", promptDescriptor);
         restoreProperty(editorPrototype, "handleInput", handleInputDescriptor);
+
         if (previousTmux === undefined) delete process.env.TMUX;
         else process.env.TMUX = previousTmux;
     }

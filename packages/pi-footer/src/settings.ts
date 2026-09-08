@@ -110,6 +110,7 @@ function parseSlotIds(values: readonly string[]): FooterSlotId[] {
             slotIds.push(value);
         }
     }
+
     return slotIds;
 }
 
@@ -132,6 +133,7 @@ function findSharedVisibleSlotId(
         if (hiddenIds.has(slotId)) continue;
         if (leftIds.has(slotId)) return slotId;
     }
+
     return undefined;
 }
 
@@ -194,6 +196,7 @@ function buildParsedFooterSettings(
         if (parsedLayout.layout !== undefined) {
             nextSettings.layout = parsedLayout.layout;
         }
+
         errors.push(...parsedLayout.errors);
     }
 
@@ -254,9 +257,12 @@ export function resolveFooterConfig(
                 if (schemaErrors.length > messages.length) {
                     suffix = `; and ${schemaErrors.length - messages.length} more`;
                 }
+
                 errors.push(`${source.label} is invalid: ${messages.join("; ")}${suffix}`);
+
                 continue;
             }
+
             const parsed = buildParsedFooterSettings(settings, source.label);
             mergedSettings = mergeFooterSettings(mergedSettings, parsed.settings);
             errors.push(...parsed.errors);
@@ -267,6 +273,7 @@ export function resolveFooterConfig(
             } else {
                 message = String(error);
             }
+
             errors.push(message);
         }
     }
@@ -313,6 +320,7 @@ export function loadFooterSettings(cwd: string, projectTrusted: boolean): Loaded
     }
 
     const loaded = resolveFooterConfig(settingsSources);
+
     return {
         config: loaded.config,
         errors: [...settings.diagnostics.map((diagnostic) => diagnostic.message), ...loaded.errors],

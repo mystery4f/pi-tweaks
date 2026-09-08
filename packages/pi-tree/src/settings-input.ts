@@ -28,6 +28,7 @@ export const SettingsObjectSchema = Type.Object(
     },
     { additionalProperties: false },
 );
+
 export type SettingsObject = Static<typeof SettingsObjectSchema>;
 
 export const PiThemeSettingsSchema = Type.Object(
@@ -36,6 +37,7 @@ export const PiThemeSettingsSchema = Type.Object(
     },
     { additionalProperties: true },
 );
+
 export type PiThemeSettings = Static<typeof PiThemeSettingsSchema>;
 
 export const extensionSettingsInput = {

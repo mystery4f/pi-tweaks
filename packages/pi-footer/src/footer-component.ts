@@ -12,6 +12,7 @@ export function isFooterComponent(value: unknown): value is MarkedFooterComponen
     if ((typeof value !== "object" && typeof value !== "function") || value === null) {
         return false;
     }
+
     return (
         FOOTER_COMPONENT_MARKER in value &&
         value[FOOTER_COMPONENT_MARKER] === true &&
@@ -34,8 +35,10 @@ export function markFooterComponent<T extends object>(
         enumerable: false,
         value: kind,
     });
+
     if (!isFooterComponent(component) || component[FOOTER_COMPONENT_KIND] !== kind) {
         throw new Error("Failed to mark footer component.");
     }
+
     return component;
 }

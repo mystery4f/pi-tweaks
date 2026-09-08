@@ -14,6 +14,7 @@ type ProjectMentionHandlerMap = {
         event: ContextEvent,
         ctx: MentionProjectSettingsContext,
     ) => Promise<ContextExpansionResult | undefined>;
+
     input: (
         event: import("@earendil-works/pi-coding-agent").InputEvent,
         ctx: MentionProjectSettingsContext,
@@ -26,6 +27,7 @@ process.env.PI_CODING_AGENT_DIR = agentDir;
 
 afterAll(async () => {
     await rm(agentDir, { recursive: true, force: true });
+
     if (originalAgentDir === undefined) {
         delete process.env.PI_CODING_AGENT_DIR;
     } else {
@@ -74,10 +76,12 @@ type SharedRuntimeContext = {
     readonly cwd: string;
     readonly hasUI: boolean;
     readonly signal: AbortSignal;
+
     readonly ui: {
         notify(): void;
         readonly theme: { fg(color: string, value: string): string };
     };
+
     isProjectTrusted(): boolean;
 };
 
@@ -162,6 +166,7 @@ test("mention project preserves submitted prompts and expands provider context",
                 timestamp: 1,
             },
         ];
+
         const result = await getContextHandler(registeredHandlers)(
             { type: "context", messages },
             context(cwd),
@@ -223,7 +228,9 @@ test("registered project mentions preserve queued input and expand multiple cont
                 { action: "continue" },
             );
         }
+
         const image = { type: "image", data: "aGVsbG8=", mimeType: "image/png" } as const;
+
         const messages: ContextEvent["messages"] = [
             { role: "user", content: 'Earlier ##"work api"', timestamp: 1 },
             {
@@ -236,6 +243,7 @@ test("registered project mentions preserve queued input and expand multiple cont
                 timestamp: 2,
             },
         ];
+
         const original = structuredClone(messages);
         const handler = getContextHandler(handlers);
         const result = await handler({ type: "context", messages }, context(cwd));

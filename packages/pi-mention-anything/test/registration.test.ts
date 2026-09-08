@@ -63,10 +63,12 @@ function host(ui?: HostContext["ui"]): Host {
         isProjectTrusted: () => true,
         ui: ui ?? { notify() {} },
     };
+
     return {
         pi,
         async emit(event, initialPayload) {
             let payload = initialPayload;
+
             for (const handler of handlers.get(event) ?? []) {
                 if (!isHostHandler(handler)) throw new Error("Missing host event handler.");
                 const result = await handler(payload, ctx);
@@ -74,6 +76,7 @@ function host(ui?: HostContext["ui"]): Host {
                     payload = { messages: result.messages };
                 }
             }
+
             return payload;
         },
     };
@@ -121,6 +124,7 @@ test("registrations share longest-trigger ownership and do not recursively expan
             configuration: () => ({ trigger }),
             provider: () => {
                 factories += 1;
+
                 return createListProvider(async () => {
                     discovery += 1;
                     return [
@@ -164,6 +168,7 @@ test("duplicate source IDs and triggers are rejected at session registration", a
             provider: () => createListProvider(async () => []),
         });
     }
+
     await assert.rejects(
         app.emit("session_start", { type: "session_start" }),
         /unique IDs and triggers/,
@@ -199,7 +204,9 @@ test.each([false, true])(
         if (withDefault)
             registerMention(pi, registration("default", "base:", "item", "default expanded"));
         else registerMentionSources(pi, () => []);
+
         vi.resetModules();
+
         // Each load intentionally gets a fresh module instance, matching Pi's per-extension Jiti loaders.
         const treeCopy = await import("../src/register-mention.ts");
         assert.notEqual(treeCopy.registerMention, registerMention);
@@ -241,6 +248,7 @@ test("removing one owner preserves shared sources and permits replacement regist
     const first = host(ui);
     const second = host(ui);
     const disposed: string[] = [];
+
     for (const [app, id] of [
         [first, "first"],
         [second, "second"],
@@ -266,6 +274,7 @@ test("removing one owner preserves shared sources and permits replacement regist
         });
         await app.emit("session_start", {});
     }
+
     await first.emit("session_shutdown", {});
     assert.deepEqual(disposed, ["first"]);
     assert.deepEqual(
@@ -299,6 +308,7 @@ test("session reset disposes the previous provider before recreating it", async 
         configuration: () => ({ trigger: "r:" }),
         provider: () => {
             lifecycle.push("create");
+
             return {
                 ...createListProvider(async () => []),
                 dispose() {

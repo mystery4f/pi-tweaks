@@ -21,6 +21,7 @@ type TestContext = {
     readonly ui: { notify(message: string): void };
 };
 type Handler = (payload: Payload, ctx: TestContext) => Promise<Result> | Result;
+
 function isHandler(value: unknown): value is Handler {
     return typeof value === "function";
 }
@@ -124,8 +125,10 @@ test("settings entrypoint wires chaining and templates into the shared runtime",
     } finally {
         if (handlers.has("session_shutdown"))
             await invoke("session_shutdown", { type: "session_shutdown" });
+
         if (original === undefined) delete process.env.PI_CODING_AGENT_DIR;
         else process.env.PI_CODING_AGENT_DIR = original;
+
         await rm(agentDir, { recursive: true, force: true });
     }
 });

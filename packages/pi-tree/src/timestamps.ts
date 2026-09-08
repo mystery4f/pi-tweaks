@@ -46,7 +46,6 @@ function formatRelativeTimestamp(timestamp: string | undefined): string {
 
     const diffMs = Math.max(0, Date.now() - then);
     const diffSeconds = Math.floor(diffMs / 1000);
-
     if (diffSeconds < 60) {
         return `${Math.max(1, diffSeconds)}s ago`;
     }
@@ -84,5 +83,6 @@ export function formatEntryTimestamp(
     if (mode === "absolute") {
         return formatAbsoluteTimestamp(timestamp);
     }
+
     return formatRelativeTimestamp(timestamp);
 }

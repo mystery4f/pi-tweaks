@@ -13,6 +13,7 @@ export type ProviderPayloadObject = {
 export function isProviderPayloadObject(value: unknown): value is ProviderPayloadObject {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
 function isProviderModel(value: unknown): value is string {
     return typeof value === "string";
 }

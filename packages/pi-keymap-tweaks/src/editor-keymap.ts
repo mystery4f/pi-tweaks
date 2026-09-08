@@ -10,6 +10,7 @@ const KEYMAP_EDITOR_ENHANCER = Symbol.for("zigai.pi-keymap-tweaks.editor-enhance
 type EditorFactory = NonNullable<ReturnType<ExtensionContext["ui"]["getEditorComponent"]>>;
 type EditorFactoryArgs = Parameters<EditorFactory>;
 type EditorComponent = ReturnType<EditorFactory>;
+
 type EditorState = {
     lines: string[];
     cursorLine: number;
@@ -100,6 +101,7 @@ function hasEditorInternals(editor: EditorLike): editor is EditorLike & EditorIn
     ) {
         return false;
     }
+
     return (
         !("exitHistoryBrowsing" in editor) ||
         editor.exitHistoryBrowsing === undefined ||
@@ -130,9 +132,11 @@ function moveToCodexLineStart(editor: EditorLike): void {
     const state = editor.state;
 
     editor.lastAction = null;
+
     if (state.cursorCol === 0 && state.cursorLine > 0) {
         state.cursorLine -= 1;
     }
+
     editor.setCursorCol(0);
     editor.requestRenderNow?.();
 }
@@ -145,11 +149,13 @@ function moveToCodexLineEnd(editor: EditorLike): void {
     editor.lastAction = null;
     if (state.cursorCol >= currentLine.length && state.cursorLine < state.lines.length - 1) {
         state.cursorLine += 1;
+
         const nextLine = state.lines[state.cursorLine] || "";
         editor.setCursorCol(nextLine.length);
         editor.requestRenderNow?.();
         return;
     }
+
     editor.setCursorCol(currentLine.length);
     editor.requestRenderNow?.();
 }
@@ -176,6 +182,7 @@ function deleteCurrentLine(
 ): void {
     if (!hasEditorInternals(editor)) return;
     const currentLine = editor.state.lines[editor.state.cursorLine] ?? "";
+
     if (editor.pushUndoSnapshot === undefined) return;
 
     editor.pushUndoSnapshot();
@@ -207,9 +214,11 @@ function enhanceEditor(
 ): EditorLike {
     const writeClipboard = options.writeClipboard ?? copyToClipboard;
     const notify = options.notify ?? (() => undefined);
+
     editor.requestRenderNow ??= requestRender;
 
     const originalHandleInput = editor.handleInput.bind(editor);
+
     editor.handleInput = (data: string) => {
         if (editor.onExtensionShortcut?.(data) === true) return;
 

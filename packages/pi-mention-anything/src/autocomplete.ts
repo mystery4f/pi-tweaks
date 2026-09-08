@@ -18,6 +18,7 @@ import {
 } from "./initial-suggestions.ts";
 
 type MentionCompletion = ReturnType<AutocompleteProvider["applyCompletion"]>;
+
 type SuggestionOptions = {
     readonly signal: AbortSignal;
     readonly force?: boolean;
@@ -37,12 +38,15 @@ export type MentionAutocompleteOptions<T> = {
     readonly descriptionOf?: (item: T) => string | undefined;
     readonly searchTextOf?: (item: T) => string;
     readonly formatValue?: (item: T, trigger: string) => string;
+
     readonly extractPrefix?: (
         textBeforeCursor: string,
         trigger: string,
     ) => MentionPrefix | undefined;
+
     readonly initialPriorityOf?: (item: T) => number;
     readonly onSelection?: (item: T) => void;
+
     readonly transformFallback?: (
         suggestions: AutocompleteSuggestions | null,
     ) => AutocompleteSuggestions | null;
@@ -72,6 +76,7 @@ function applyMentionCompletion(
     const textBeforeCursor = `${beforePrefix}${value}${suffix}`;
     const replacementLines = `${textBeforeCursor}${afterCursor}`.split("\n");
     const cursorLines = textBeforeCursor.split("\n");
+
     return {
         lines: [...lines.slice(0, cursorLine), ...replacementLines, ...lines.slice(cursorLine + 1)],
         cursorLine: cursorLine + cursorLines.length - 1,
@@ -126,6 +131,7 @@ async function filterItems<T>(
                 options.initialPriorityOf,
             );
         }
+
         return ranked.map((item) => toAutocompleteItem(item, options));
     }
 
@@ -168,6 +174,7 @@ export function createMentionAutocompleteProvider<T>(
             } else {
                 mention = options.extractPrefix(beforeCursor, trigger);
             }
+
             if (mention === undefined || suggestionOptions.signal.aborted) {
                 return fallback(lines, cursorLine, cursorCol, suggestionOptions);
             }
@@ -181,11 +188,13 @@ export function createMentionAutocompleteProvider<T>(
             if (suggestionOptions.signal.aborted || suggestions.length === 0) {
                 return fallback(lines, cursorLine, cursorCol, suggestionOptions);
             }
+
             completionItems = new Map();
             for (const candidate of items) {
                 const label = itemLabel(candidate, options);
                 if (!completionItems.has(label)) completionItems.set(label, candidate);
             }
+
             return { prefix: mention.prefix, items: suggestions };
         },
 
@@ -198,7 +207,9 @@ export function createMentionAutocompleteProvider<T>(
             const beforePrefix = currentLine.slice(0, cursorCol - prefix.length);
             const afterCursor = currentLine.slice(cursorCol);
             const suffix = completionSuffixFor(afterCursor, completionSuffix);
+
             options.history?.recordSelection(item.label);
+
             const selectedItem = completionItems.get(item.label);
             if (selectedItem !== undefined) options.onSelection?.(selectedItem);
             return applyMentionCompletion(

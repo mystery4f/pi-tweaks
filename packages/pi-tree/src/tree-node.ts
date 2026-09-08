@@ -3,6 +3,7 @@ export type TreeEntry = {
     parentId?: string | null;
     timestamp?: string;
     type?: string;
+
     message?: {
         role?: string;
         content?: unknown;
@@ -11,6 +12,7 @@ export type TreeEntry = {
         stopReason?: string;
         errorMessage?: string;
     };
+
     content?: unknown;
     customType?: string;
     summary?: string;

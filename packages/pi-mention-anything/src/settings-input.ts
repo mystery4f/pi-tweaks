@@ -253,6 +253,7 @@ export const mentionAnythingSettingsSchema = Type.Object(
 export type ConfiguredMentionInput = StaticDecode<
     typeof mentionAnythingSettingsSchema
 >["mentions"][number];
+
 export type ConfiguredMention = Omit<
     ConfiguredMentionInput,
     "completionSuffix" | "initialSuggestions"
@@ -260,6 +261,7 @@ export type ConfiguredMention = Omit<
     completionSuffix: string;
     initialSuggestions: StaticDecode<typeof initialSuggestionsSchema>;
 };
+
 export type MentionAnythingSettings = { mentions: ConfiguredMention[] };
 export type ConfiguredMentionItem = StaticDecode<typeof mentionItemSchema>;
 

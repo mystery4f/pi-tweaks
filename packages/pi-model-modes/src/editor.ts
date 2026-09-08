@@ -36,12 +36,14 @@ export function applyModeEditor(
                 if (editor.getText().trimStart().startsWith("!")) {
                     return ctx.ui.theme.getBashModeBorderColor()(text);
                 }
+
                 return controller.getModeBorderColor(
                     ctx,
                     controller.currentMode,
                     defaultBorderColor,
                 )(text);
             };
+
             Object.defineProperty(editor, "borderColor", {
                 get: () => borderColor,
                 set: () => {},
@@ -49,6 +51,7 @@ export function applyModeEditor(
                 enumerable: true,
             });
             controller.setEditorRenderRequest(() => tui.requestRender());
+
             return editor;
         },
     );

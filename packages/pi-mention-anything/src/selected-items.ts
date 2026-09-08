@@ -8,6 +8,7 @@ export function includeSelectedItems<T>(
     for (const selectedItem of selectedItems.values()) {
         if (!currentNames.has(nameOf(selectedItem))) items.push(selectedItem);
     }
+
     return items;
 }
 

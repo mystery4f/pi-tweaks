@@ -14,22 +14,29 @@ type CursorPosition = {
 class TestEditor implements BashExecSpacingEditor {
     text: string;
     renderRequests = 0;
+
     constructor(text = "") {
         this.text = text;
     }
+
     getCursor(): CursorPosition {
         return { line: 0, col: this.text.length } satisfies CursorPosition;
     }
+
     getText(): string {
         return this.text;
     }
+
     handleInput(): void {}
+
     insertTextAtCursor(text: string): void {
         this.text += text;
     }
+
     requestRenderNow(): void {
         this.renderRequests += 1;
     }
+
     setText(text: string): void {
         this.text = text;
     }

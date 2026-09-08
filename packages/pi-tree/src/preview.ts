@@ -22,6 +22,7 @@ type PreviewContent =
     | { readonly kind: "text"; readonly text: string }
     | { readonly kind: "blocks"; readonly blocks: readonly TextContentBlock[] }
     | { readonly kind: "empty" };
+
 function isString(value: unknown): value is string {
     return typeof value === "string";
 }
@@ -51,6 +52,7 @@ function extractTextContent(content: PreviewContent, maxLength: number): string 
         result += block.text;
         if (result.length >= maxLength) return result.slice(0, maxLength);
     }
+
     return result;
 }
 
@@ -73,6 +75,7 @@ export function getPreviewText(node: TreeNode | undefined): string {
             if (textContent.length > 0) {
                 return textContent;
             }
+
             if (message?.role === "bashExecution") {
                 return normalizePreviewText(message.command ?? "");
             }
@@ -85,6 +88,7 @@ export function getPreviewText(node: TreeNode | undefined): string {
             if (message?.role === "toolResult") {
                 return `[${message.toolName ?? "tool"}]`;
             }
+
             return "(no content)";
         }
         case "custom_message":

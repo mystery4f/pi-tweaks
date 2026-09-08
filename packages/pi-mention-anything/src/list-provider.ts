@@ -8,16 +8,20 @@ export function createListProvider(
         filtering: "local",
         async discover(request) {
             request.signal.throwIfAborted();
+
             const items = await loadItems(request);
             if (items.length > 10000)
                 throw new Error(
                     "Enumerable mention sources are limited to 10000 items per parent.",
                 );
+
             request.signal.throwIfAborted();
+
             return { items: items.slice(0, request.limit) };
         },
         async resolve(request) {
             request.signal.throwIfAborted();
+
             const path: Candidate[] = [];
             for (const [index, segment] of request.segments.entries()) {
                 const items = await loadItems({
@@ -29,11 +33,14 @@ export function createListProvider(
                     limit: 10000,
                     signal: request.signal,
                 });
+
                 request.signal.throwIfAborted();
+
                 if (items.length > 10000)
                     throw new Error(
                         "Enumerable mention sources are limited to 10000 items per parent.",
                     );
+
                 const matches = items.filter((item) => item.segment === segment);
                 if (matches.length === 0) {
                     return { status: "unresolved", reason: "missing" };
@@ -46,10 +53,12 @@ export function createListProvider(
                 if (candidate === undefined) {
                     return { status: "unresolved", reason: "missing" };
                 }
+
                 const finalSegment = index === request.segments.length - 1;
                 if (!finalSegment && !candidate.navigable) {
                     return { status: "unresolved", reason: "not-navigable" };
                 }
+
                 path.push(candidate);
             }
 

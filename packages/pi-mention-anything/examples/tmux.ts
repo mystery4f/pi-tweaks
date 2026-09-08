@@ -28,6 +28,7 @@ export default function (pi: ExtensionAPI): void {
                         "#{pane_id}\t#{pane_index}\t#{pane_current_command}",
                     ];
                 else return [];
+
                 const stdout = await new Promise<string>((resolve, reject) => {
                     execFile(
                         "tmux",
@@ -46,6 +47,7 @@ export default function (pi: ExtensionAPI): void {
                         },
                     );
                 });
+
                 return stdout
                     .trim()
                     .split("\n")
@@ -55,6 +57,7 @@ export default function (pi: ExtensionAPI): void {
                         const id = columns.at(0);
                         const segment = columns.at(1);
                         const command = columns.at(2);
+
                         if (
                             id === undefined ||
                             id.length === 0 ||
@@ -62,6 +65,7 @@ export default function (pi: ExtensionAPI): void {
                             segment.length === 0
                         )
                             throw new Error("Invalid tmux listing.");
+
                         let description = id;
                         if (command !== undefined) description = `${id} ${command}`;
                         const candidate: Candidate = {

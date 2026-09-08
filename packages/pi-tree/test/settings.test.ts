@@ -46,6 +46,7 @@ test("tree settings scaffold missing global config and schema", async () => {
         assert.match(await readFile(schemaPath, "utf8"), /Pi Tree settings/);
     } finally {
         await rm(agentDir, { recursive: true, force: true });
+
         if (originalAgentDir === undefined) {
             delete process.env.PI_CODING_AGENT_DIR;
         } else {
@@ -77,6 +78,7 @@ test("tree settings reject unknown config keys", async () => {
         assert.equal(getPersistedMode(), "relative");
     } finally {
         await rm(agentDir, { recursive: true, force: true });
+
         if (originalAgentDir === undefined) {
             delete process.env.PI_CODING_AGENT_DIR;
         } else {

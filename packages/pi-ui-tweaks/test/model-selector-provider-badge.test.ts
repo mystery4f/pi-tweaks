@@ -6,10 +6,12 @@ import { installModelSelectorProviderBadgePatch } from "../src/model-selector-pr
 
 class MutableText {
     constructor(public text: string) {}
+
     setText(text: string): void {
         this.text = text;
     }
 }
+
 function selector() {
     return {
         filteredModels: [
@@ -28,6 +30,7 @@ function selector() {
         },
     };
 }
+
 const theme = { fg: (color: string, text: string): string => `<${color}>${text}</${color}>` };
 
 test("explicit null does not patch Pi's default model selector", async () => {

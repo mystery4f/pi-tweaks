@@ -44,6 +44,7 @@ export default function (pi: Pick<ExtensionAPI, "on">): void {
                             `${mention.id}.json`,
                         ),
                     };
+
                 return configuration;
             },
             provider: () => createConfiguredProvider(mention, ctx.cwd),

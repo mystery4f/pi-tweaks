@@ -22,6 +22,7 @@ function enhanceEditor(editor: EditorLike, history: string[]): EditorLike {
     for (const prompt of history) {
         editor.addToHistory?.(prompt);
     }
+
     return editor;
 }
 
@@ -45,8 +46,10 @@ export function applyPromptHistoryEditor(
             (editor) => editor,
         );
     }
+
     const currentEntries = ctx.sessionManager.getBranch();
     const currentPrompts = collectUserPromptsFromEntries(currentEntries);
+
     return registerEditorEnhancer(
         ctx,
         PROMPT_HISTORY_EDITOR_ENHANCER,

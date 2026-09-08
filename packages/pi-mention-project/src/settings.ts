@@ -42,6 +42,7 @@ type LoadedMentionProjectSettings = Pick<
     LoadedPiExtensionSettings<typeof mentionProjectSettingsDefinition.schema>,
     "globalSettingsLayer" | "projectSettingsLayer"
 >;
+
 type SettingsLayer = LoadedMentionProjectSettings["globalSettingsLayer"];
 
 function readLegacySettings(filePath: string): LegacyMentionProjectSettings {
@@ -59,6 +60,7 @@ function legacySettingsPaths(ctx: MentionProjectSettingsContext): string[] {
     if (ctx.isProjectTrusted()) {
         paths.push(join(ctx.cwd, CONFIG_DIR_NAME, LEGACY_SETTINGS_FILE));
     }
+
     return paths;
 }
 
@@ -76,7 +78,9 @@ function isGeneratedDefaultLayer(layer: SettingsLayer): boolean {
         "completionSuffix",
         "initialSuggestions",
     ]);
+
     if (Object.keys(layer).some((key) => !generatedKeys.has(key))) return false;
+
     if (
         layer.trigger !== DEFAULT_MENTION_TRIGGER ||
         !Array.isArray(layer.roots) ||
@@ -129,11 +133,13 @@ function normalizeLegacyRoots(value: string | string[]): string[] | undefined {
     let candidates: string[];
     if (Array.isArray(value)) candidates = value;
     else candidates = [value];
+
     const roots: string[] = [];
     for (const root of candidates) {
         const trimmed = root.trim();
         if (trimmed.length > 0) roots.push(trimmed);
     }
+
     if (roots.length === 0 && candidates.length > 0) return undefined;
     return roots;
 }
@@ -148,6 +154,7 @@ function loadLegacySettings(ctx: MentionProjectSettingsContext): LegacyMentionPr
     if (projectSettingsPath !== undefined) {
         projectSettings = readLegacySettings(projectSettingsPath);
     }
+
     return { ...globalSettings, ...projectSettings };
 }
 
@@ -160,6 +167,7 @@ function applyLegacySettings(
         const trigger = legacy.mentionProjectTrigger;
         if (matchesLegacyTrigger(trigger)) settings.trigger = trigger;
     }
+
     if (!hasExplicitExtensionSetting(loaded, "roots")) {
         const legacyRoots = legacy.mentionProjectRoots;
         if (matchesLegacyRoots(legacyRoots)) {
@@ -167,16 +175,19 @@ function applyLegacySettings(
             if (roots !== undefined) settings.roots = roots;
         }
     }
+
     if (!hasExplicitExtensionSetting(loaded, "gitReposOnly")) {
         const gitReposOnly = legacy.mentionProjectGitReposOnly;
         if (matchesLegacyBoolean(gitReposOnly)) settings.gitReposOnly = gitReposOnly;
     }
+
     if (!hasExplicitExtensionSetting(loaded, "includeDotFolders")) {
         const includeDotFolders = legacy.mentionProjectIncludeDotFolders;
         if (matchesLegacyBoolean(includeDotFolders)) {
             settings.includeDotFolders = includeDotFolders;
         }
     }
+
     if (!hasExplicitExtensionSetting(loaded, "completionSuffix")) {
         const completionSuffix = legacy.mentionProjectCompletionSuffix;
         if (matchesLegacyCompletionSuffix(completionSuffix)) {
@@ -224,7 +235,9 @@ export function loadMentionProjectSettings(
             pinned: [...loaded.settings.initialSuggestions.pinned],
         },
     };
+
     applyLegacySettings(loadLegacySettings(ctx), settings, loaded);
+
     return settings;
 }
 

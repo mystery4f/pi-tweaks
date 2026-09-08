@@ -24,6 +24,7 @@ function expandHome(root: string): string {
     if (root.startsWith("~/") || root.startsWith("~\\")) {
         return path.join(os.homedir(), root.slice(2));
     }
+
     return root;
 }
 
@@ -62,6 +63,7 @@ async function directoryEntryIsDirectory(
 
     try {
         const stats = await fs.stat(path.join(root, entry.name));
+
         if (isAborted(options)) return false;
         return stats.isDirectory();
     } catch {
@@ -76,6 +78,7 @@ async function isGitRepository(
     if (isAborted(options)) return false;
     try {
         const stats = await fs.stat(path.join(projectPath, ".git"));
+
         if (isAborted(options)) return false;
         return stats.isDirectory() || stats.isFile();
     } catch {
@@ -109,6 +112,7 @@ async function listRootProjectDirectories(
     } catch {
         return [];
     }
+
     if (isAborted(options)) return [];
 
     const projects: ProjectDirectory[] = [];
@@ -120,6 +124,7 @@ async function listRootProjectDirectories(
     }
 
     projects.sort((left, right) => compareProjectNames(left.name, right.name));
+
     return projects;
 }
 
@@ -148,5 +153,6 @@ export async function listProjectDirectories(
         if (isAborted(options)) break;
         projects.push(...(await listRootProjectDirectories(root, settings, options)));
     }
+
     return uniqueProjectsByName(projects);
 }

@@ -107,6 +107,7 @@ export function rankInitialSuggestions<T>(
             case "sourceOrder":
                 break;
         }
+
         return left.sourceIndex - right.sourceIndex;
     });
 
@@ -124,6 +125,7 @@ export async function rankWithSelectionHistory<T>(
     if (history !== undefined && historyRankingNeeded(settings.strategy)) {
         selections = await history.load();
     }
+
     return rankInitialSuggestions(items, nameOf, settings, selections, Date.now(), priorityOf);
 }
 
@@ -156,6 +158,7 @@ export function createLazySelectionHistory(options: SelectionHistoryOptions): Se
                 reportError();
                 return unavailableHistory;
             });
+
         return historyTask;
     };
 
@@ -171,6 +174,7 @@ export function createLazySelectionHistory(options: SelectionHistoryOptions): Se
         },
         async flush() {
             await pendingRecords;
+
             if (historyTask === undefined) return;
             await (await historyTask).flush();
         },

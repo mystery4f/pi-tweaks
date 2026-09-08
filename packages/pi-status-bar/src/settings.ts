@@ -75,6 +75,7 @@ type RightMessagesSettings = {
     readonly messages?: readonly string[];
     readonly messagesFile?: MessageFileReference;
 };
+
 type MutableRightMessagesSettings = {
     -readonly [Key in keyof RightMessagesSettings]: RightMessagesSettings[Key];
 };
@@ -84,6 +85,7 @@ type StatusBarSettings = {
     readonly statusBar?: StatusBarConfig;
     readonly rightMessages?: RightMessagesSettings;
 };
+
 type MergedStatusBarSettings = {
     statusBar?: StatusBarConfig;
     rightMessages?: RightMessagesSettings;
@@ -92,14 +94,17 @@ type MergedStatusBarSettings = {
 type MutableStatusBarConfig = {
     active?: {
         text?: string;
+
         spinner?: {
             frames?: readonly string[];
         };
+
         timer?: {
             visible?: boolean;
             paused?: boolean;
         };
     };
+
     idle?: {
         text?: string;
         visible?: boolean;
@@ -242,13 +247,16 @@ function parseStatusBarConfigSettings(
         if (text !== undefined) {
             active.text = text;
         }
+
         const frames = sanitizeOptionalFrames(parsed.active.spinner?.frames);
         if (frames !== undefined) {
             active.spinner = { frames };
         }
+
         if (parsed.active.timer !== undefined) {
             active.timer = parsed.active.timer;
         }
+
         statusBar.active = active;
     }
 
@@ -258,6 +266,7 @@ function parseStatusBarConfigSettings(
         if (text !== undefined) {
             idle.text = text;
         }
+
         if (parsed.idle.visible !== undefined) {
             idle.visible = parsed.idle.visible;
         }
@@ -267,6 +276,7 @@ function parseStatusBarConfigSettings(
         if (parsed.idle.showTokensPerSecond !== undefined) {
             idle.showTokensPerSecond = parsed.idle.showTokensPerSecond;
         }
+
         statusBar.idle = idle;
     }
 
@@ -295,8 +305,10 @@ function parseStatusBarConfigFile(
         if (errors.length > messages.length) {
             suffix = `; and ${errors.length - messages.length} more`;
         }
+
         throw new Error(`${label} is invalid: ${messages.join("; ")}${suffix}`);
     }
+
     return Value.Parse(StatusBarConfigFileSchema, value);
 }
 
@@ -331,6 +343,7 @@ function parseStatusBarSettings(
                 .map((message) => message.trim())
                 .filter((message) => message.length > 0);
         }
+
         const messagesFilePath = configuredMessagesFile?.trim();
         if (messagesFilePath !== undefined) {
             parsedRightMessages.messagesFile = {
@@ -339,8 +352,10 @@ function parseStatusBarSettings(
                 label: `${label}.${RIGHT_MESSAGES_SETTINGS_KEY}.messagesFile`,
             };
         }
+
         rightMessagesSettings = parsedRightMessages;
     }
+
     return {
         settings: {
             statusBar: parseStatusBarConfigSettings(parsedConfig.statusBar),
@@ -387,6 +402,7 @@ function resolveConfiguredPath(path: string, baseDir: string): string {
     if (isAbsolute(path)) {
         return path;
     }
+
     return resolve(baseDir, path);
 }
 
@@ -397,11 +413,14 @@ function parseMessagesFileContent(content: string): string[] {
         if (message.length === 0) {
             continue;
         }
+
         if (message.startsWith("#")) {
             continue;
         }
+
         messages.push(message);
     }
+
     return messages;
 }
 
@@ -412,6 +431,7 @@ type LoadedMessagesFile = {
 
 function readMessagesFile(reference: MessageFileReference): LoadedMessagesFile {
     const resolvedPath = resolveConfiguredPath(reference.path, reference.baseDir);
+
     try {
         const content = readFileSync(resolvedPath, "utf8");
         return { messages: parseMessagesFileContent(content) };
@@ -507,9 +527,11 @@ export function resolveStatusBarResolvedConfig(
             mergedSettings.statusBar,
             parsed.settings.statusBar,
         );
+
         if (parsed.settings.rightMessages !== undefined) {
             Object.assign((mergedSettings.rightMessages ??= {}), parsed.settings.rightMessages);
         }
+
         errors.push(...parsed.errors);
     }
 
@@ -540,6 +562,7 @@ export function loadStatusBarSettings(cwd: string, projectTrusted: boolean): Loa
             settings: settings.globalSettingsLayer,
         });
     }
+
     if (settings.projectSettingsLayer !== undefined && settings.projectConfigPath !== undefined) {
         settingsSources.push({
             label: settings.projectConfigPath,
@@ -549,6 +572,7 @@ export function loadStatusBarSettings(cwd: string, projectTrusted: boolean): Loa
     }
 
     const loaded = resolveStatusBarResolvedConfig(settingsSources);
+
     return {
         config: loaded.config,
         errors: [...settings.diagnostics.map((diagnostic) => diagnostic.message), ...loaded.errors],

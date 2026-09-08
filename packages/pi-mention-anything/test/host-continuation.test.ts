@@ -11,25 +11,40 @@ import {
 import { createChainAutocompleteProvider } from "../src/chain-autocomplete.ts";
 
 type Factory = NonNullable<Parameters<MentionEditorContext["ui"]["setEditorComponent"]>[0]>;
+
 class QuietTerminal implements Terminal {
     columns = 80;
     rows = 24;
+
     get kittyProtocolActive(): boolean {
         return false;
     }
+
     start(): void {}
+
     stop(): void {}
+
     async drainInput(): Promise<void> {}
+
     write(): void {}
+
     moveBy(): void {}
+
     hideCursor(): void {}
+
     showCursor(): void {}
+
     clearLine(): void {}
+
     clearFromCursor(): void {}
+
     clearScreen(): void {}
+
     setTitle(): void {}
+
     setProgress(): void {}
 }
+
 const style = (text: string): string => text;
 const theme: EditorTheme = {
     borderColor: style,
@@ -41,6 +56,7 @@ const theme: EditorTheme = {
         noMatch: style,
     },
 };
+
 type Host = {
     ui: TuiMainScreen;
     keybindings: KeybindingsManager;
@@ -50,10 +66,12 @@ type Host = {
     editorComponentFactory: Factory | undefined;
     disposeActiveSelector(): void;
 };
+
 function createHost(): Host {
     const ui = new TuiMainScreen(new QuietTerminal());
     const keybindings = new KeybindingsManager();
     const defaultEditor = new CustomEditor(ui, theme, keybindings);
+
     return {
         ui,
         keybindings,
@@ -64,6 +82,7 @@ function createHost(): Host {
         disposeActiveSelector() {},
     };
 }
+
 function isHostSetter(value: unknown): value is (this: Host, factory: Factory | undefined) => void {
     return typeof value === "function";
 }
@@ -97,6 +116,7 @@ test("actual Pi editor construction reopens child and paging popups after Tab", 
                         children += 1;
                         name = "right";
                     }
+
                     return {
                         items: [
                             {
@@ -126,6 +146,7 @@ test("actual Pi editor construction reopens child and paging popups after Tab", 
                         pages += 1;
                         name = "beta";
                     }
+
                     const items = [
                         {
                             id: name,
@@ -175,6 +196,7 @@ test("actual Pi editor construction reopens child and paging popups after Tab", 
         );
         host.editor.handleInput("\r");
         assert.equal(host.editor.getText(), "tree:left:right ");
+
         while (host.editor.getCursor().col > 9) host.editor.handleInput("\u001b[D");
         host.editor.handleInput("\u007f");
         await vi.advanceTimersByTimeAsync(250);

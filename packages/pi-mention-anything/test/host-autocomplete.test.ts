@@ -14,6 +14,7 @@ type HostComposition = {
     defaultEditor: { setAutocompleteProvider(provider: AutocompleteProvider): void };
     editor: { setAutocompleteProvider(provider: AutocompleteProvider): void };
 };
+
 function isSetup(value: unknown): value is (this: HostComposition) => void {
     return typeof value === "function";
 }
@@ -35,6 +36,7 @@ test("installed Pi composes and assigns mention trigger characters without losin
             resolve: async () => ({ status: "unresolved", reason: "missing" }),
         },
     ];
+
     const base: AutocompleteProvider = {
         getSuggestions: async () => null,
         applyCompletion: (lines, cursorLine, cursorCol) => ({ lines, cursorLine, cursorCol }),

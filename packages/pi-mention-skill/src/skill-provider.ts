@@ -19,6 +19,7 @@ const skillCandidateDataSchema = Type.Object(
     },
     { additionalProperties: false },
 );
+
 type SkillCandidateData = Static<typeof skillCandidateDataSchema>;
 
 type SkillProviderOptions = {
@@ -36,6 +37,7 @@ function skillCandidate(command: SkillCommand): Candidate {
         location: command.sourceInfo.path,
         baseDir: command.sourceInfo.baseDir ?? path.dirname(command.sourceInfo.path),
     };
+
     return {
         id: command.name,
         label: name,
@@ -54,11 +56,14 @@ export async function resolveSkillCandidate(
     signal?: AbortSignal,
 ): Promise<string> {
     signal?.throwIfAborted();
+
     const target = candidatePath.at(-1);
     if (target === undefined) throw new Error("Skill mention resolved without a target.");
     const expansionTarget: SkillExpansionTarget = candidateData(target);
     const expansion = await loadSkillExpansion(expansionTarget);
+
     signal?.throwIfAborted();
+
     return formatSkillBlock(expansion);
 }
 
@@ -69,6 +74,7 @@ export function createSkillProvider(
 ): Provider {
     const provider = createListProvider(async (request) => {
         request.signal.throwIfAborted();
+
         const commands = loadCommands();
         if (options.projectSkillsFirst) {
             commands.sort((left, right) => {
@@ -79,8 +85,10 @@ export function createSkillProvider(
                 return 1;
             });
         }
+
         return commands.map(skillCandidate);
     });
+
     return {
         ...provider,
         async resolve(request) {

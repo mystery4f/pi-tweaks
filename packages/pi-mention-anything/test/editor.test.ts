@@ -22,16 +22,27 @@ class FakeTerminal implements Terminal {
     }
 
     start(): void {}
+
     stop(): void {}
+
     async drainInput(): Promise<void> {}
+
     write(): void {}
+
     moveBy(): void {}
+
     hideCursor(): void {}
+
     showCursor(): void {}
+
     clearLine(): void {}
+
     clearFromCursor(): void {}
+
     clearScreen(): void {}
+
     setTitle(): void {}
+
     setProgress(): void {}
 }
 
@@ -61,6 +72,7 @@ function createEditor(options: Parameters<typeof applyMentionEditor>[1]): Custom
         },
     };
     applyMentionEditor(ctx, options);
+
     if (installedFactory === undefined) assert.fail("Expected an installed editor factory");
 
     const tui = new TuiMainScreen(new FakeTerminal());
@@ -69,14 +81,18 @@ function createEditor(options: Parameters<typeof applyMentionEditor>[1]): Custom
         tui.setFocus(editor);
         return editor;
     }
+
     return assert.fail("Expected a CustomEditor");
 }
+
 function deferred() {
     let resolve = (): void => {};
+
     // Promise.withResolvers is unavailable under the repository's ES2023 library target.
     const promise = new Promise<void>((done) => {
         resolve = done;
     });
+
     return { promise, resolve };
 }
 

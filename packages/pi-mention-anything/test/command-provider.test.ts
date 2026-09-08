@@ -211,6 +211,7 @@ setInterval(() => {}, 1000);`;
                 // The expected path already terminated the process.
             }
         }
+
         await rm(directory, { recursive: true, force: true });
     }
 });

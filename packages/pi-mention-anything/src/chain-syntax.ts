@@ -59,6 +59,7 @@ function assertDefinitions(definitions: readonly ChainDefinition[]): void {
         if (triggers.has(definition.trigger)) {
             throw new Error(`Duplicate mention trigger: ${definition.trigger}`);
         }
+
         triggers.add(definition.trigger);
     }
 }
@@ -81,6 +82,7 @@ function decodeEscapes(value: string): string {
             decoded += character;
         }
     }
+
     return decoded;
 }
 
@@ -113,6 +115,7 @@ function parseChainAt(
             quoted = true;
             contentStart = cursor + 1;
             cursor += 1;
+
             let closed = false;
             while (cursor < text.length) {
                 const character = text.at(cursor);
@@ -122,35 +125,43 @@ function parseChainAt(
                     cursor += 2;
                     continue;
                 }
+
                 if (character === '"') {
                     contentEnd = cursor;
                     cursor += 1;
                     closed = true;
                     break;
                 }
+
                 if (character === undefined || character === "\n" || character === "\r") break;
                 value += character;
                 cursor += 1;
             }
+
             if (!closed) {
                 contentEnd = cursor;
                 segmentComplete = false;
                 syntaxComplete = false;
             }
+
             segmentEnd = cursor;
         } else {
             while (cursor < text.length) {
                 const character = text.at(cursor);
                 if (character === undefined || /\s/u.test(character)) break;
                 if (text.startsWith(separator, cursor)) break;
+
                 if (character === "\\" && cursor + 1 < text.length) {
                     cursor += 2;
                     continue;
                 }
+
                 cursor += 1;
             }
+
             segmentEnd = cursor;
             contentEnd = cursor;
+
             let raw = text.slice(contentStart, contentEnd);
             while (raw.length > 0) {
                 const last = raw.at(-1);
@@ -158,6 +169,7 @@ function parseChainAt(
                 for (let index = raw.length - 2; index >= 0 && raw[index] === "\\"; index -= 1) {
                     precedingBackslashes += 1;
                 }
+
                 const escaped = precedingBackslashes % 2 === 1;
                 if (last === undefined || escaped || !TRAILING_PUNCTUATION.has(last)) break;
                 raw = raw.slice(0, -1);
@@ -165,6 +177,7 @@ function parseChainAt(
                 segmentEnd -= 1;
                 contentEnd -= 1;
             }
+
             value = decodeEscapes(raw);
         }
 
@@ -189,6 +202,7 @@ function parseChainAt(
 
     const end = cursor;
     const complete = segments.length > 0 && !expectsSegment && syntaxComplete;
+
     return {
         chain: {
             sourceId: definition.id,
@@ -208,6 +222,7 @@ function parseMentionsWithSpans(
     definitions: readonly ChainDefinition[],
 ): readonly ParsedChainWithSpans[] {
     assertDefinitions(definitions);
+
     const ordered = [...definitions].sort(
         (left, right) => right.trigger.length - left.trigger.length,
     );
@@ -221,6 +236,7 @@ function parseMentionsWithSpans(
                 break;
             }
         }
+
         if (definition === undefined) {
             index += 1;
             continue;
@@ -230,6 +246,7 @@ function parseMentionsWithSpans(
         parsed.push(mention);
         index = Math.max(index + definition.trigger.length, mention.chain.end);
     }
+
     return parsed;
 }
 
@@ -282,6 +299,7 @@ export function activeChainSegment(
             quoted: false,
             complete: false,
         };
+
         return {
             chain: parsed.chain,
             separator: parsed.separator,
@@ -294,6 +312,7 @@ export function activeChainSegment(
             span: emptySpan,
         };
     }
+
     return undefined;
 }
 
@@ -306,6 +325,7 @@ function formatSegment(segment: string, separator: string): string {
     ) {
         return segment;
     }
+
     return `"${segment.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 

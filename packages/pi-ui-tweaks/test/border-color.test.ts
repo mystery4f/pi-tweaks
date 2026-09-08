@@ -21,6 +21,7 @@ type PrototypeView = { readonly fg?: unknown };
 
 function isThemePrototype(value: unknown): value is ThemePrototype {
     if (typeof value !== "object" || value === null) return false;
+
     // SAFETY: PrototypeView exposes only the fg field validated by this predicate.
     const view = value as PrototypeView;
     return typeof view.fg === "function";
@@ -28,9 +29,11 @@ function isThemePrototype(value: unknown): value is ThemePrototype {
 
 function isThemeModule(value: unknown): value is ThemeModule {
     if ((typeof value !== "object" && typeof value !== "function") || value === null) return false;
+
     // SAFETY: ModuleView exposes only the Theme export validated below.
     const theme = (value as ModuleView).Theme;
     if ((typeof theme !== "object" && typeof theme !== "function") || theme === null) return false;
+
     // SAFETY: ThemeView exposes only the prototype field validated below.
     return isThemePrototype((theme as ThemeView).prototype);
 }

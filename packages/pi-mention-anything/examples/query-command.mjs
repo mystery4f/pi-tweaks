@@ -56,6 +56,7 @@ if (request.method === "resolve") {
 } else {
     const cursor = Number(request.cursor ?? "1");
     const query = request.query.replace(/^Ticket\s+/i, "");
+
     /** @type {Array<[number, number]>} */
     const ranges = [];
     if (query === "") ranges.push([1, 1000000]);
@@ -67,7 +68,9 @@ if (request.method === "resolve") {
             ]);
         }
     }
+
     const limit = Math.min(request.limit, 100);
+
     /** @type {Array<ReturnType<typeof ticket>>} */
     const items = [];
     let nextCursor;
@@ -77,12 +80,16 @@ if (request.method === "resolve") {
                 nextCursor = String(id);
                 break;
             }
+
             items.push(ticket(id));
         }
+
         if (nextCursor !== undefined) break;
     }
+
     const discovery = { items };
     if (nextCursor !== undefined) Object.assign(discovery, { nextCursor });
     result = discovery;
 }
+
 writeFileSync(1, JSON.stringify({ version: 1, method: request.method, result }), "utf8");

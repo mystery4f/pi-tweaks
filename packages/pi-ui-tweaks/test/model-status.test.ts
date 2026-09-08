@@ -8,6 +8,7 @@ import { captureConsoleWarnings } from "./capture-console-warnings.ts";
 function statusMode() {
     const renderRequests = new Array<boolean | undefined>();
     const statuses = new Array<string>();
+
     return {
         renderRequests,
         statuses,

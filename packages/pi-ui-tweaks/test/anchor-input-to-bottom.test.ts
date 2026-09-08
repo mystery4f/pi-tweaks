@@ -101,6 +101,7 @@ function getFullscreenScreen(tui: TuiAltScreen): string[] {
     if (!isScreenLines(previousScreen)) {
         throw new Error("Expected fullscreen TUI render internals.");
     }
+
     return previousScreen;
 }
 

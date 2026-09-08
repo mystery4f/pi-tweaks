@@ -29,6 +29,7 @@ function isTuiInternals(value: unknown): value is TuiInternals {
     if ((typeof value !== "object" && typeof value !== "function") || value === null) {
         return false;
     }
+
     return (
         "doRender" in value &&
         typeof value.doRender === "function" &&
@@ -44,6 +45,7 @@ function getTuiInternals(tui: TUI): TuiInternals {
     if (!isTuiInternals(tui)) {
         throw new Error("Expected TUI render internals.");
     }
+
     return tui;
 }
 
@@ -248,10 +250,12 @@ test("footer shrink padding keeps the final chat row attached when anchor compac
     installFooterShrinkPaddingPatch();
 
     const terminal = new FakeTerminal();
+
     const chatLines = [
         ...Array.from({ length: 16 }, (_value, index) => `chat ${index}`),
         "USER MESSAGE BOTTOM",
     ];
+
     const chat = new FixedLines(chatLines);
     const status = new FixedLines(["", "⠴ Working... (4s)"]);
     const spacer = new FixedLines([""]);

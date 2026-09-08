@@ -118,9 +118,11 @@ export const mentionProjectSettingsSchema = Type.Object(
 );
 
 type DecodedMentionProjectSettings = StaticDecode<typeof mentionProjectSettingsSchema>;
+
 export type MentionProjectSettings = Omit<DecodedMentionProjectSettings, "roots"> & {
     roots: string[];
 };
+
 export type InitialSuggestionsSettings = MentionProjectSettings["initialSuggestions"];
 
 export const extensionSettingsInput = {

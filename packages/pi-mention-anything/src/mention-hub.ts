@@ -23,11 +23,13 @@ export type MentionHub = {
     add(registration: MentionRegistration): symbol;
     remove(handle: symbol): Promise<void>;
     input(text: string): void;
+
     context(
         messages: ContextEvent["messages"],
         signal?: AbortSignal,
     ): Promise<ContextEvent["messages"]>;
 };
+
 type UnknownDataDescriptor = Omit<PropertyDescriptor, "value"> & { readonly value: unknown };
 
 function isUnknownDataDescriptor(
@@ -68,6 +70,7 @@ function readHub(ui: ExtensionContext["ui"]): MentionHub | undefined {
         if (isNumber(version)) versionLabel = version.toString();
         throw new TypeError(`Unsupported mention hub protocol version ${versionLabel}`);
     }
+
     if (
         !hasOwnFunctionProperty(hub, "add") ||
         !hasOwnFunctionProperty(hub, "remove") ||
@@ -103,6 +106,7 @@ function createHub(ctx: ExtensionContext): MentionHub {
             const runtime = pendingWarmups.shift();
             if (runtime === undefined || runtimes.get(runtime.id) !== runtime) continue;
             activeWarmups += 1;
+
             // The hub bounds startup work; each controller owns cancellation and safe diagnostics.
             void runtime.controller
                 .warm()
@@ -123,7 +127,9 @@ function createHub(ctx: ExtensionContext): MentionHub {
         add(registration: MentionRegistration): symbol {
             if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(registration.id))
                 throw new Error("Mention registration ID must be lowercase kebab-case.");
+
             const configuration = registration.configuration(ctx);
+
             if (
                 runtimes.has(registration.id) ||
                 sources.some((source) => source.trigger === configuration.trigger)
@@ -132,6 +138,7 @@ function createHub(ctx: ExtensionContext): MentionHub {
                     "Mention sources require unique IDs and triggers within a session.",
                 );
             }
+
             if (!configuration.trigger || /[\s/]/.test(configuration.trigger))
                 throw new Error("Invalid mention trigger.");
             if (
@@ -141,12 +148,16 @@ function createHub(ctx: ExtensionContext): MentionHub {
                 throw new Error(
                     "Mention separator must be one non-whitespace character other than quote or backslash.",
                 );
+
             const runtime = createSourceRuntime(ctx, registration, configuration);
             const handle = Symbol(registration.id);
             handles.set(handle, runtime);
+
             const source = runtime.source;
+
             runtimes.set(registration.id, runtime);
             sources.push(source);
+
             if (ctx.hasUI && !autocompleteInstalled) {
                 autocompleteInstalled = true;
                 editor = applyMentionEditor(ctx, {
@@ -164,11 +175,13 @@ function createHub(ctx: ExtensionContext): MentionHub {
                         let offset = 0;
                         for (const span of parseMentions(line, sources)) {
                             colored += line.slice(offset, span.start);
+
                             let color: "accent" | "warning" = "accent";
                             if (!span.complete || unresolved.has(span.sourceId)) color = "warning";
                             colored += ctx.ui.theme.fg(color, line.slice(span.start, span.end));
                             offset = span.end;
                         }
+
                         return colored + line.slice(offset);
                     },
                 });
@@ -204,11 +217,14 @@ function createHub(ctx: ExtensionContext): MentionHub {
                                 );
                         },
                     });
+
                     return autocomplete;
                 });
             }
+
             pendingWarmups.push(runtime);
             warmNext();
+
             return handle;
         },
         async remove(handle: symbol): Promise<void> {
@@ -216,9 +232,11 @@ function createHub(ctx: ExtensionContext): MentionHub {
             if (runtime === undefined) return;
             handles.delete(handle);
             runtimes.delete(runtime.id);
+
             const index = sources.indexOf(runtime.source);
             if (index !== -1) sources.splice(index, 1);
             await Promise.all([runtime.controller.dispose(), runtime.history.flush()]);
+
             if (runtimes.size === 0) {
                 autocomplete?.dispose();
                 autocomplete = undefined;
@@ -226,6 +244,7 @@ function createHub(ctx: ExtensionContext): MentionHub {
                 editor = undefined;
                 expansion.clear();
                 selections.clear();
+
                 if (
                     getOwnDataDescriptor(ui, MENTION_HUB)?.value === hub &&
                     !Reflect.deleteProperty(ui, MENTION_HUB)
@@ -245,6 +264,7 @@ function createHub(ctx: ExtensionContext): MentionHub {
         ) {
             if (processedContexts.has(messages)) return messages;
             unresolved = new Set();
+
             const result = await expansion.messages(messages, sources, {
                 signal,
                 snapshots: pendingSnapshots,
@@ -252,14 +272,18 @@ function createHub(ctx: ExtensionContext): MentionHub {
                     unresolved.add(id);
                 },
             });
+
             pendingSnapshots = [];
             pendingText = "";
             processedContexts.add(result);
+
             return result;
         },
     };
+
     return hub;
 }
+
 export function sharedHub(ctx: ExtensionContext): MentionHub {
     const existing = readHub(ctx.ui);
     if (existing !== undefined) return existing;
@@ -272,5 +296,6 @@ export function sharedHub(ctx: ExtensionContext): MentionHub {
     ) {
         throw new TypeError("Unable to store the shared mention hub");
     }
+
     return hub;
 }

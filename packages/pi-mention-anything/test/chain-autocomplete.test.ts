@@ -70,6 +70,7 @@ function treeSource(overrides: Partial<ChainCompletionSource> = {}): ChainComple
             if (candidates.every((candidate, index) => candidate.segment === segments[index])) {
                 return { status: "resolved", path: candidates };
             }
+
             return { status: "unresolved", reason: "not found" };
         },
         ...overrides,
@@ -79,12 +80,15 @@ function treeSource(overrides: Partial<ChainCompletionSource> = {}): ChainComple
 const request = () => ({
     signal: new AbortController().signal,
 });
+
 function deferred() {
     let resolve = (): void => {};
+
     // Promise.withResolvers is unavailable under the repository's ES2023 library target.
     const promise = new Promise<void>((done) => {
         resolve = done;
     });
+
     return { promise, resolve };
 }
 
@@ -116,6 +120,7 @@ test("deleting and retyping a branch resolves its new identity through both edit
             async discover({ path }) {
                 if (path.length === 0) return { items: [parent] };
                 childParents.push(path[0]?.id ?? "");
+
                 return { items: [logs] };
             },
             async resolve() {
@@ -127,8 +132,10 @@ test("deleting and retyping a branch resolves its new identity through both edit
         const roots = await provider.getSuggestions(["t:"], 0, 2, request());
         if (roots === null) assert.fail("Expected roots");
         provider.applyCompletion(["t:"], 0, 2, itemNamed(roots.items, "work"), roots.prefix);
+
         if (throughSuggestions) await provider.getSuggestions([""], 0, 0, request());
         else provider.reconcile("");
+
         parent = { ...work, id: "new-session" };
         await provider.getSuggestions(["t:work:"], 0, 7, request());
         assert.equal(resolutions, 1);
@@ -163,6 +170,7 @@ test("abandoned continuation identities have a bounded retained lifetime", async
         );
         text = `${result.lines[0]} `;
     }
+
     await provider.getSuggestions([text], 0, 7, request());
     assert.equal(
         resolutions,
@@ -397,6 +405,7 @@ test("keeps duplicate-segment branch IDs through chained navigation", async () =
     const source = treeSource({
         async discover({ path }) {
             discoveredPaths.push(path);
+
             if (path.length === 0) return { items: [duplicateA, duplicateB] };
             return { items: [logs] };
         },
@@ -625,6 +634,7 @@ test("an explicit More row requests and accumulates the next page", async () => 
     const source = treeSource({
         async discover({ cursor }) {
             cursors.push(cursor);
+
             if (cursor === undefined) return { items: [work], nextCursor: "page-2" };
             return { items: [logs] };
         },
@@ -702,6 +712,7 @@ test("stops repeated cursors without duplicating candidates", async () => {
                 filtering: "provider",
                 async discover({ cursor }) {
                     cursors.push(cursor);
+
                     if (cursor === undefined) return { items: [work], nextCursor: "repeat" };
                     return { items: [work, logs], nextCursor: "repeat" };
                 },
@@ -731,6 +742,7 @@ test("stops pagination after ten retained pages", async () => {
                 async discover({ cursor }) {
                     const page = cursor ?? "0";
                     calls += 1;
+
                     return {
                         items: [
                             {
@@ -780,6 +792,7 @@ test("a newer request aborts obsolete discovery", async () => {
                 firstSignal = signal;
                 await firstGate.promise;
             }
+
             return { items: [work] };
         },
     });

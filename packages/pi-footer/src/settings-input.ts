@@ -4,6 +4,7 @@ import {
     type FooterLayout,
     type FooterSlotId,
 } from "./footer-model.ts";
+
 export const FOOTER_LAYOUT = {
     left: ["path", "branch", "provider", "model", "thinking"],
     right: ["context"],

@@ -24,6 +24,7 @@ test("startup warming is opt in and requires caching for list providers too", as
         await source.warm();
         await source.dispose();
     }
+
     assert.equal(calls, 0);
 });
 
@@ -51,8 +52,10 @@ test("failed refresh retains a successful empty list and backs off between retri
     assert.deepEqual((await source.discover({ query: "", path: [] })).items, []);
     await source.refresh();
     assert.equal(calls, 2);
+
     for (let index = 0; index < 5; index += 1)
         assert.deepEqual((await source.discover({ query: "", path: [] })).items, []);
+
     assert.equal(calls, 2);
     assert.equal(notices.length, 1);
     assert.doesNotMatch(notices[0] ?? "", /private/);

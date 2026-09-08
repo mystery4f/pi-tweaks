@@ -23,6 +23,7 @@ export default function (pi: MentionSkillExtensionApi): void {
         },
         provider(ctx) {
             const settings = loadMentionSkillSettings(ctx);
+
             return createSkillProvider(() => getSkillCommands(pi), loadSkillExpansion, {
                 projectSkillsFirst: settings.initialSuggestions.projectSkillsFirst,
             });

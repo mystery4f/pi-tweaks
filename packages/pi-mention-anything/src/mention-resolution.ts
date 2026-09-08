@@ -18,6 +18,7 @@ export type ExpansionSource = {
     readonly expansionPolicy?: "selected-only" | "selected-or-resolved";
     readonly replacementTemplate?: string;
     readonly resolve: (segments: readonly string[], signal?: AbortSignal) => Promise<Resolution>;
+
     readonly replacement?: (
         path: readonly Candidate[],
         options: { readonly signal?: AbortSignal },
@@ -44,6 +45,7 @@ export function createMentionSelections(): MentionSelections {
             text[prefix] === previousText[prefix]
         )
             prefix += 1;
+
         let suffix = 0;
         while (
             suffix < text.length - prefix &&
@@ -51,6 +53,7 @@ export function createMentionSelections(): MentionSelections {
             text[text.length - 1 - suffix] === previousText[previousText.length - 1 - suffix]
         )
             suffix += 1;
+
         const oldEnd = previousText.length - suffix;
         const delta = text.length - previousText.length;
         let changedText = text.slice(prefix, text.length - suffix);
@@ -65,6 +68,7 @@ export function createMentionSelections(): MentionSelections {
                 )
                 .map((snapshot) => snapshot.text),
         );
+
         snapshots = snapshots
             .flatMap((snapshot) => {
                 if (ambiguous.has(snapshot.text)) return [];
@@ -73,6 +77,7 @@ export function createMentionSelections(): MentionSelections {
                     return [
                         { ...snapshot, start: snapshot.start + delta, end: snapshot.end + delta },
                     ];
+
                 return [];
             })
             .filter((snapshot) => {
@@ -83,6 +88,7 @@ export function createMentionSelections(): MentionSelections {
             });
         previousText = text;
     };
+
     return {
         reconcile,
         record(snapshot: MentionSnapshot, editorText: string): void {
@@ -94,6 +100,7 @@ export function createMentionSelections(): MentionSelections {
         },
         snapshot(text: string): readonly MentionSnapshot[] {
             reconcile(text);
+
             return snapshots.map((snapshot) => ({
                 ...snapshot,
                 path: structuredClone(snapshot.path),
@@ -117,10 +124,12 @@ export function renderReplacementTemplate(template: string, path: readonly Candi
         ["path", path.map((candidate) => candidate.segment).join(":")],
         ["ids", path.map((candidate) => candidate.id).join(":")],
     ]);
+
     return template.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match: string, field: string) => {
         const value = fields.get(field);
         if (value === undefined)
             throw new Error("Mention replacement template contains an undeclared field.");
+
         return value;
     });
 }
@@ -154,17 +163,20 @@ export async function expandMentionText(
     ].sort((left, right) => left.start - right.start);
     let result = "";
     let offset = 0;
+
     // Bounded sequential resolution avoids command bursts in a large pasted prompt.
     for (const span of spans) {
         options.signal?.throwIfAborted();
         result += text.slice(offset, span.start);
         offset = span.end;
+
         const literal = text.slice(span.start, span.end);
         const source = sources.find((candidate) => candidate.id === span.sourceId);
         if (!span.complete || source === undefined) {
             result += literal;
             continue;
         }
+
         const selected = options.snapshots?.find(
             (snapshot) =>
                 snapshot.sourceId === source.id &&
@@ -184,20 +196,24 @@ export async function expandMentionText(
                 options.signal?.throwIfAborted();
                 result += literal;
                 options.onUnresolved?.(source.id);
+
                 continue;
             }
         }
+
         if (resolution.status !== "resolved") {
             result += literal;
             options.onUnresolved?.(source.id);
             continue;
         }
+
         const target = resolution.path.at(-1);
         if (target === undefined || !target.selectable) {
             result += literal;
             options.onUnresolved?.(source.id);
             continue;
         }
+
         try {
             let replacement = resolution.replacement ?? target.replacement ?? target.segment;
             if (source.replacement !== undefined) {
@@ -208,6 +224,7 @@ export async function expandMentionText(
                     resolution.path,
                 );
             }
+
             result += replacement;
         } catch {
             options.signal?.throwIfAborted();
@@ -215,6 +232,7 @@ export async function expandMentionText(
             options.onUnresolved?.(source.id);
         }
     }
+
     return result + text.slice(offset);
 }
 
@@ -229,6 +247,7 @@ export type MentionExpansion = {
             readonly onUnresolved?: (sourceId: string) => void;
         },
     ): Promise<ContextEvent["messages"]>;
+
     clear(): void;
 };
 
@@ -238,6 +257,7 @@ export function createMentionExpansion(): MentionExpansion {
     const remember = (key: string, value: string): void => {
         submissions.set(key, value);
     };
+
     return {
         async messages(
             messages: ContextEvent["messages"],
@@ -258,41 +278,50 @@ export function createMentionExpansion(): MentionExpansion {
                 latestUser = index;
                 break;
             }
+
             for (const [messageIndex, message] of messages.entries()) {
                 if (message.role !== "user") {
                     expanded.push(message);
                     continue;
                 }
+
                 let firstTextBlock = 0;
                 if (Array.isArray(message.content)) {
                     firstTextBlock = message.content.findIndex((block) => block.type === "text");
                 }
+
                 const expandBlock = async (text: string, block: number): Promise<string> => {
                     const key = JSON.stringify([message.timestamp, block, text]);
                     activeKeys.add(key);
+
                     const cached = submissions.get(key);
                     if (cached !== undefined) {
                         activeKeys.add(JSON.stringify([message.timestamp, block, cached]));
                         return cached;
                     }
+
                     let snapshots: readonly MentionSnapshot[] | undefined;
                     if (messageIndex === latestUser && block === firstTextBlock) {
                         snapshots = options.snapshots;
                     }
+
                     const value = await expandMentionText(text, sources, {
                         ...options,
                         snapshots,
                     });
                     remember(key, value);
+
                     // A subsequent context handler must not reinterpret generated text.
                     const generatedKey = JSON.stringify([message.timestamp, block, value]);
                     remember(generatedKey, value);
                     activeKeys.add(generatedKey);
+
                     return value;
                 };
                 if (!Array.isArray(message.content)) {
                     const content = await expandBlock(message.content, 0);
                     changed ||= content !== message.content;
+
                     if (content === message.content) expanded.push(message);
                     else expanded.push({ ...message, content });
                 } else {
@@ -303,16 +332,21 @@ export function createMentionExpansion(): MentionExpansion {
                             content.push(block);
                             continue;
                         }
+
                         const text = await expandBlock(block.text, index);
                         blockChanged ||= text !== block.text;
+
                         if (text === block.text) content.push(block);
                         else content.push({ ...block, text });
                     }
+
                     changed ||= blockChanged;
+
                     if (blockChanged) expanded.push({ ...message, content });
                     else expanded.push(message);
                 }
             }
+
             // Keep all active-context resolutions; only the historical tail is bounded.
             let historical = submissions.size - activeKeys.size;
             for (const key of submissions.keys()) {
@@ -321,9 +355,11 @@ export function createMentionExpansion(): MentionExpansion {
                 submissions.delete(key);
                 historical -= 1;
             }
+
             let result = messages;
             if (changed) result = expanded;
             processed.add(result);
+
             return result;
         },
         clear(): void {

@@ -2,7 +2,6 @@ import { keyText } from "@earendil-works/pi-coding-agent";
 
 const TREE_TITLE_PATCH_KEY = Symbol.for("zigai.pi.tree-timestamps.title-patched");
 const PREVIEW_TOGGLE_HINT = "shift+p";
-
 const TREE_TITLE_TEXT = "  Session Tree";
 const LEGACY_TREE_HELP_TEXT = "↑/↓: move.";
 
@@ -49,11 +48,13 @@ function getTreeHeaderPatch(): TreeHeaderPatchRecord | true | undefined {
     if (isTreeHeaderPatchRecord(descriptor.value)) return descriptor.value;
     return undefined;
 }
+
 function setTreeHeaderPatch(value: TreeHeaderPatchRecord | undefined): void {
     if (value === undefined) {
         Reflect.deleteProperty(globalThis, TREE_TITLE_PATCH_KEY);
         return;
     }
+
     Object.defineProperty(globalThis, TREE_TITLE_PATCH_KEY, {
         configurable: true,
         value,
@@ -129,5 +130,6 @@ export function restoreTreeHeaderText(): void {
     if (patch.prototype.addChild === patch.patchedAddChild) {
         patch.prototype.addChild = patch.originalAddChild;
     }
+
     setTreeHeaderPatch(undefined);
 }

@@ -60,6 +60,7 @@ type MessageHighlightsSettings = {
 };
 
 type UrlColorSetting = Static<typeof urlColorSettingSchema>;
+
 const MessageHighlightsConfigSchema = Type.Object(
     {
         $schema: Type.Optional(Type.String()),
@@ -106,14 +107,17 @@ const messageHighlightsSettingsParser = {
             if (errors.length > messages.length) {
                 suffix = `; and ${errors.length - messages.length} more`;
             }
+
             return {
                 settings: {},
                 errors: [`${label} is invalid: ${messages.join("; ")}${suffix}`],
             };
         }
+
         if (!isMessageHighlightsSettings(settings)) {
             return { settings: {}, errors: [`${label} is invalid: root failed schema parsing`] };
         }
+
         return { settings, errors: [] };
     },
 };
@@ -143,6 +147,7 @@ function parseUrlColorSetting(setting: UrlColorSetting): HighlightColor {
     if (isThemeForegroundColor(setting)) {
         return { kind: "theme", color: setting };
     }
+
     throw new Error(`Invalid parsed URL color: ${setting}`);
 }
 
@@ -202,6 +207,7 @@ export function loadMessageHighlightsSettings(
     }
 
     const loaded = resolveMessageHighlightsConfig(settingsSources);
+
     return {
         config: loaded.config,
         errors: [...settings.diagnostics.map((diagnostic) => diagnostic.message), ...loaded.errors],

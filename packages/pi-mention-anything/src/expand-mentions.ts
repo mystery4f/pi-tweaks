@@ -15,12 +15,14 @@ function itemMap<T>(items: readonly T[], nameOf: (item: T) => string): Map<strin
         const name = nameOf(item);
         if (!byName.has(name)) byName.set(name, item);
     }
+
     return byName;
 }
 
 export function expandMentions<T>(text: string, options: MentionExpansionOptions<T>): string {
     const byName = itemMap(options.items, options.nameOf);
     const knownNames = new Set(byName.keys());
+
     return text.replace(
         mentionPattern(options.trigger),
         (
@@ -62,6 +64,7 @@ function firstRecentMessageIndex(messages: ContextEvent["messages"]): number {
         const message = messages.at(index);
         if (message?.role === "assistant" && message.stopReason !== "toolUse") return index + 1;
     }
+
     return 0;
 }
 
@@ -79,6 +82,7 @@ function recentUserMessageIndexesWithTrigger(
             if (content.text.includes(trigger)) indexes.push(index);
             continue;
         }
+
         if (
             content.blocks.some(
                 (block) => isUserTextContentBlock(block) && block.text.includes(trigger),
@@ -87,6 +91,7 @@ function recentUserMessageIndexesWithTrigger(
             indexes.push(index);
         }
     }
+
     return indexes;
 }
 
@@ -115,14 +120,17 @@ function expandMentionsInUserMessage<T>(
             content.push(block);
             continue;
         }
+
         const expanded = expandMentions(block.text, options);
         if (expanded === block.text) {
             content.push(block);
             continue;
         }
+
         changed = true;
         content.push({ ...block, text: expanded });
     }
+
     if (!changed) return message;
     return { ...message, content };
 }
@@ -144,5 +152,6 @@ export function expandMentionsInMessages<T>(
         expandedMessages ??= [...messages];
         expandedMessages[index] = expanded;
     }
+
     return expandedMessages ?? messages;
 }

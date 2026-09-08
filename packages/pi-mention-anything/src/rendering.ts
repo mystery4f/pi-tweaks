@@ -48,5 +48,6 @@ export function autocompleteStartIndex(renderedLines: string[]): number {
         const line = renderedLines.at(index);
         if (line !== undefined && stripAnsi(line).startsWith("─")) return index + 1;
     }
+
     return renderedLines.length;
 }

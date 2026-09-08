@@ -30,9 +30,11 @@ function children(
     request: DiscoveryRequest,
 ): readonly Candidate[] {
     const ids = request.path.map((candidate) => candidate.id);
+
     return items
         .filter((item) => {
             const parent = item.parentPath ?? [];
+
             return parent.length === ids.length && parent.every((id, index) => id === ids[index]);
         })
         .map(candidateOf);
@@ -43,6 +45,7 @@ export function createConfiguredProvider(mention: ConfiguredMention, cwd: string
     const source = mention.source;
     if (source.type === "static")
         return createListProvider(async (request) => children(source.items, request));
+
     const options = {
         command: source.command,
         args: source.args,
@@ -52,10 +55,12 @@ export function createConfiguredProvider(mention: ConfiguredMention, cwd: string
     };
     if (source.mode === "protocol")
         return createCommandProvider({ ...options, filtering: source.filtering ?? "provider" });
+
     return createListProvider(async (request) => {
         const raw = await executeJsonCommand(options, undefined, request.signal);
         if (!Value.Check(itemsSchema, raw))
             throw new Error("Mention array command returned invalid candidates.");
+
         return children(raw, request);
     });
 }

@@ -21,6 +21,7 @@ const candidate = (id: string): Candidate => ({
     selectable: true,
     navigable: false,
 });
+
 type Deferred<T> = {
     readonly promise: Promise<T>;
     readonly resolve: (value: T) => void;
@@ -38,6 +39,7 @@ function deferred<T>(): Deferred<T> {
         resolveDeferred = resolve;
         rejectDeferred = reject;
     });
+
     return { promise, resolve: resolveDeferred, reject: rejectDeferred };
 }
 
@@ -88,12 +90,14 @@ test("resolved paths require navigable ancestors but allow nonselectable ancesto
         async resolve(request) {
             const scenario = request.segments.at(0);
             if (scenario === "empty") return { status: "resolved", path: [] };
+
             if (scenario === "blocked") {
                 return {
                     status: "resolved",
                     path: [candidate("blocked-ancestor"), candidate("leaf")],
                 };
             }
+
             if (scenario === "long") {
                 const path = Array.from({ length: 65 }, (_unused, index) => ({
                     ...navigableAncestor,
@@ -101,8 +105,10 @@ test("resolved paths require navigable ancestors but allow nonselectable ancesto
                     label: String(index),
                     segment: String(index),
                 }));
+
                 return { status: "resolved", path };
             }
+
             return {
                 status: "resolved",
                 path: [navigableAncestor, candidate("leaf")],
@@ -169,6 +175,7 @@ test("equivalent exact resolutions share work and resolved paths expire with cac
         async resolve(request) {
             calls += 1;
             providerSignal = request.signal;
+
             if (calls === 1) return firstResult.promise;
             return Promise.resolve({
                 status: "resolved",
@@ -355,6 +362,7 @@ test("a newer query cancels unshared work in the same scope", async () => {
     const provider = unresolvedProvider(async (request) => {
         if (request.query === "new") return Promise.resolve({ items: [candidate("new")] });
         obsoleteSignal = request.signal;
+
         return new Promise((_resolve, reject) => {
             request.signal.addEventListener(
                 "abort",
@@ -412,12 +420,14 @@ test("cache uses bounded LRU scopes and discovery uses bounded concurrency", asy
         deferred<DiscoveryResponse>(),
         deferred<DiscoveryResponse>(),
     ];
+
     let active = 0;
     let peak = 0;
     let index = 0;
     const limitedProvider = unresolvedProvider(async () => {
         const current = pending.at(index);
         index += 1;
+
         if (current === undefined) assert.fail("unexpected provider call");
         active += 1;
         peak = Math.max(peak, active);
@@ -817,6 +827,7 @@ test("refresh invalidates cached and in-flight resolutions while retaining stale
                 pendingResolutionCalls += 1;
                 if (pendingResolutionCalls === 1) return delayedPendingRejection.promise;
             }
+
             return Promise.resolve({
                 status: "resolved",
                 path: [candidate(`${resolutionVersion}-${segment}`)],
@@ -884,6 +895,7 @@ test("failed request and latest-scope tracking are bounded LRU entries with expi
             /unavailable/,
         );
     }
+
     assert.equal(controller.status().failedRequestKeys, 2);
     assert.equal(controller.status().latestRequestScopes, 2);
 
@@ -964,11 +976,13 @@ test("provider rejection preserves Errors and safely classifies non-Error causes
         );
         await assert.rejects(controller.discover({ query: "", path: [] }), (cause) => {
             assert.ok(cause instanceof Error);
+
             if (reason instanceof Error) assert.equal(cause, reason);
             else {
                 assert.equal(cause.message, "Mention source operation failed.");
                 assert.equal(cause.cause, reason);
             }
+
             return true;
         });
         assert.ok(diagnostics.every((message) => !message.includes("not-for-diagnostics")));

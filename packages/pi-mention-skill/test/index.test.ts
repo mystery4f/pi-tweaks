@@ -14,6 +14,7 @@ type MentionSkillHandlerMap = {
         event: ContextEvent,
         ctx: MentionSkillSettingsContext,
     ) => Promise<ContextExpansionResult | undefined>;
+
     input: (
         event: import("@earendil-works/pi-coding-agent").InputEvent,
         ctx: MentionSkillSettingsContext,
@@ -26,6 +27,7 @@ process.env.PI_CODING_AGENT_DIR = agentDir;
 
 afterAll(async () => {
     await rm(agentDir, { recursive: true, force: true });
+
     if (originalAgentDir === undefined) {
         delete process.env.PI_CODING_AGENT_DIR;
     } else {
@@ -39,6 +41,7 @@ type ContextExpansionResult = {
 
 function skillCommand(name: string, filePath: string, description = "test skill"): SkillCommand {
     const skillName: `skill:${string}` = `skill:${name}`;
+
     return {
         source: "skill",
         name: skillName,
@@ -78,10 +81,12 @@ type SharedRuntimeContext = {
     readonly cwd: string;
     readonly hasUI: boolean;
     readonly signal: AbortSignal;
+
     readonly ui: {
         notify(): void;
         readonly theme: { fg(color: string, value: string): string };
     };
+
     isProjectTrusted(): boolean;
 };
 
@@ -147,6 +152,7 @@ test("mention skill skips command enumeration when provider context has no trigg
                 timestamp: 1,
             },
         ];
+
         const result = await getContextHandler(registeredHandlers)(
             { type: "context", messages },
             context(cwd),
@@ -187,6 +193,7 @@ test("mention skill expands provider context through the shared input observer",
                 timestamp: 1,
             },
         ];
+
         const result = await getContextHandler(registeredHandlers)(
             { type: "context", messages },
             context(cwd),
@@ -238,6 +245,7 @@ test("registered skill mentions expand custom triggers without mutating images o
         });
         await startSharedRuntime(handlers, cwd);
         const image = { type: "image", data: "aGVsbG8=", mimeType: "image/png" } as const;
+
         const messages: ContextEvent["messages"] = [
             { role: "user", content: "Earlier $$python", timestamp: 1 },
             {
@@ -250,10 +258,12 @@ test("registered skill mentions expand custom triggers without mutating images o
                 timestamp: 2,
             },
         ];
+
         const original = structuredClone(messages);
         const block = `<skill name="python" location="${skillPath}">\nReferences are relative to ${cwd}.\n\nUse $$python carefully.\n</skill>`;
         const handler = getContextHandler(handlers);
         const result = await handler({ type: "context", messages }, context(cwd));
+
         const expected: ContextEvent["messages"] = [
             { role: "user", content: `Earlier ${block}`, timestamp: 1 },
             {

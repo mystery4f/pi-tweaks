@@ -31,6 +31,7 @@ const source: ExpansionSource = {
     async resolve(segments) {
         if (segments.join(":") === "work:logs")
             return { status: "resolved", path: [session, pane] };
+
         return { status: "unresolved", reason: "missing" };
     },
 };
@@ -147,6 +148,7 @@ test("selection-only and template expansion never serialize provider data", asyn
 
 test("custom terminal insertion text expands from its selected occurrence in one pass", async () => {
     const text = "inspect selected pane now";
+
     const snapshots = [
         { sourceId: "tmux", start: 8, end: 21, text: "selected pane", path: [session, pane] },
     ];
@@ -174,6 +176,7 @@ test("large active contexts preserve every resolved target through rebuilds", as
 test("context rebuilding retains resolved submissions and preserves other message blocks", async () => {
     const expansion = createMentionExpansion();
     const image = { type: "image" as const, data: "aGVsbG8=", mimeType: "image/png" };
+
     const messages = [
         {
             role: "user" as const,
@@ -181,6 +184,7 @@ test("context rebuilding retains resolved submissions and preserves other messag
             content: [{ type: "text" as const, text: "t:work:logs" }, image],
         },
     ];
+
     const first = await expansion.messages(messages, [source]);
     assert.equal(first[0]?.role, "user");
     const unavailable: ExpansionSource = {

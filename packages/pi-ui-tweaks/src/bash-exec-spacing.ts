@@ -9,13 +9,16 @@ const BASH_EXEC_SPACING_ENHANCER = Symbol.for("zigai.pi-ui-tweaks.bash-exec-spac
 const BASH_EXEC_SPACING_KEY = Symbol.for("zigai.pi-ui-tweaks.bash-exec-spacing");
 
 export type BashExecSpacingConfig = { readonly bashExecPromptSpacing: boolean };
+
 export type BashExecSpacingHandle = {
     update(config: BashExecSpacingConfig): void;
     dispose(): void;
 };
+
 export type BashExecSpacingEditorContext = Pick<ExtensionContext, "hasUI"> & {
     ui: Pick<ExtensionContext["ui"], "getEditorComponent" | "setEditorComponent">;
 };
+
 export type BashExecSpacingEditor = {
     getCursor(): { line: number; col: number };
     getText(): string;
@@ -25,14 +28,17 @@ export type BashExecSpacingEditor = {
     requestRenderNow?: () => void;
     setText(text: string): void;
 };
+
 type EditorArgs = Parameters<NonNullable<ReturnType<ExtensionContext["ui"]["getEditorComponent"]>>>;
 type Editor = ReturnType<NonNullable<ReturnType<ExtensionContext["ui"]["getEditorComponent"]>>>;
 type EditorLike = Editor & BashExecSpacingEditor;
+
 type BashExecSpacingRecord = {
     readonly original: EditorFactory<EditorArgs, Editor> | undefined;
     readonly enhancer: EditorEnhancerHandle<EditorArgs, Editor>;
     readonly handle: BashExecSpacingHandle;
 };
+
 type MarkedUi = BashExecSpacingEditorContext["ui"] & {
     [BASH_EXEC_SPACING_ENHANCER]?: BashExecSpacingRecord;
 };
@@ -68,19 +74,24 @@ export function applyBashExecPromptSpacing(
     if (text.length === 0 && cursor.col === 0) {
         if (typeof editor.insertTextAtCursor === "function") editor.insertTextAtCursor("! ");
         else editor.setText("! ");
+
         editor.requestRenderNow?.();
+
         return true;
     }
+
     if (text === "!" && cursor.col === 1) {
         editor.setText("!! ");
         editor.requestRenderNow?.();
         return true;
     }
+
     if (text === "! " && (cursor.col === 1 || cursor.col === 2)) {
         editor.setText("!! ");
         editor.requestRenderNow?.();
         return true;
     }
+
     return false;
 }
 
@@ -95,6 +106,7 @@ export function installBashExecSpacingEditor(
         installed.handle.update(config);
         return installed.handle;
     }
+
     let current = config;
     const original = ctx.ui.getEditorComponent();
     const enhancer = registerEditorEnhancer(
@@ -104,11 +116,14 @@ export function installBashExecSpacingEditor(
         (editor, tui) => {
             if (!isEditorLike(editor)) return editor;
             editor.requestRenderNow ??= () => tui.requestRender();
+
             const predecessor = editor.handleInput.bind(editor);
+
             editor.handleInput = (data: string): void => {
                 if (data === "!" && editor.onExtensionShortcut?.(data) === true) return;
                 if (!applyBashExecPromptSpacing(editor, data, current)) predecessor(data);
             };
+
             return editor;
         },
     );
@@ -121,10 +136,12 @@ export function installBashExecSpacingEditor(
             if (disposed) return;
             disposed = true;
             enhancer.dispose();
+
             if (ui[BASH_EXEC_SPACING_ENHANCER]?.handle === handle)
                 delete ui[BASH_EXEC_SPACING_ENHANCER];
         },
     };
+
     ui[BASH_EXEC_SPACING_ENHANCER] = { original, enhancer, handle };
     return handle;
 }

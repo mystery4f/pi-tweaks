@@ -16,6 +16,7 @@ export type SourceRuntime = {
     readonly source: ChainCompletionSource & ExpansionSource;
     readonly history: SelectionHistory;
 };
+
 /** Compose one provider's discovery, ranking, persistence and expansion behavior. */
 export function createSourceRuntime(
     ctx: ExtensionContext,
@@ -48,6 +49,7 @@ export function createSourceRuntime(
         ): ReturnType<NonNullable<MentionRegistration["replacement"]>> =>
             registrationReplacement(path, ctx, options);
     }
+
     const source: ChainCompletionSource & ExpansionSource = {
         id: registration.id,
         trigger: configuration.trigger,
@@ -78,6 +80,7 @@ export function createSourceRuntime(
                 );
                 strategy = "sourceOrder";
             }
+
             const items = await rankWithSelectionHistory(
                 ordered,
                 identityOf,
@@ -89,5 +92,6 @@ export function createSourceRuntime(
         resolve: async (segments, signal) => controller.resolve(segments, signal),
         replacement,
     };
+
     return { id: registration.id, controller, source, history };
 }

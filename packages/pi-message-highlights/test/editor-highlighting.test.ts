@@ -24,6 +24,7 @@ test("highlights editor paths across soft-wrapped rendered lines", () => {
         },
         autocompleteState: null,
     };
+
     const renderedLines = [
         "────────────────────────────────────────",
         "copy /mnt/d/Software/Linux ",

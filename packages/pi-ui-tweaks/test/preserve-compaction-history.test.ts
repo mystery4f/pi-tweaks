@@ -4,6 +4,7 @@ import { test } from "vitest";
 
 import { installPreserveCompactionHistoryPatch } from "../src/preserve-compaction-history.ts";
 import { captureConsoleWarnings } from "./capture-console-warnings.ts";
+
 type CompactionEventFixture = {
     readonly aborted?: boolean;
     readonly result?: object;
@@ -14,6 +15,7 @@ class FakeInteractiveMode {
     clearCount = 0;
     rebuildCount = 0;
     summaryCount = 0;
+
     chatContainer = {
         clear: () => {
             this.clearCount += 1;

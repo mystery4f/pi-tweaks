@@ -91,11 +91,14 @@ export class TurnTokenThroughputTracker {
             this.hasIncompleteStep = true;
             return;
         }
+
         if (this.step.firstOutputAtMs !== undefined) return;
+
         if (!Number.isFinite(atMs)) {
             this.hasIncompleteStep = true;
             return;
         }
+
         this.step.firstOutputAtMs = atMs;
     }
 
@@ -105,7 +108,9 @@ export class TurnTokenThroughputTracker {
             if (visibleOutputTokens > 0) {
                 this.hasIncompleteStep = true;
             }
+
             this.samples.push({ visibleOutputTokens, streamDurationMs: 0 });
+
             return;
         }
 
@@ -128,6 +133,7 @@ export class TurnTokenThroughputTracker {
         if (this.samples.length === 0) {
             return { status: "unavailable", reason: "no-steps" };
         }
+
         if (this.step.status === "active" || this.hasIncompleteStep) {
             return { status: "unavailable", reason: "incomplete-step" };
         }
@@ -142,6 +148,7 @@ export class TurnTokenThroughputTracker {
         if (visibleOutputTokens <= 0) {
             return { status: "unavailable", reason: "no-visible-output" };
         }
+
         if (streamDurationMs <= 0) {
             return { status: "unavailable", reason: "zero-duration" };
         }

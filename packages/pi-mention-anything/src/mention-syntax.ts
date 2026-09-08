@@ -51,11 +51,13 @@ function parseUnquotedName(
         const last = rawName.at(end - 1);
         if (last === undefined || !TRAILING_PUNCTUATION.has(last)) break;
         end -= 1;
+
         const candidate = rawName.slice(0, end);
         if (knownNames.has(candidate)) {
             return { name: candidate, suffix: rawName.slice(end) };
         }
     }
+
     return undefined;
 }
 
@@ -69,6 +71,7 @@ export function parseMentionName(
         if (!knownNames.has(name)) return undefined;
         return { name, suffix: "" };
     }
+
     if (unquotedName === undefined) return undefined;
     return parseUnquotedName(unquotedName, knownNames);
 }
@@ -91,6 +94,7 @@ export function extractMentionPrefix(
     if (prefix !== undefined && query !== undefined) {
         return { prefix, query };
     }
+
     return undefined;
 }
 

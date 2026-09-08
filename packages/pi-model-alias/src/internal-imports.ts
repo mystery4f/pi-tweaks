@@ -28,6 +28,7 @@ function isScopedModelsSelectorModule(value: unknown): value is ScopedModelsSele
     ) {
         return false;
     }
+
     return typeof component.prototype === "object" && component.prototype !== null;
 }
 

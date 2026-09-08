@@ -12,7 +12,6 @@ import {
 } from "./source-contract.ts";
 
 export const COMMAND_PROVIDER_PROTOCOL_VERSION = 1 as const;
-
 const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 5_000;
 
@@ -64,6 +63,7 @@ export type CommandResolveResponseV1 = {
 };
 
 export type CommandResponseV1 = CommandDiscoveryResponseV1 | CommandResolveResponseV1;
+
 const commandDiscoveryResponseSchema = Type.Object(
     {
         version: Type.Literal(COMMAND_PROVIDER_PROTOCOL_VERSION),
@@ -84,8 +84,10 @@ const commandResolveResponseSchema = Type.Object(
 function validateProcessOptions(options: CommandProcessOptions): void {
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
+
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
         throw new Error("timeoutMs must be positive");
+
     if (!Number.isSafeInteger(maxOutputBytes) || maxOutputBytes <= 0) {
         throw new Error("maxOutputBytes must be a positive integer");
     }
@@ -101,6 +103,7 @@ function killProcessTree(child: ReturnType<typeof spawn>): void {
             // The process may have exited between the event and termination attempt.
         }
     }
+
     child.kill("SIGKILL");
 }
 
@@ -127,6 +130,7 @@ export async function executeJsonCommand(
         } catch {
             return Promise.reject(new Error("command request must be JSON serializable"));
         }
+
         if (input === undefined) {
             return Promise.reject(new Error("command request must be JSON serializable"));
         }
@@ -138,6 +142,7 @@ export async function executeJsonCommand(
         shell: false,
         stdio: ["pipe", "pipe", "pipe"],
     });
+
     return new Promise<unknown>((resolve, reject) => {
         const stdout: Buffer[] = [];
         const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
@@ -151,10 +156,12 @@ export async function executeJsonCommand(
             if (settled) return;
             settled = true;
             clearTimeout(timeout);
+
             if (abortListener !== undefined) signal.removeEventListener("abort", abortListener);
             killProcessTree(child);
             reject(cause);
         };
+
         abortListener = (): void => {
             let cause: Error = new DOMException("The operation was aborted", "AbortError");
             if (signal.reason instanceof Error) cause = signal.reason;
@@ -179,6 +186,7 @@ export async function executeJsonCommand(
                 killProcessTree(child);
                 return;
             }
+
             stdout.push(chunk);
         });
         child.stderr.on("data", (chunk: Buffer) => {
@@ -193,14 +201,17 @@ export async function executeJsonCommand(
             settled = true;
             clearTimeout(timeout);
             signal.removeEventListener("abort", abortListener);
+
             if (failure !== undefined) {
                 reject(failure);
                 return;
             }
+
             if (code !== 0 || closeSignal !== null) {
                 reject(new Error("command failed"));
                 return;
             }
+
             try {
                 resolve(JSON.parse(Buffer.concat(stdout).toString("utf8")));
             } catch {
@@ -217,6 +228,7 @@ export async function executeJsonCommand(
 /** Adapts the explicit version-1 stdin/stdout protocol to the shared provider contract. */
 export function createCommandProvider(options: CommandProviderOptions): Provider {
     validateProcessOptions(options);
+
     return {
         filtering: options.filtering ?? "provider",
         async discover(request) {
@@ -245,6 +257,7 @@ export function createCommandProvider(options: CommandProviderOptions): Provider
                     cursor: request.cursor,
                 };
             }
+
             const response = await executeJsonCommand(options, commandRequest, request.signal);
             try {
                 return Value.Parse(commandDiscoveryResponseSchema, response).result;

@@ -28,6 +28,7 @@ export function stripFrontmatter(content: string): string {
     if (content[afterMarker] === "\n") {
         return content.slice(afterMarker + 1);
     }
+
     return content.slice(afterMarker);
 }
 
@@ -39,7 +40,6 @@ async function loadSkillExpansion(target: SkillExpansionTarget): Promise<SkillEx
 
 export function createCachedSkillExpansionLoader(): SkillExpansionLoader {
     const cache = new Map<string, CachedSkillExpansion>();
-
     return async (target) => {
         const stats = await fs.stat(target.location);
         const cached = cache.get(target.location);
@@ -49,6 +49,7 @@ export function createCachedSkillExpansionLoader(): SkillExpansionLoader {
 
         const expansion = await loadSkillExpansion(target);
         cache.set(target.location, { mtimeMs: stats.mtimeMs, expansion });
+
         return expansion;
     };
 }

@@ -43,6 +43,7 @@ function assistantEntry(content: string, timestamp: number): SessionEntry {
         stopReason: "stop",
         timestamp,
     };
+
     return {
         ...entryBase(timestamp),
         type: "message",

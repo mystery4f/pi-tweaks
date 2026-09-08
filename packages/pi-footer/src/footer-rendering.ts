@@ -18,6 +18,7 @@ import type {
     FooterSide,
     FooterVariant,
 } from "./footer-model.ts";
+
 const ACTIVE_FOOTER_VARIANT = "plain" as const;
 const BRANCH_ICON = "";
 
@@ -45,6 +46,7 @@ function collapseHome(path: string): string {
     if (home !== undefined && home.length > 0 && path.startsWith(home)) {
         return `~${path.slice(home.length)}`;
     }
+
     return path;
 }
 
@@ -98,6 +100,7 @@ function getContextText(usage: ContextUsage, fallbackWindow?: number): string {
     if (contextPercent === null || contextPercent === undefined) {
         return `?/${formatTokens(contextWindow)}`;
     }
+
     return `${contextPercent.toFixed(1)}%/${formatTokens(contextWindow)}`;
 }
 
@@ -124,9 +127,11 @@ function getSeparator(
     theme: PlainFooterTheme | undefined,
 ): string {
     if (variant === "blocks") return "";
+
     if (side === "left") {
         return renderThemeText(` ${config.separator} `, "dim", theme);
     }
+
     return renderThemeText("  ", "dim", theme);
 }
 
@@ -138,6 +143,7 @@ function renderItem(
     if (variant === "blocks") {
         return renderBlockItem(item);
     }
+
     return renderPlainItem(item, theme);
 }
 
@@ -197,6 +203,7 @@ function buildSideVariants(
                 variants.push(rendered);
             }
         }
+
         variants.push("");
     }
 
@@ -213,6 +220,7 @@ function renderPadding(
     if (variant === "plain") {
         return renderThemeText(padding, "muted", theme);
     }
+
     return padding;
 }
 
@@ -231,7 +239,6 @@ function buildFooterItems(
     const usage = ctx.getContextUsage();
     const contextText = getContextText(usage, ctx.model?.contextWindow);
     const mcpText = getMcpText(ctx, footerData);
-
     const items = new Map<FooterSlotId, FooterItem>();
     items.set("path", {
         key: "path",
@@ -265,6 +272,7 @@ function buildFooterItems(
         if (gitAheadBehind !== undefined) {
             branchText += ` ${formatGitAheadBehind(gitAheadBehind)}`;
         }
+
         items.set("branch", {
             key: "branch",
             text: branchText,
@@ -287,7 +295,6 @@ function buildFooterItems(
             colors: slot.colors,
         });
     }
-
     return items;
 }
 
@@ -304,6 +311,7 @@ function resolveFooterLayout(
             left.push(slotId);
         }
     }
+
     for (const slotId of configLayout.right) {
         if (!hiddenIds.has(slotId)) {
             right.push(slotId);
@@ -320,6 +328,7 @@ function resolveFooterLayout(
         } else {
             right.push(slot.id);
         }
+
         configuredIds.add(slot.id);
     }
 
@@ -340,6 +349,7 @@ export function createFooterComponent(
         activeGitAheadBehindSource = gitAheadBehindSource;
         activeGitAheadBehindSource ??= createGitAheadBehindTracker(ctx.cwd, requestRender);
     }
+
     const unsubscribeBranchChange = footerData.onBranchChange(() => {
         activeGitAheadBehindSource?.refresh();
         requestRender();
@@ -396,6 +406,7 @@ export function createFooterComponent(
                     if (right.length > 0) {
                         minimumInnerGap = 1;
                     }
+
                     const requiredWidth =
                         edgePaddingWidth + leftWidth + minimumInnerGap + rightWidth;
 

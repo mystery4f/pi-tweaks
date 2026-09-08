@@ -55,10 +55,12 @@ export function registerProjectMentionExtension(pi: ProjectMentionExtensionApi):
         },
         provider(ctx) {
             const settings = mentionProjectSettings(pi, ctx);
+
             return createListProvider(async (request) => {
                 const projects = await listProjectDirectories(settings, ctx.cwd, {
                     signal: request.signal,
                 });
+
                 return projects.map((project) => ({
                     id: project.path,
                     label: project.name,

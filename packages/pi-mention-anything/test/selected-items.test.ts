@@ -4,6 +4,7 @@ import { test } from "vitest";
 import { includeSelectedItems, selectedOrCurrentItem } from "../src/selected-items.ts";
 
 type Candidate = { readonly name: string; readonly replacement: string };
+
 const nameOf = (candidate: Candidate): string => candidate.name;
 
 test("retains the selected snapshot until prompt expansion", () => {
@@ -16,6 +17,7 @@ test("retains the selected snapshot until prompt expansion", () => {
         [selectedProduction.name, selectedProduction],
         [selectedRemoved.name, selectedRemoved],
     ]);
+
     const current = [
         { name: "production", replacement: "refreshed-production" },
         { name: "staging", replacement: "refreshed-staging" },

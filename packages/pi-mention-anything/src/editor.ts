@@ -18,6 +18,7 @@ type CursorAccess = {
     getCursor(): { readonly line: number; readonly col: number };
     getLines(): string[];
 };
+
 type SubmitAccess = {
     onSubmit?: (text: string) => void;
 };
@@ -60,6 +61,7 @@ function hasCursorAccess(editor: EditorLike): editor is EditorLike & CursorAcces
         typeof editor.getLines === "function"
     );
 }
+
 function hasSubmitAccess(editor: EditorLike): editor is EditorLike & SubmitAccess {
     return "onSubmit" in editor;
 }
@@ -74,6 +76,7 @@ function tryTriggerAutocomplete(editor: EditorLike): void {
 
 export function createMentionContinuation(): MentionContinuation {
     let requested = false;
+
     return {
         request() {
             requested = true;
@@ -85,6 +88,7 @@ export function createMentionContinuation(): MentionContinuation {
         },
     };
 }
+
 function handleInputWithSubmitCapture(
     editor: EditorLike,
     originalHandleInput: (data: string) => void,
@@ -101,7 +105,9 @@ function handleInputWithSubmitCapture(
         onSubmitText(text);
         originalOnSubmit?.(text);
     };
+
     editor.onSubmit = capturedOnSubmit;
+
     try {
         originalHandleInput(data);
     } finally {
@@ -111,9 +117,11 @@ function handleInputWithSubmitCapture(
 
 function enhanceEditor(editor: EditorLike, options: MentionEditorOptions): EditorLike {
     const originalHandleInput = editor.handleInput.bind(editor);
+
     editor.handleInput = (data: string) => {
         const textBeforeInput = editor.getText();
         const autocompleteWasShowing = isShowingAutocomplete(editor);
+
         handleInputWithSubmitCapture(editor, originalHandleInput, data, options.onSubmitText);
 
         const text = editor.getText();
@@ -124,7 +132,9 @@ function enhanceEditor(editor: EditorLike, options: MentionEditorOptions): Edito
             if (!isShowingAutocomplete(editor)) tryTriggerAutocomplete(editor);
             return;
         }
+
         if (autocompleteWasShowing || isShowingAutocomplete(editor)) return;
+
         if (!textChanged) {
             const inputCharacters = Array.from(data);
             if (inputCharacters.length !== 1 || /[\p{C}\s]/u.test(inputCharacters[0] ?? "")) return;
@@ -136,11 +146,13 @@ function enhanceEditor(editor: EditorLike, options: MentionEditorOptions): Edito
             currentLine = editor.getLines()[cursor.line] ?? "";
             currentLine = currentLine.slice(0, cursor.col);
         }
+
         if (!options.isMentionContext(currentLine)) return;
         tryTriggerAutocomplete(editor);
     };
 
     const originalRender = editor.render.bind(editor);
+
     editor.render = (width: number): string[] => {
         const renderedLines = originalRender(width);
         let colorThrough = renderedLines.length;
