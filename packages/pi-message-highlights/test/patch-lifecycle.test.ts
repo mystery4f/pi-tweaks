@@ -1,8 +1,8 @@
+/* oxlint-disable typescript/no-unsafe-type-assertion -- Installed private Pi modules and partial host fixture are checked at their use sites with documented SAFETY invariants. */
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import type { AssistantMessage } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
     Editor,
     Markdown,
@@ -15,16 +15,20 @@ import {
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import messageHighlightsExtension from "../src/index.ts";
+import {
+    installMessageHighlightPatch,
+    loadMessageHighlightTargets,
+} from "../src/message-highlight-patch.ts";
+import { DEFAULT_MESSAGE_HIGHLIGHTS_CONFIG } from "../src/settings.ts";
 import plainUserMessagesExtension from "../../pi-plain-user-messages/src/index.ts";
 import responseRendererExtension from "../../pi-response-renderer/src/index.ts";
 
 type RenderPrototype = {
-    render(width: number): string[];
+    render: (this: MessageComponent, width: number) => string[];
 };
 
 type MessageComponent = {
-    render(width: number): string[];
+    render: (this: MessageComponent, width: number) => string[];
 };
 
 /** Declared shapes of the unexported Pi message component module exports. */
@@ -39,7 +43,7 @@ type AssistantMessageModuleView = {
           ) => MessageComponent) & {
               prototype?: {
                   render?: unknown;
-                  updateContent?(message: AssistantMessage): void;
+                  updateContent?: (this: MessageComponent, message: AssistantMessage) => void;
               };
           })
         | undefined;
@@ -83,6 +87,7 @@ function restoreThemeSnapshot(
             Object.defineProperty(globalThis, snapshot.key, snapshot.descriptor);
             continue;
         }
+
         Reflect.deleteProperty(globalThis, snapshot.key);
     }
 }
@@ -92,6 +97,7 @@ function suspendPiTheme(): () => void {
         key,
         descriptor: Object.getOwnPropertyDescriptor(globalThis, key),
     }));
+
     for (const key of PI_THEME_KEYS) Reflect.deleteProperty(globalThis, key);
 
     return (): void => {
@@ -100,6 +106,7 @@ function suspendPiTheme(): () => void {
                 Object.defineProperty(globalThis, snapshot.key, snapshot.descriptor);
                 continue;
             }
+
             Reflect.deleteProperty(globalThis, snapshot.key);
         }
     };
@@ -110,6 +117,7 @@ async function initializePiTheme(): Promise<() => void> {
     const themeUrl = pathToFileURL(
         join(dirname(codingAgentEntry), "modes/interactive/theme/theme.js"),
     ).href;
+
     // Pi's theme module is an internal runtime file with no public package export.
     // SAFETY: The dynamic import yields a namespace object; initTheme is verified callable
     // below before it is invoked, and every other member stays untouched.
@@ -134,6 +142,7 @@ async function initializePiTheme(): Promise<() => void> {
         restoreThemeSnapshot(themeModule, snapshots);
     };
 }
+
 const identity = (text: string): string => text;
 const markdownTheme = {
     heading: identity,
@@ -172,16 +181,27 @@ class FakeTerminal implements Terminal {
     }
 
     start(): void {}
+
     stop(): void {}
+
     async drainInput(): Promise<void> {}
+
     write(_data: string): void {}
+
     moveBy(): void {}
+
     hideCursor(): void {}
+
     showCursor(): void {}
+
     clearLine(): void {}
+
     clearFromCursor(): void {}
+
     clearScreen(): void {}
+
     setTitle(): void {}
+
     setProgress(): void {}
 }
 
@@ -201,6 +221,7 @@ function verifiedRenderPrototype<P extends { render?: unknown }>(
     if (typeof prototype?.render !== "function") {
         assert.fail(`invalid ${label} prototype`);
     }
+
     // SAFETY: The runtime check proves render is callable; the patches wrap only that method
     // and forward `this`, so the remaining prototype shape is irrelevant here.
     return prototype as P & RenderPrototype;
@@ -229,8 +250,9 @@ async function loadUserMessageComponent(): Promise<
     if (component === undefined) assert.fail("missing UserMessageComponent");
     return component;
 }
+
 type LifecycleApi = {
-    readonly api: ExtensionAPI;
+    readonly api: NonNullable<Parameters<typeof plainUserMessagesExtension>[0]>;
     readonly shutdownHandlers: Array<() => void>;
 };
 
@@ -242,112 +264,124 @@ function createLifecycleApi(): LifecycleApi {
         },
     };
 
-    // SAFETY: These extensions use only ExtensionAPI.on during this lifecycle test.
-    return { api: api as ExtensionAPI, shutdownHandlers };
-}
-
-async function exerciseMessageRenderLifecycle(
-    afterExtensionsInstalled: () => Promise<void>,
-): Promise<void> {
-    const assistantClass = await loadAssistantMessageComponent();
-    const userClass = await loadUserMessageComponent();
-    const assistantPrototype = verifiedRenderPrototype(
-        assistantClass.prototype,
-        "AssistantMessageComponent",
-    );
-    const userPrototype = verifiedRenderPrototype(userClass.prototype, "UserMessageComponent");
-    const originalAssistantRender = assistantPrototype["render"];
-    const originalAssistantUpdateContent = assistantPrototype["updateContent"];
-    const originalUserRender = userPrototype["render"];
-    const originalEditorRender = Editor.prototype["render"];
-    const originalMarkdownRender = Markdown.prototype["render"];
-    for (let cycle = 0; cycle < 2; cycle += 1) {
-        const responseLifecycle = createLifecycleApi();
-        const plainLifecycle = createLifecycleApi();
-        const highlightsLifecycle = createLifecycleApi();
-        const shutdown = (): void => {
-            for (const handler of responseLifecycle.shutdownHandlers) handler();
-            for (const handler of plainLifecycle.shutdownHandlers) handler();
-            for (const handler of highlightsLifecycle.shutdownHandlers) handler();
-        };
-
-        try {
-            await responseRendererExtension(responseLifecycle.api);
-            await plainUserMessagesExtension(plainLifecycle.api);
-            await messageHighlightsExtension(highlightsLifecycle.api);
-            await afterExtensionsInstalled();
-
-            const AssistantMessageComponent = assistantClass;
-            const UserMessageComponent = userClass;
-            const message = {
-                role: "assistant",
-                content: [{ type: "text", text: "Read https://example.com/docs now" }],
-                api: "openai-responses",
-                provider: "openai",
-                model: "gpt-5",
-                usage: {
-                    input: 0,
-                    output: 0,
-                    cacheRead: 0,
-                    cacheWrite: 0,
-                    totalTokens: 0,
-                    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-                },
-                stopReason: "stop",
-                timestamp: 0,
-            } satisfies AssistantMessage;
-            const assistant = new AssistantMessageComponent(
-                message,
-                false,
-                markdownTheme,
-                "Thinking",
-                0,
-            );
-            const user = new UserMessageComponent(
-                "Open https://example.com/account",
-                markdownTheme,
-                0,
-            );
-            const editor = new Editor(new TuiMainScreen(new FakeTerminal()), editorTheme);
-            editor.setText("Visit https://example.com/settings");
-
-            const assistantRaw = assistant.render(80).join("\n");
-            const userRaw = user.render(80).join("\n");
-            const editorRaw = editor.render(80).join("\n");
-            const urlHighlight = new RegExp(`${ESC}\\[38;(?:2;135;215;255|5;\\d+)m`);
-            assert.match(assistantRaw, urlHighlight);
-            assert.match(userRaw, urlHighlight);
-            assert.match(editorRaw, urlHighlight);
-            assert.match(
-                stripTerminalSequences(assistantRaw),
-                /Read https:\/\/example\.com\/docs now/,
-            );
-            assert.match(stripTerminalSequences(userRaw), /Open https:\/\/example\.com\/account/);
-            assert.match(
-                stripTerminalSequences(editorRaw),
-                /Visit https:\/\/example\.com\/settings/,
-            );
-            assert.notEqual(assistantPrototype.render, originalAssistantRender);
-            assert.notEqual(userPrototype.render, originalUserRender);
-        } finally {
-            shutdown();
-        }
-
-        assert.equal(assistantPrototype["render"], originalAssistantRender);
-        assert.equal(assistantPrototype["updateContent"], originalAssistantUpdateContent);
-        assert.equal(userPrototype["render"], originalUserRender);
-        assert.equal(Editor.prototype["render"], originalEditorRender);
-        assert.equal(Markdown.prototype["render"], originalMarkdownRender);
-    }
+    return { api, shutdownHandlers };
 }
 
 test("message render wrappers restore cleanly across reload cycles", async () => {
     const restoreOriginalTheme = suspendPiTheme();
     let restoreInitializedTheme: (() => void) | undefined;
     try {
-        await exerciseMessageRenderLifecycle(async () => {
-            restoreInitializedTheme ??= await initializePiTheme();
-        });
+        const assistantClass = await loadAssistantMessageComponent();
+        const userClass = await loadUserMessageComponent();
+        const assistantPrototype = verifiedRenderPrototype(
+            assistantClass.prototype,
+            "AssistantMessageComponent",
+        );
+        const userPrototype = verifiedRenderPrototype(userClass.prototype, "UserMessageComponent");
+        const originalAssistantRender = assistantPrototype.render;
+        const originalAssistantUpdateContent = assistantPrototype.updateContent;
+        const originalUserRender = userPrototype.render;
+        const originalEditorRender = Object.getOwnPropertyDescriptor(Editor.prototype, "render");
+        const originalMarkdownRender = Object.getOwnPropertyDescriptor(
+            Markdown.prototype,
+            "render",
+        );
+
+        for (let cycle = 0; cycle < 2; cycle += 1) {
+            const responseLifecycle = createLifecycleApi();
+            const plainLifecycle = createLifecycleApi();
+            const highlightsLifecycle = createLifecycleApi();
+            const shutdown = (): void => {
+                for (const handler of responseLifecycle.shutdownHandlers) handler();
+
+                for (const handler of plainLifecycle.shutdownHandlers) handler();
+
+                for (const handler of highlightsLifecycle.shutdownHandlers) handler();
+            };
+
+            try {
+                await responseRendererExtension(responseLifecycle.api);
+                await plainUserMessagesExtension(plainLifecycle.api);
+                const targets = await loadMessageHighlightTargets();
+                assert.ok(targets);
+                const patch = installMessageHighlightPatch(
+                    targets,
+                    DEFAULT_MESSAGE_HIGHLIGHTS_CONFIG,
+                );
+                highlightsLifecycle.shutdownHandlers.push(() => patch.dispose());
+                restoreInitializedTheme ??= await initializePiTheme();
+
+                const AssistantMessageComponent = assistantClass;
+                const UserMessageComponent = userClass;
+                const message = {
+                    role: "assistant",
+                    content: [{ type: "text", text: "Read https://example.com/docs now" }],
+                    api: "openai-responses",
+                    provider: "openai",
+                    model: "gpt-5",
+                    usage: {
+                        input: 0,
+                        output: 0,
+                        cacheRead: 0,
+                        cacheWrite: 0,
+                        totalTokens: 0,
+                        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+                    },
+                    stopReason: "stop",
+                    timestamp: 0,
+                } satisfies AssistantMessage;
+                const assistant = new AssistantMessageComponent(
+                    message,
+                    false,
+                    markdownTheme,
+                    "Thinking",
+                    0,
+                );
+                const user = new UserMessageComponent(
+                    "Open https://example.com/account",
+                    markdownTheme,
+                    0,
+                );
+                const editor = new Editor(new TuiMainScreen(new FakeTerminal()), editorTheme);
+                editor.setText("Visit https://example.com/settings");
+
+                const assistantRaw = assistant.render(80).join("\n");
+                const userRaw = user.render(80).join("\n");
+                const editorRaw = editor.render(80).join("\n");
+                const urlHighlight = new RegExp(`${ESC}\\[38;(?:2;135;215;255|5;\\d+)m`);
+                assert.match(assistantRaw, urlHighlight);
+                assert.match(userRaw, urlHighlight);
+                assert.match(editorRaw, urlHighlight);
+                assert.match(
+                    stripTerminalSequences(assistantRaw),
+                    /Read https:\/\/example\.com\/docs now/,
+                );
+                assert.match(
+                    stripTerminalSequences(userRaw),
+                    /Open https:\/\/example\.com\/account/,
+                );
+                assert.match(
+                    stripTerminalSequences(editorRaw),
+                    /Visit https:\/\/example\.com\/settings/,
+                );
+                assert.notEqual(assistantPrototype.render, originalAssistantRender);
+                assert.notEqual(userPrototype.render, originalUserRender);
+            } finally {
+                shutdown();
+            }
+
+            assert.equal(assistantPrototype.render, originalAssistantRender);
+            assert.equal(assistantPrototype.updateContent, originalAssistantUpdateContent);
+            assert.equal(userPrototype.render, originalUserRender);
+            assert.deepEqual(
+                Object.getOwnPropertyDescriptor(Editor.prototype, "render"),
+                originalEditorRender,
+            );
+            assert.deepEqual(
+                Object.getOwnPropertyDescriptor(Markdown.prototype, "render"),
+                originalMarkdownRender,
+            );
+        }
     } finally {
         restoreInitializedTheme?.();
         restoreOriginalTheme();

@@ -15,7 +15,7 @@ const styles: HighlightStyles = {
 };
 
 function readEscapeSequence(text: string, start: number): string {
-    const introducer = text[start + 1];
+    const introducer = text.at(start + 1);
     if (introducer === undefined) return text.slice(start, start + 1);
 
     if (introducer === "[") {
@@ -23,6 +23,7 @@ function readEscapeSequence(text: string, start: number): string {
             const code = text.charCodeAt(index);
             if (code >= 0x40 && code <= 0x7e) return text.slice(start, index + 1);
         }
+
         return text.slice(start);
     }
 
@@ -43,9 +44,11 @@ function stripAnsi(text: string): string {
             index += readEscapeSequence(text, index).length;
             continue;
         }
+
         output.push(text[index] ?? "");
         index += 1;
     }
+
     return output.join("").replace(/<url>|<path>/g, "");
 }
 
@@ -121,6 +124,7 @@ test("highlights file paths split across rendered message lines", () => {
         "   Distros/Fedora-Server-dvd-x86_64-",
         "   44-1.7.iso it should             ",
     ];
+
     const highlighted = highlightMessageLines(lines, styles);
 
     assert.deepEqual(highlighted.map(stripAnsi), lines);
@@ -139,6 +143,7 @@ test("does not join prose before an absolute wrapped path", () => {
         "   Distros/Fedora-Server-dvd-x86_64-4 ",
         "   4-1.7.iso it should                ",
     ];
+
     const highlighted = highlightMessageLines(lines, styles);
 
     assert.deepEqual(highlighted.map(stripAnsi), lines);

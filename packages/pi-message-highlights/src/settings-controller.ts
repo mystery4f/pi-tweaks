@@ -1,31 +1,35 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-
 import {
-    DEFAULT_MESSAGE_HIGHLIGHTS_CONFIG,
     loadMessageHighlightsSettings,
     type LoadedMessageHighlightsConfig,
     type MessageHighlightsConfig,
 } from "./settings.ts";
 
+export type MessageHighlightSettingsContext = Pick<
+    ExtensionContext,
+    "cwd" | "hasUI" | "isProjectTrusted"
+> & {
+    readonly ui: Pick<ExtensionContext["ui"], "notify">;
+};
+
 export class MessageHighlightSettingsController {
-    private activeConfig = DEFAULT_MESSAGE_HIGHLIGHTS_CONFIG;
-    private readonly reportedErrors = new Set<string>();
+    private snapshot: LoadedMessageHighlightsConfig | undefined;
 
-    getConfig = (): MessageHighlightsConfig => this.activeConfig;
+    constructor(private readonly loadSettings = loadMessageHighlightsSettings) {}
 
-    apply(ctx: ExtensionContext): void {
-        const loaded = loadMessageHighlightsSettings(ctx.cwd, ctx.isProjectTrusted());
-        this.activeConfig = loaded.config;
-        this.reportErrors(ctx, loaded);
+    reset(): void {
+        this.snapshot = undefined;
     }
 
-    private reportErrors(ctx: ExtensionContext, loaded: LoadedMessageHighlightsConfig): void {
-        for (const error of loaded.errors) {
-            if (this.reportedErrors.has(error)) continue;
-            this.reportedErrors.add(error);
-            ctx.ui.notify(`[pi-message-highlights] ${error}`, "error");
+    apply(ctx: MessageHighlightSettingsContext): MessageHighlightsConfig {
+        if (this.snapshot !== undefined) return this.snapshot.config;
+        this.snapshot = this.loadSettings(ctx.cwd, ctx.isProjectTrusted());
+        if (ctx.hasUI) {
+            for (const error of this.snapshot.errors) {
+                ctx.ui.notify(`[pi-message-highlights] ${error}`, "error");
+            }
         }
+
+        return this.snapshot.config;
     }
 }
-
-export const messageHighlightSettings = new MessageHighlightSettingsController();
