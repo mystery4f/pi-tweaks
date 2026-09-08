@@ -103,6 +103,7 @@ function getSettingsPath(): string {
 
 export function loadTreeSettings() {
     const context = settingsReadContext ?? { cwd: process.cwd(), projectTrusted: false };
+
     return loadPiExtensionSettings(
         treeSettingsDefinition,
         {
@@ -153,10 +154,12 @@ const settingsObjectParser = {
             if (errors.length > messages.length) {
                 suffix = `; and ${errors.length - messages.length} more`;
             }
+
             throw new Error(
                 `${settingsPath} must contain a JSON object: ${messages.join("; ")}${suffix}`,
             );
         }
+
         return Value.Parse(SettingsObjectSchema, value);
     },
 };
@@ -203,7 +206,7 @@ function withSettingsLock<T>(settingsPath: string, fn: () => T): T {
     mkdirSync(dirname(lockPath), { recursive: true });
 
     const start = Date.now();
-    while (true) {
+    for (;;) {
         try {
             const fd = openSync(lockPath, "wx");
             try {
@@ -224,6 +227,7 @@ function withSettingsLock<T>(settingsPath: string, fn: () => T): T {
                 } catch {
                     // Ignore cleanup failures.
                 }
+
                 try {
                     unlinkSync(lockPath);
                 } catch {
@@ -246,6 +250,7 @@ function withSettingsLock<T>(settingsPath: string, fn: () => T): T {
             if (Date.now() - start > SETTINGS_LOCK_TIMEOUT_MS) {
                 throw new Error(`Timed out waiting for lock: ${lockPath}`);
             }
+
             sleepSync(40 + Math.random() * 80);
         }
     }
@@ -272,21 +277,27 @@ function atomicWriteUtf8Sync(filePath: string, content: string): void {
             } catch {
                 // Ignore missing target before retrying the rename.
             }
+
             renameSync(tempPath, filePath);
+
             return;
         }
+
         try {
             unlinkSync(tempPath);
         } catch {
             // Ignore cleanup failures.
         }
+
         throwCause(cause);
     }
 }
 
 function updateSettingsObject(update: (settings: SettingsObject) => void): void {
     loadTreeSettings();
+
     const settingsPath = getSettingsPath();
+
     withSettingsLock(settingsPath, () => {
         const settings = readSettingsObject(settingsPath, { throwOnInvalid: true });
         update(settings);
@@ -315,6 +326,7 @@ export function getPersistedMaxVisibleLines(): number | null {
 
     const settings = readMergedSettingsObject();
     const configured = settings[MAX_VISIBLE_LINES_SETTINGS_KEY];
+
     cachedMaxVisibleLines = null;
     if (configured !== undefined && Number.isFinite(configured)) {
         cachedMaxVisibleLines = Math.max(MIN_VISIBLE_LINES, Math.floor(configured));
@@ -344,6 +356,7 @@ function warnSettingsWriteFailed(cause: unknown): void {
     if (cause instanceof Error && cause.message.length > 0) {
         suffix = `: ${cause.message}`;
     }
+
     console.warn(`[pi-tree] settings update was not saved${suffix}`);
 }
 

@@ -1,10 +1,15 @@
+import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, onTestFinished, test } from "vitest";
 
-import { loadTreeInternals } from "../src/internal-imports.ts";
+import {
+    treeSelectorRuntime,
+    treeThemeRuntime,
+    loadTreeInternals,
+} from "../src/internal-imports.ts";
 
 type TreeRuntimeModule = {
     readonly TreeSelectorComponent: object;
@@ -24,6 +29,7 @@ const treeRuntimeParser = {
         if (!isTreeRuntimeModule(value)) {
             throw new Error("fixture module must export its tree constructor");
         }
+
         return value;
     },
 };
@@ -52,23 +58,27 @@ test.each(["bundled", "modular"])(
             } else {
                 process.env.PI_CODING_AGENT = originalPiFlag;
             }
+
             if (originalPackageDirectory === undefined) {
                 delete process.env.PI_PACKAGE_DIR;
             } else {
                 process.env.PI_PACKAGE_DIR = originalPackageDirectory;
             }
+
             await rm(fixtureRoot, { recursive: true, force: true });
         });
 
         for (const directory of [componentDirectory, themeDirectory, bundleDirectory]) {
             await mkdir(directory, { recursive: true });
         }
+
         await writeFile(
             join(packageDirectory, "package.json"),
             '{"name":"@earendil-works/pi-coding-agent","type":"module"}\n',
         );
         const modularSelectorPath = join(componentDirectory, "tree-selector.js");
-        const selectorSource = "export class TreeSelectorComponent {}\n";
+        const selectorSource =
+            "export class TreeSelectorComponent { getTreeList() { return this; } }\n";
         await writeFile(modularSelectorPath, selectorSource);
         await writeFile(
             join(themeDirectory, "theme.js"),
@@ -89,6 +99,7 @@ test.each(["bundled", "modular"])(
                 'export { TreeSelectorComponent } from "./modes/interactive/components/tree-selector.js";\n',
             );
         }
+
         process.argv[1] = entrypointPath;
         process.env.PI_CODING_AGENT = "true";
         delete process.env.PI_PACKAGE_DIR;
@@ -109,3 +120,76 @@ test.each(["bundled", "modular"])(
         }
     },
 );
+
+const getTreeList = () => ({});
+
+for (const [name, module] of [
+    ["null namespace", null],
+    ["missing export", {}],
+    ["non-callable export", { TreeSelectorComponent: 1 }],
+    ["arrow", { TreeSelectorComponent: () => {} }],
+    ["null prototype", { TreeSelectorComponent: Object.assign(() => {}, { prototype: null }) }],
+    ["missing method", { TreeSelectorComponent: class {} }],
+    [
+        "non-callable method",
+        { TreeSelectorComponent: Object.assign(() => {}, { prototype: { getTreeList: 1 } }) },
+    ],
+    [
+        "nonconstructable callable",
+        { TreeSelectorComponent: Object.assign(() => {}, { prototype: { getTreeList } }) },
+    ],
+] as const) {
+    test(`tree decoder rejects ${name}`, () => {
+        assert.equal(treeSelectorRuntime.parse(module), undefined);
+    });
+}
+
+test("tree decoder preserves identity and does not execute the foreign constructor", () => {
+    let constructions = 0;
+
+    class TreeSelectorComponent {
+        constructor() {
+            constructions += 1;
+        }
+
+        getTreeList(): object {
+            return this;
+        }
+    }
+
+    const module = { TreeSelectorComponent };
+    assert.equal(treeSelectorRuntime.parse(module), module);
+    assert.equal(constructions, 0);
+});
+
+for (const [name, module] of [
+    ["null namespace", null],
+    ["missing initializer", { theme: {} }],
+    ["non-callable initializer", { initTheme: 1, theme: {} }],
+    ["missing theme", { initTheme() {} }],
+    ["null theme", { initTheme() {}, theme: null }],
+    ["scalar theme", { initTheme() {}, theme: "dark" }],
+] as const) {
+    test(`theme decoder rejects ${name}`, () => {
+        assert.equal(treeThemeRuntime.parse(module), undefined);
+    });
+}
+
+test("theme decoder does not initialize or inspect lazy theme methods", () => {
+    let initializations = 0;
+    const module = {
+        initTheme() {
+            initializations += 1;
+        },
+        theme: new Proxy(
+            {},
+            {
+                get() {
+                    throw new Error("theme is not initialized");
+                },
+            },
+        ),
+    };
+    assert.equal(treeThemeRuntime.parse(module), module);
+    assert.equal(initializations, 0);
+});

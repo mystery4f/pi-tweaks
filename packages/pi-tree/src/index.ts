@@ -4,7 +4,7 @@ import { restoreTreeHeaderText } from "./patch-tree-header.ts";
 import { patchTreeSelector } from "./patch-tree-selector.ts";
 import { getPersistedMode, setSettingsContext } from "./settings.ts";
 
-export default function treeTimestampsExtension(pi: ExtensionAPI): void {
+export default function treeTimestampsExtension(pi: Pick<ExtensionAPI, "on">): void {
     pi.on("session_start", async (_event, ctx) => {
         setSettingsContext(ctx);
         getPersistedMode();
