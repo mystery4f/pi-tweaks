@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { setImmediate as waitForImmediate } from "node:timers/promises";
 import { test } from "vitest";
 
 type SelectedItemForTest = object;
@@ -31,6 +32,7 @@ function isImportedAutocompletePositionModule(
     value: unknown,
 ): value is ImportedAutocompletePositionModule {
     if ((typeof value !== "object" && typeof value !== "function") || value === null) return false;
+
     // SAFETY: The module view exposes only the installer export validated by this predicate.
     const view = value as ImportedAutocompletePositionModuleView;
     return typeof view.installAutocompletePositionPatch === "function";
@@ -50,6 +52,7 @@ async function importAutocompletePositionModule(
     if (!isImportedAutocompletePositionModule(module)) {
         throw new Error("Expected installAutocompletePositionPatch export");
     }
+
     let autocompleteAboveInput = true;
     let restoreContentAfterAutocompleteClose = true;
     let prototype: AutocompletePositionPatchTarget | undefined;
@@ -59,6 +62,7 @@ async function importAutocompletePositionModule(
             prototype,
         );
     };
+
     return {
         installAutocompletePositionPatch(nextPrototype): void {
             prototype = nextPrototype;
@@ -66,10 +70,12 @@ async function importAutocompletePositionModule(
         },
         updateAutocompleteAboveInput(enabled): void {
             autocompleteAboveInput = enabled;
+
             if (prototype !== undefined) apply();
         },
         updateRestoreContentAfterAutocompleteClose(enabled): void {
             restoreContentAfterAutocompleteClose = enabled;
+
             if (prototype !== undefined) apply();
         },
     };
@@ -88,12 +94,6 @@ function autocompleteTarget(
         },
         paddingX: 0,
     };
-}
-
-function waitForImmediate(): Promise<void> {
-    return new Promise((resolve) => {
-        setImmediate(resolve);
-    });
 }
 
 test("autocomplete position patch reads config state updated by a reloaded module", async () => {
@@ -135,6 +135,7 @@ test("autocomplete position patch defers forced redraw after above-input autocom
             if (this.autocompleteState === null) {
                 return ["input"];
             }
+
             return ["input", "suggestion"];
         },
     };

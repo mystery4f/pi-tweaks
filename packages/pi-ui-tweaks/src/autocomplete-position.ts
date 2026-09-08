@@ -20,11 +20,12 @@ function blankSpacerLine(width: number): string {
     if (width <= 1) {
         return visibleSpacer;
     }
+
     return visibleSpacer + " ".repeat(width - 1);
 }
 
 type AutocompleteListLike = {
-    getSelectedItem?(): AutocompleteSelectedItem;
+    getSelectedItem?(): AutocompleteSelectedItem | null;
     render(width: number): string[];
 };
 
@@ -46,21 +47,39 @@ type AutocompletePositionPatchTarget = {
 };
 
 type PrototypeRenderView = {
-    readonly render?: AutocompletePositionPatchTarget["render"];
+    render?: (this: AutocompletePositionPatchTarget, width: number) => string[];
+    [AUTOCOMPLETE_POSITION_PATCHED]?: AutocompletePositionPatchRecord;
 };
 
 type PrototypeHandleInputView = {
-    readonly handleInput?: AutocompletePositionPatchTarget["handleInput"];
+    handleInput?: (this: AutocompletePositionPatchTarget, data: string) => void;
 };
 
 type AutocompleteHandleInputTarget = {
     handleInput(this: AutocompletePositionPatchTarget, data: string): void;
 };
+
+function hasRender(
+    target: PrototypeRenderView & PrototypeHandleInputView,
+): target is PrototypeRenderView &
+    PrototypeHandleInputView & {
+        render: (this: AutocompletePositionPatchTarget, width: number) => string[];
+    } {
+    return typeof target.render === "function";
+}
+
+function hasHandleInput(
+    target: PrototypeHandleInputView,
+): target is PrototypeHandleInputView & AutocompleteHandleInputTarget {
+    return typeof target.handleInput === "function";
+}
+
 function warnAutocompletePositionPatchUnavailable(reason?: string): void {
     let suffix = "";
     if (reason !== undefined) {
         suffix = `: ${reason}`;
     }
+
     console.warn(
         `[pi-ui-tweaks] autocomplete position patch unavailable; Pi internals may have changed${suffix}`,
     );
@@ -99,7 +118,7 @@ function getSelectedAutocompleteItem(
 
     if (typeof autocompleteList.getSelectedItem !== "function") return undefined;
     const selectedItem = autocompleteList.getSelectedItem();
-    if (selectedItem === undefined || selectedItem === null) return undefined;
+    if (selectedItem === null) return undefined;
     return selectedItem;
 }
 
@@ -117,6 +136,7 @@ function isAutocompleteCompletion(
     ) {
         return false;
     }
+
     return getSelectedAutocompleteItem(target) !== undefined;
 }
 
@@ -124,17 +144,21 @@ export type AutocompletePositionConfig = {
     readonly autocompleteAboveInput: boolean;
     readonly restoreContentAfterAutocompleteClose: boolean;
 };
+
 export type AutocompletePositionHandle = {
     update(config: AutocompletePositionConfig): void;
     dispose(): void;
 };
+
 type AutocompletePositionPatchRecord = {
     readonly original: AutocompletePositionPatchTarget["render"];
+
     readonly renderPatch: LinkedMethodPatchHandle<
         AutocompletePositionPatchTarget,
         [number],
         string[]
     >;
+
     readonly inputPatch?: LinkedMethodPatchHandle<AutocompletePositionPatchTarget, [string], void>;
     readonly handle: AutocompletePositionHandle;
 };
@@ -148,28 +172,30 @@ export function installAutocompletePositionPatch(
 ): AutocompletePositionHandle {
     if (target === null) {
         warnAutocompletePositionPatchUnavailable();
+
         return { update(): void {}, dispose(): void {} };
     }
-    const originalRenderValue = target.render;
-    if (typeof originalRenderValue !== "function") {
+
+    if (!hasRender(target)) {
         warnAutocompletePositionPatchUnavailable("missing render");
+
         return { update(): void {}, dispose(): void {} };
     }
-    // SAFETY: The callable check above proves the required render method. Remaining
-    // fields are optional private Editor state read only after absence checks.
-    const prototype = target as AutocompletePositionPatchTarget;
+
+    const prototype = target;
     const installed = prototype[AUTOCOMPLETE_POSITION_PATCHED];
     if (installed !== undefined) {
         installed.handle.update(config);
         return installed.handle;
     }
+
     let current = config;
     let inputPatch:
         | LinkedMethodPatchHandle<AutocompletePositionPatchTarget, [string], void>
         | undefined;
-    if (typeof prototype.handleInput === "function") {
-        // SAFETY: The callable check proves the optional handleInput method before patching it.
-        const inputTarget = prototype as AutocompleteHandleInputTarget;
+    if (hasHandleInput(prototype)) {
+        const inputTarget = prototype;
+
         inputPatch = installLinkedMethodPatch(
             inputTarget,
             "handleInput",
@@ -181,7 +207,9 @@ export function installAutocompletePositionPatch(
                     if (isAutocompleteCompletion(this, data, current)) {
                         this[AUTOCOMPLETE_SKIP_RESTORE_ON_CLOSE] = true;
                     }
+
                     let completed = false;
+
                     try {
                         predecessor.call(this, data);
                         completed = true;
@@ -197,6 +225,7 @@ export function installAutocompletePositionPatch(
                 },
         );
     }
+
     const renderPatch = installLinkedRenderPatch(
         prototype,
         (predecessor) =>
@@ -209,10 +238,12 @@ export function installAutocompletePositionPatch(
                 if (!patchState.autocompleteAboveInput) {
                     if (this[AUTOCOMPLETE_RENDERED_ABOVE] === true) {
                         this[AUTOCOMPLETE_RENDERED_ABOVE] = undefined;
+
                         if (patchState.restoreContentAfterAutocompleteClose) {
                             requestDeferredForceRender(this);
                         }
                     }
+
                     return result;
                 }
 
@@ -220,17 +251,22 @@ export function installAutocompletePositionPatch(
                 if (autocompleteLineCount === 0 || autocompleteLineCount >= result.length) {
                     if (this[AUTOCOMPLETE_RENDERED_ABOVE] === true) {
                         this[AUTOCOMPLETE_RENDERED_ABOVE] = undefined;
+
                         const skipRestore = this[AUTOCOMPLETE_SKIP_RESTORE_ON_CLOSE] === true;
+
                         this[AUTOCOMPLETE_SKIP_RESTORE_ON_CLOSE] = undefined;
+
                         if (patchState.restoreContentAfterAutocompleteClose && !skipRestore) {
                             requestDeferredForceRender(this);
                         }
                     }
+
                     return result;
                 }
 
                 const editorLines = result.slice(0, result.length - autocompleteLineCount);
                 const autocompleteLines = result.slice(result.length - autocompleteLineCount);
+
                 this[AUTOCOMPLETE_RENDERED_ABOVE] = true;
                 return [blankSpacerLine(width), ...autocompleteLines, ...editorLines];
             },
@@ -245,16 +281,19 @@ export function installAutocompletePositionPatch(
             disposed = true;
             renderPatch.dispose();
             inputPatch?.dispose();
+
             if (prototype[AUTOCOMPLETE_POSITION_PATCHED]?.handle === handle) {
                 delete prototype[AUTOCOMPLETE_POSITION_PATCHED];
             }
         },
     };
+
     prototype[AUTOCOMPLETE_POSITION_PATCHED] = {
         original: renderPatch.predecessor,
         renderPatch,
         inputPatch,
         handle,
     };
+
     return handle;
 }

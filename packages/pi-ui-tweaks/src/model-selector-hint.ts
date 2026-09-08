@@ -7,12 +7,13 @@ import {
 const MODEL_PROVIDER_HINT_TEXT =
     "Only showing models from configured providers. Use /login to add providers.";
 const MODEL_SELECTOR_HINT_PATCH = Symbol.for("zigai.pi-ui-tweaks.model-selector-hint-patch");
-const selectorInstancesSkippingNextSpacer = new WeakSet<object>();
+const selectorInstancesSkippingNextSpacer = new WeakSet();
 
 export type ModelSelectorHintConfig = {
     readonly compactModelSelector: boolean;
     readonly hideModelProviderHint: boolean;
 };
+
 export type ModelSelectorHintHandle = {
     update(config: ModelSelectorHintConfig): void;
     dispose(): void;
@@ -20,35 +21,23 @@ export type ModelSelectorHintHandle = {
 
 type ComponentLike = { render(width: number): string[]; invalidate(): void };
 type AddChild = (this: ModelSelectorAddChildTarget, component: ComponentLike) => void;
+
 type ModelSelectorAddChildTarget = {
     addChild: AddChild;
     [MODEL_SELECTOR_HINT_PATCH]?: ModelSelectorHintPatchRecord;
 };
+
 type ModelSelectorHintPatchRecord = {
     readonly original: AddChild;
     readonly patch: LinkedMethodPatchHandle<ModelSelectorAddChildTarget, [ComponentLike], void>;
     readonly handle: ModelSelectorHintHandle;
 };
 
-type LinesView = {
-    readonly lines?: unknown;
-};
+type AddChildView = Partial<ModelSelectorAddChildTarget>;
 
-type ConstructorView = {
-    readonly constructor?: unknown;
-};
-
-type ConstructorNameView = {
-    readonly name?: unknown;
-};
-
-type TextView = {
-    readonly text?: unknown;
-};
-
-type AddChildView = {
-    readonly addChild?: AddChild;
-};
+function hasAddChild(target: AddChildView): target is ModelSelectorAddChildTarget {
+    return typeof target.addChild === "function";
+}
 
 function warnModelSelectorHintPatchUnavailable(reason?: string): void {
     let suffix = "";
@@ -57,26 +46,26 @@ function warnModelSelectorHintPatchUnavailable(reason?: string): void {
         `[pi-ui-tweaks] model picker hint patch unavailable; Pi internals may have changed${suffix}`,
     );
 }
+
 function isObject(value: unknown): value is object {
     return (typeof value === "object" && value !== null) || typeof value === "function";
 }
+
 function isSingleLineSpacer(component: ComponentLike): boolean {
-    // SAFETY: LinesView exposes only the private line-count field compared below.
-    const view = component as LinesView;
-    if (view.lines !== 1) return false;
-    // SAFETY: ConstructorView exposes only the constructor reference validated below.
-    const constructorValue = (component as ConstructorView).constructor;
+    if (!("lines" in component) || component.lines !== 1) return false;
+    const constructorValue = component.constructor;
     if (!isObject(constructorValue)) return false;
-    // SAFETY: ConstructorNameView exposes only the name field compared below.
-    const name = (constructorValue as ConstructorNameView).name;
-    return name === "Spacer";
+    return "name" in constructorValue && constructorValue.name === "Spacer";
 }
+
 function isModelProviderHintText(
     component: ComponentLike,
 ): component is ComponentLike & { readonly text: string } {
-    // SAFETY: TextView exposes only the private text field validated before refinement.
-    const text = (component as TextView).text;
-    return typeof text === "string" && text.includes(MODEL_PROVIDER_HINT_TEXT);
+    return (
+        "text" in component &&
+        typeof component.text === "string" &&
+        component.text.includes(MODEL_PROVIDER_HINT_TEXT)
+    );
 }
 
 /** Installs or updates the model-selector hint patch. */
@@ -86,20 +75,23 @@ export function installModelSelectorHintPatch(
 ): ModelSelectorHintHandle {
     if (target === null) {
         warnModelSelectorHintPatchUnavailable();
+
         return { update(): void {}, dispose(): void {} };
     }
-    const addChild = target.addChild;
-    if (typeof addChild !== "function") {
+
+    if (!hasAddChild(target)) {
         warnModelSelectorHintPatchUnavailable("missing addChild");
+
         return { update(): void {}, dispose(): void {} };
     }
-    // SAFETY: The callable check proves the inherited Container.addChild method.
-    const prototype = target as ModelSelectorAddChildTarget;
+
+    const prototype = target;
     const installed = prototype[MODEL_SELECTOR_HINT_PATCH];
     if (installed !== undefined) {
         installed.handle.update(config);
         return installed.handle;
     }
+
     let current = config;
     const patch = installLinkedMethodPatch(
         prototype,
@@ -111,13 +103,17 @@ export function installModelSelectorHintPatch(
             ): void {
                 if (selectorInstancesSkippingNextSpacer.has(this)) {
                     selectorInstancesSkippingNextSpacer.delete(this);
+
                     if (isSingleLineSpacer(component)) return;
                 }
+
                 if (current.compactModelSelector && isSingleLineSpacer(component)) return;
+
                 if (current.hideModelProviderHint && isModelProviderHintText(component)) {
                     selectorInstancesSkippingNextSpacer.add(this);
                     return;
                 }
+
                 predecessor.call(this, component);
             },
     );
@@ -130,11 +126,13 @@ export function installModelSelectorHintPatch(
             if (disposed) return;
             disposed = true;
             patch.dispose();
+
             if (prototype[MODEL_SELECTOR_HINT_PATCH]?.handle === handle) {
                 delete prototype[MODEL_SELECTOR_HINT_PATCH];
             }
         },
     };
+
     prototype[MODEL_SELECTOR_HINT_PATCH] = { original: patch.predecessor, patch, handle };
     return handle;
 }

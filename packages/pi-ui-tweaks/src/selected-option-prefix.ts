@@ -6,7 +6,6 @@ import {
 } from "@zigai/pi-extension-internals";
 
 export const DEFAULT_SELECTED_OPTION_PREFIX = "→ ";
-
 const PRIMARY_COLUMN_GAP = 2;
 const MIN_DESCRIPTION_WIDTH = 10;
 const SELECT_LIST_PATCH_KEY = Symbol.for(
@@ -16,10 +15,12 @@ const THEME_FG_PATCH_KEY = Symbol.for("zigai.pi-ui-tweaks.selected-option-prefix
 
 type SelectListRenderTarget = {
     [SELECT_LIST_PATCH_KEY]?: SelectedOptionSelectListRecord;
+
     theme: {
         selectedText(text: string): string;
         description(text: string): string;
     };
+
     renderItem(
         item: SelectItem,
         isSelected: boolean,
@@ -27,6 +28,7 @@ type SelectListRenderTarget = {
         descriptionSingleLine: string | undefined,
         primaryColumnWidth: number,
     ): string;
+
     truncatePrimary(
         item: SelectItem,
         isSelected: boolean,
@@ -53,10 +55,6 @@ type ThemeFgView = {
     readonly fg?: unknown;
 };
 
-type ThemeModuleView = {
-    readonly Theme?: unknown;
-};
-
 type ThemePrototypeView = {
     readonly prototype?: unknown;
 };
@@ -68,6 +66,7 @@ function normalizeSelectedOptionPrefix(prefix: string): string {
     if (/\s$/u.test(prefix)) {
         return prefix;
     }
+
     return `${prefix} `;
 }
 
@@ -81,6 +80,7 @@ function isSelectListRenderTarget(value: unknown): value is SelectListRenderTarg
     if (typeof value !== "object" || value === null) {
         return false;
     }
+
     // SAFETY: SelectListRenderView exposes only the two methods validated below.
     const view = value as SelectListRenderView;
     return typeof view.renderItem === "function" && typeof view.truncatePrimary === "function";
@@ -90,36 +90,45 @@ function isThemePrototype(value: unknown): value is ThemePrototype {
     if (typeof value !== "object" || value === null) {
         return false;
     }
+
     // SAFETY: ThemeFgView exposes only the fg method validated below.
     const view = value as ThemeFgView;
     return typeof view.fg === "function";
 }
+
 function isThemeConstructor(value: unknown): value is ThemePrototypeView {
     if ((typeof value !== "object" && typeof value !== "function") || value === null) {
         return false;
     }
+
     return "prototype" in value;
 }
 
 export type SelectedOptionPrefixConfig = { readonly selectedOptionPrefix: string };
+
 export type SelectedOptionPrefixHandle = {
     update(config: SelectedOptionPrefixConfig): void;
     dispose(): void;
 };
+
 type RenderItem = SelectListRenderTarget["renderItem"];
+
 type SelectedOptionSelectListRecord = {
     readonly original: RenderItem;
     readonly patch: LinkedMethodPatchHandle<SelectListRenderTarget, Parameters<RenderItem>, string>;
     readonly handle: SelectedOptionPrefixHandle;
 };
+
 type SelectedOptionThemeRecord = {
     readonly original: ThemePrototype["fg"];
     readonly patch: LinkedMethodPatchHandle<ThemeInstance, [string, string], string>;
     readonly handle: SelectedOptionPrefixHandle;
 };
+
 let currentSelectedOptionConfig: SelectedOptionPrefixConfig = {
     selectedOptionPrefix: DEFAULT_SELECTED_OPTION_PREFIX,
 };
+
 function getUnselectedOptionPrefix(): string {
     return " ".repeat(Math.max(1, visibleWidth(currentSelectedOptionConfig.selectedOptionPrefix)));
 }
@@ -135,19 +144,24 @@ export function installSelectedOptionPrefixSelectListPatch(
     if (candidate === undefined && isSelectListRenderTarget(SelectList.prototype)) {
         candidate = SelectList.prototype;
     }
+
     if (!isSelectListRenderTarget(candidate)) {
         warnSelectedOptionPrefixPatchUnavailable();
+
         return { update(): void {}, dispose(): void {} };
     }
+
     const prototype = candidate;
     const installed = prototype[SELECT_LIST_PATCH_KEY];
     if (installed !== undefined) {
         installed.handle.update(config);
         return installed.handle;
     }
+
     currentSelectedOptionConfig = {
         selectedOptionPrefix: normalizeSelectedOptionPrefix(config.selectedOptionPrefix),
     };
+
     const patch = installLinkedMethodPatch(
         prototype,
         "renderItem",
@@ -166,6 +180,7 @@ export function installSelectedOptionPrefixSelectListPatch(
                 } else {
                     prefix = getUnselectedOptionPrefix();
                 }
+
                 const prefixWidth = visibleWidth(prefix);
                 if (descriptionSingleLine !== undefined && width > 40) {
                     const effectivePrimaryColumnWidth = Math.max(
@@ -199,6 +214,7 @@ export function installSelectedOptionPrefixSelectListPatch(
                                 `${prefix}${truncatedValue}${spacing}${truncatedDesc}`,
                             );
                         }
+
                         const descText = this.theme.description(spacing + truncatedDesc);
                         return prefix + truncatedValue + descText;
                     }
@@ -209,6 +225,7 @@ export function installSelectedOptionPrefixSelectListPatch(
                 if (isSelected) {
                     return this.theme.selectedText(`${prefix}${truncatedValue}`);
                 }
+
                 return prefix + truncatedValue;
             },
     );
@@ -224,13 +241,31 @@ export function installSelectedOptionPrefixSelectListPatch(
             if (disposed) return;
             disposed = true;
             patch.dispose();
+
             if (prototype[SELECT_LIST_PATCH_KEY]?.handle === handle)
                 delete prototype[SELECT_LIST_PATCH_KEY];
         },
     };
+
     prototype[SELECT_LIST_PATCH_KEY] = { original: patch.predecessor, patch, handle };
     return handle;
 }
+
+function isObjectIdentity(value: unknown): value is object {
+    return (typeof value === "object" && value !== null) || typeof value === "function";
+}
+
+/** Decode the selected-option theme patch's private Pi module surface. */
+export const selectedOptionThemeRuntime = {
+    parse: (module: unknown): ThemePrototype | undefined => {
+        if (!isObjectIdentity(module) || !("Theme" in module)) return undefined;
+        const theme = module.Theme;
+        if (!isThemeConstructor(theme)) return undefined;
+        const candidate = theme.prototype;
+        if (isThemePrototype(candidate)) return candidate;
+        return undefined;
+    },
+};
 
 /** Installs or updates the Theme.fg selected-arrow patch. */
 export async function installSelectedOptionPrefixThemePatch(
@@ -239,15 +274,7 @@ export async function installSelectedOptionPrefixThemePatch(
     const prototype = await loadPiInternalModule("modes/interactive/theme/theme.js", {
         scope: "pi-ui-tweaks",
         feature: "selected option prefix patch",
-        parse(module): ThemePrototype | undefined {
-            // SAFETY: ThemeModuleView exposes only the Theme export validated below.
-            const moduleView = module as ThemeModuleView;
-            const theme = moduleView.Theme;
-            if (!isThemeConstructor(theme)) return undefined;
-            const candidate = theme.prototype;
-            if (isThemePrototype(candidate)) return candidate;
-            return undefined;
-        },
+        parse: selectedOptionThemeRuntime.parse,
     });
     if (prototype === undefined) return { update(): void {}, dispose(): void {} };
     const installed = prototype[THEME_FG_PATCH_KEY];
@@ -255,9 +282,11 @@ export async function installSelectedOptionPrefixThemePatch(
         installed.handle.update(config);
         return installed.handle;
     }
+
     currentSelectedOptionConfig = {
         selectedOptionPrefix: normalizeSelectedOptionPrefix(config.selectedOptionPrefix),
     };
+
     const patch = installLinkedMethodPatch(
         prototype,
         "fg",
@@ -274,6 +303,7 @@ export async function installSelectedOptionPrefixThemePatch(
                         currentSelectedOptionConfig.selectedOptionPrefix,
                     );
                 }
+
                 return predecessor.call(this, color, text);
             },
     );
@@ -289,10 +319,12 @@ export async function installSelectedOptionPrefixThemePatch(
             if (disposed) return;
             disposed = true;
             patch.dispose();
+
             if (prototype[THEME_FG_PATCH_KEY]?.handle === handle)
                 delete prototype[THEME_FG_PATCH_KEY];
         },
     };
+
     prototype[THEME_FG_PATCH_KEY] = { original: patch.predecessor, patch, handle };
     return handle;
 }

@@ -95,6 +95,7 @@ function getTestEditor(value: EditorComponent): TestEditor {
 
 let currentTestSettings = defaultSettings;
 const pasteHandles = new Set<{ update(settings: PasteCollapseSettings): void }>();
+
 function setTestSettings(settings: Partial<PasteCollapseSettings>): void {
     currentTestSettings = { ...defaultSettings, ...settings };
     for (const handle of pasteHandles) handle.update(currentTestSettings);
@@ -237,9 +238,10 @@ test("tool expand key falls through when no paste marker is under the cursor", (
             },
         } satisfies PasteCollapseEditorContext;
         pasteHandles.add(installPasteCollapseEditor(context, currentTestSettings));
-        if (editorFactory === undefined) assert.fail("expected editor factory");
+        const installedFactory = context.ui.getEditorComponent();
+        if (installedFactory === undefined) assert.fail("expected editor factory");
 
-        const editor = editorFactory(
+        const editor = installedFactory(
             new TUI(new FakeTerminal()),
             editorTheme,
             new KeybindingsManager(),
@@ -274,12 +276,14 @@ test("editor wrappers remain idempotent across repeated session starts", () => {
                     if (data === TOOL_EXPAND) {
                         shortcutChecks += 1;
                     }
+
                     return false;
                 },
             } satisfies EditorComponent & {
                 getCursor(): { line: number; col: number };
                 onExtensionShortcut(data: string): boolean;
             };
+
             return editor;
         };
         let editorFactory: EditorFactory | undefined = baseFactory;
@@ -300,12 +304,13 @@ test("editor wrappers remain idempotent across repeated session starts", () => {
         installBashExecSpacingEditor(context, { bashExecPromptSpacing: true });
         pasteHandles.add(installPasteCollapseEditor(context, currentTestSettings));
 
-        if (editorFactory === undefined) {
+        const installedFactory = context.ui.getEditorComponent();
+        if (installedFactory === undefined) {
             assert.fail("expected editor factory");
         }
 
         const tui = new TUI(new FakeTerminal());
-        const editor = editorFactory(tui, editorTheme, new KeybindingsManager());
+        const editor = installedFactory(tui, editorTheme, new KeybindingsManager());
         editor.handleInput(TOOL_EXPAND);
 
         assert.equal(shortcutChecks, 1);

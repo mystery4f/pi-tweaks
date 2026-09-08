@@ -62,6 +62,7 @@ function warnModelSelectorProviderBadgePatchUnavailable(cause?: unknown): void {
     if (cause instanceof Error && cause.message.length > 0) {
         suffix = `: ${cause.message}`;
     }
+
     console.warn(
         `[pi-ui-tweaks] selected model provider badge patch unavailable; Pi internals may have changed${suffix}`,
     );
@@ -69,6 +70,7 @@ function warnModelSelectorProviderBadgePatchUnavailable(cause?: unknown): void {
 
 function isModelItemLike(value: unknown): value is ModelItemLike {
     if (typeof value !== "object" || value === null) return false;
+
     // SAFETY: The object guard permits reading only the optional item fields; both are
     // validated below before the value is exposed as ModelItemLike.
     const view = value as ModelItemView;
@@ -77,6 +79,7 @@ function isModelItemLike(value: unknown): value is ModelItemLike {
 
 function isTextLike(value: unknown): value is TextLike {
     if (typeof value !== "object" || value === null) return false;
+
     // SAFETY: The object guard permits reading only the optional text fields; both are
     // validated below before the value is exposed as TextLike.
     const view = value as TextLikeView;
@@ -92,6 +95,7 @@ function hasSelectedIndex(
 function isThemeView(value: unknown): value is ThemeFgView {
     return (typeof value === "object" || typeof value === "function") && value !== null;
 }
+
 function isThemeModule(value: unknown): value is ThemeModuleView {
     return (typeof value === "object" || typeof value === "function") && value !== null;
 }
@@ -106,6 +110,7 @@ function hasUpdateList(value: unknown): value is ModelSelectorProviderBadgeTarge
     if ((typeof value !== "object" && typeof value !== "function") || value === null) {
         return false;
     }
+
     return "updateList" in value && typeof value.updateList === "function";
 }
 
@@ -135,19 +140,24 @@ function getListChildren(target: ModelSelectorProviderBadgeTarget): readonly unk
 export type ModelSelectorProviderBadgeConfig = {
     readonly highlightSelectedModelProvider: boolean;
 };
+
 export type ModelSelectorProviderBadgeHandle = {
     update(config: ModelSelectorProviderBadgeConfig): void;
     dispose(): void;
 };
+
 type UpdateList = (this: ModelSelectorProviderBadgeTarget) => void;
+
 type ModelSelectorProviderBadgeRecord = {
     readonly original: UpdateList;
     readonly patch: LinkedMethodPatchHandle<ModelSelectorProviderBadgeTarget, [], void>;
     readonly handle: ModelSelectorProviderBadgeHandle;
 };
+
 let currentProviderBadgeConfig: ModelSelectorProviderBadgeConfig = {
     highlightSelectedModelProvider: true,
 };
+
 function highlightSelectedProviderBadge(
     target: ModelSelectorProviderBadgeTarget,
     theme: ThemeInstance,
@@ -165,7 +175,8 @@ function highlightSelectedProviderBadge(
         if (!isTextLike(child)) continue;
         const text = child.text;
         if (!text.includes(selectedModelText) || !text.includes(mutedProviderBadge)) continue;
-        child.setText?.(text.replace(mutedProviderBadge, accentProviderBadge));
+        child.setText(text.replace(mutedProviderBadge, accentProviderBadge));
+
         return;
     }
 }
@@ -178,6 +189,7 @@ async function loadTheme(): Promise<ThemeInstance | undefined> {
             if (!isThemeModule(module)) return undefined;
             const theme = module.theme;
             if (!isThemeView(theme)) return undefined;
+
             if (!hasThemeFg(theme)) {
                 return {
                     fg(_color, text): string {
@@ -185,6 +197,7 @@ async function loadTheme(): Promise<ThemeInstance | undefined> {
                     },
                 };
             }
+
             return {
                 fg(color, text): string {
                     return theme.fg(color, text);
@@ -202,18 +215,23 @@ export async function installModelSelectorProviderBadgePatch(
 ): Promise<ModelSelectorProviderBadgeHandle> {
     let prototype = target;
     if (prototype === undefined) prototype = getDefaultModelSelectorTarget();
+
     if (prototype === undefined || !hasUpdateList(prototype)) {
         warnModelSelectorProviderBadgePatchUnavailable(new Error("missing updateList"));
+
         return { update(): void {}, dispose(): void {} };
     }
+
     const installed = prototype[MODEL_SELECTOR_PROVIDER_BADGE_PATCH_KEY];
     if (installed !== undefined) {
         installed.handle.update(config);
         return installed.handle;
     }
+
     const theme = providedTheme ?? (await loadTheme());
     if (theme === undefined) return { update(): void {}, dispose(): void {} };
     currentProviderBadgeConfig = config;
+
     const patch = installLinkedMethodPatch(
         prototype,
         "updateList",
@@ -232,15 +250,18 @@ export async function installModelSelectorProviderBadgePatch(
             if (disposed) return;
             disposed = true;
             patch.dispose();
+
             if (prototype[MODEL_SELECTOR_PROVIDER_BADGE_PATCH_KEY]?.handle === handle) {
                 delete prototype[MODEL_SELECTOR_PROVIDER_BADGE_PATCH_KEY];
             }
         },
     };
+
     prototype[MODEL_SELECTOR_PROVIDER_BADGE_PATCH_KEY] = {
         original: patch.predecessor,
         patch,
         handle,
     };
+
     return handle;
 }
