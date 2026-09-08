@@ -18,12 +18,14 @@ export type ChainCompletionSource = {
     readonly separator?: string;
     readonly completionSuffix: string;
     readonly filtering: "local" | "provider";
+
     discover(request: {
         readonly query: string;
         readonly path: readonly Candidate[];
         readonly cursor?: string;
         readonly signal?: AbortSignal;
     }): Promise<{ readonly items: readonly Candidate[]; readonly nextCursor?: string }>;
+
     resolve(segments: readonly string[], signal?: AbortSignal): Promise<Resolution>;
 };
 
@@ -40,20 +42,24 @@ export type ChainAutocompleteOptions = {
     readonly current: AutocompleteProvider;
     readonly sources: readonly ChainCompletionSource[];
     readonly onSelection?: (selection: ChainSelection) => void;
+
     readonly resolveSelected?: (
         sourceId: string,
         segments: readonly string[],
         start: number,
     ) => readonly Candidate[] | undefined;
+
     readonly onState?: (sourceId: string, status: "ready" | "unresolved" | "failed") => void;
     readonly onContinue?: () => void;
 };
 
 const MAX_CONTINUATION_PATHS = 64;
+
 export type ChainAutocompleteProvider = AutocompleteProvider & {
     reconcile(text: string): void;
     dispose(): void;
 };
+
 type ContinuationPath = {
     readonly sourceId: string;
     readonly start: number;
@@ -100,6 +106,7 @@ function absoluteCursor(lines: readonly string[], cursorLine: number, cursorCol:
     for (let index = 0; index < cursorLine; index += 1) {
         offset += (lines[index]?.length ?? 0) + 1;
     }
+
     return offset + cursorCol;
 }
 
@@ -128,6 +135,7 @@ function itemFor(candidate: Candidate): AutocompleteItem {
     if (candidate.description !== undefined) item.description = candidate.description;
     return item;
 }
+
 function occurrenceKey(sourceId: string, start: number): string {
     return `${sourceId}\u0000${start}`;
 }
@@ -151,9 +159,11 @@ function pageKey(
         path.map((candidate) => candidate.id),
     ]);
 }
+
 function retainPageState(states: Map<string, PageState>, key: string, state: PageState): void {
     states.delete(key);
     states.set(key, state);
+
     while (states.size > MAX_PAGE_SCOPES) {
         const oldest = states.keys().next().value;
         if (oldest === undefined) break;
@@ -164,10 +174,12 @@ function retainPageState(states: Map<string, PageState>, key: string, state: Pag
 function completionSuffixFor(textAfterMention: string, suffix: string) {
     if (suffix.length === 0) return { text: "", consume: 0 };
     if (textAfterMention.startsWith(suffix)) return { text: suffix, consume: suffix.length };
+
     if (/^\s/u.test(suffix) && /^\s/u.test(textAfterMention)) {
         const existingWhitespace = /^\s/u.exec(textAfterMention)?.[0] ?? "";
         return { text: suffix, consume: existingWhitespace.length };
     }
+
     return { text: suffix, consume: 0 };
 }
 
@@ -186,6 +198,7 @@ function replaceOwnedSuffix(
     const cursor = cursorPosition(updated, cursorOffset);
     const mentionStart = start;
     const mentionEnd = cursorOffset;
+
     return {
         lines: updated.split("\n"),
         cursorLine: cursor.line,
@@ -213,6 +226,7 @@ export function createChainAutocompleteProvider(
         if (text === previousText) return;
         activeRequest?.abort();
         requestGeneration += 1;
+
         let prefix = 0;
         while (
             prefix < text.length &&
@@ -220,6 +234,7 @@ export function createChainAutocompleteProvider(
             text[prefix] === previousText[prefix]
         )
             prefix += 1;
+
         let suffix = 0;
         while (
             suffix < text.length - prefix &&
@@ -227,11 +242,13 @@ export function createChainAutocompleteProvider(
             text[text.length - 1 - suffix] === previousText[previousText.length - 1 - suffix]
         )
             suffix += 1;
+
         const oldEnd = previousText.length - suffix;
         const delta = text.length - previousText.length;
         const retained: ContinuationPath[] = [];
         for (const entry of continuationPaths.values()) {
             let updated = entry;
+
             if (entry.end <= prefix) {
                 const removed = previousText.slice(prefix, oldEnd);
                 const inserted = text.slice(prefix, text.length - suffix);
@@ -243,16 +260,20 @@ export function createChainAutocompleteProvider(
             } else if (entry.start >= oldEnd)
                 updated = { ...entry, start: entry.start + delta, end: entry.end + delta };
             else continue;
+
             if (
                 !isTriggerBoundary(text, updated.start) ||
                 text.slice(updated.start, updated.end) !== updated.text
             )
                 continue;
+
             retained.push(updated);
         }
         continuationPaths.clear();
+
         for (const entry of retained)
             continuationPaths.set(occurrenceKey(entry.sourceId, entry.start), entry);
+
         previousText = text;
     };
 
@@ -281,6 +302,7 @@ export function createChainAutocompleteProvider(
         async getSuggestions(lines, cursorLine, cursorCol, suggestionOptions) {
             const text = lines.join("\n");
             reconcile(text);
+
             const cursor = absoluteCursor(lines, cursorLine, cursorCol);
             const active = activeChainSegment(text, definitionsFor(options.sources), cursor);
             if (active === undefined) {
@@ -296,10 +318,12 @@ export function createChainAutocompleteProvider(
             if (source === undefined || suggestionOptions.signal.aborted) return null;
 
             activeRequest?.abort();
+
             const request = new AbortController();
             let completionPrefix = active.query;
             if (completionPrefix.startsWith("/")) completionPrefix = "";
             activeRequest = request;
+
             const generation = ++requestGeneration;
             const abort = () => request.abort();
             suggestionOptions.signal.addEventListener("abort", abort, { once: true });
@@ -316,6 +340,7 @@ export function createChainAutocompleteProvider(
                         path = continued.path;
                     } else {
                         continuationPaths.delete(occurrence);
+
                         const selected = options.resolveSelected?.(
                             source.id,
                             active.path,
@@ -325,16 +350,20 @@ export function createChainAutocompleteProvider(
                             path = selected;
                         } else {
                             const resolution = await source.resolve(active.path, request.signal);
+
                             if (request.signal.aborted || generation !== requestGeneration)
                                 return null;
+
                             if (resolution.status === "unresolved") {
                                 options.onState?.(source.id, "unresolved");
                                 return { prefix: completionPrefix, items: [] };
                             }
+
                             path = resolution.path;
                         }
                     }
                 }
+
                 if (request.signal.aborted || generation !== requestGeneration) return null;
 
                 const key = pageKey(source, active, path);
@@ -348,7 +377,9 @@ export function createChainAutocompleteProvider(
                     cursor: cursorForRequest,
                     signal: request.signal,
                 });
+
                 request.signal.throwIfAborted();
+
                 if (generation !== requestGeneration) return null;
 
                 let existingPage: PageState | undefined;
@@ -370,17 +401,21 @@ export function createChainAutocompleteProvider(
                             `${candidate.label} ${candidate.description ?? ""}`,
                     );
                 }
+
                 for (const candidate of existingPage?.items ?? []) {
                     if (retainedIds.has(candidate.id)) continue;
                     retainedIds.add(candidate.id);
                     retained.push(candidate);
+
                     if (retained.length === MAX_RETAINED_CANDIDATES) break;
                 }
+
                 if (retained.length < MAX_RETAINED_CANDIDATES) {
                     for (const candidate of received) {
                         if (retainedIds.has(candidate.id)) continue;
                         retainedIds.add(candidate.id);
                         retained.push(candidate);
+
                         if (retained.length === MAX_RETAINED_CANDIDATES) break;
                     }
                 }
@@ -389,6 +424,7 @@ export function createChainAutocompleteProvider(
                 if (cursorForRequest !== undefined) {
                     pageCount = (existingPage?.pageCount ?? 0) + 1;
                 }
+
                 retainPageState(pageStates, key, {
                     items: retained,
                     pageCount,
@@ -399,9 +435,10 @@ export function createChainAutocompleteProvider(
                 if (source.filtering === "local") {
                     candidates = candidates.slice(0, MAX_LOCAL_SUGGESTIONS);
                 }
-                actions = new WeakMap();
-                const items: AutocompleteItem[] = [];
 
+                actions = new WeakMap();
+
+                const items: AutocompleteItem[] = [];
                 const parent = path.at(-1);
                 if (parent?.selectable === true && parent.navigable) {
                     const useParent: AutocompleteItem = {
@@ -425,6 +462,7 @@ export function createChainAutocompleteProvider(
                             path: [...path, candidate],
                         });
                     }
+
                     items.push(item);
                 }
 
@@ -448,11 +486,14 @@ export function createChainAutocompleteProvider(
                     });
                     items.push(more);
                 }
+
                 options.onState?.(source.id, "ready");
+
                 return { prefix: completionPrefix, items };
             } catch {
                 if (request.signal.aborted) return null;
                 options.onState?.(source.id, "failed");
+
                 return { prefix: completionPrefix, items: [] };
             } finally {
                 suggestionOptions.signal.removeEventListener("abort", abort);
@@ -480,6 +521,7 @@ export function createChainAutocompleteProvider(
                 )}${separator}`;
                 const result = replaceOwnedSuffix(lines, action, replacement);
                 const continuedPath = [...action.path, action.candidate];
+
                 reconcile(result.editorText);
                 continuationPaths.set(occurrenceKey(action.source.id, result.start), {
                     sourceId: action.source.id,
@@ -488,11 +530,14 @@ export function createChainAutocompleteProvider(
                     text: result.text,
                     path: structuredClone(continuedPath),
                 });
+
                 if (continuationPaths.size > MAX_CONTINUATION_PATHS) {
                     const oldest = continuationPaths.keys().next().value;
                     if (oldest !== undefined) continuationPaths.delete(oldest);
                 }
+
                 options.onContinue?.();
+
                 return {
                     lines: result.lines,
                     cursorLine: result.cursorLine,
@@ -520,6 +565,7 @@ export function createChainAutocompleteProvider(
                 path: action.path,
                 editorText: result.editorText,
             });
+
             return {
                 lines: result.lines,
                 cursorLine: result.cursorLine,
@@ -532,6 +578,7 @@ export function createChainAutocompleteProvider(
             const cursor = absoluteCursor(lines, cursorLine, cursorCol);
             if (activeChainSegment(text, definitionsFor(options.sources), cursor) !== undefined)
                 return false;
+
             return (
                 options.current.shouldTriggerFileCompletion?.(lines, cursorLine, cursorCol) ?? true
             );
