@@ -46,7 +46,11 @@ function patchStreamingBehaviorSwap(): SubmitModePatchHandle {
         SWAP_MARKER,
         undefined,
         (predecessor) =>
-            function (this: AgentSession, text: string, options?: PromptOptions): PromptResult {
+            async function (
+                this: AgentSession,
+                text: string,
+                options?: PromptOptions,
+            ): PromptResult {
                 return predecessor.call(this, text, swappedStreamingBehavior(options));
             },
     );
@@ -66,6 +70,7 @@ function patchTerminalLfEnterSubmit(): SubmitModePatchHandle | undefined {
                 if (data === "\n") {
                     normalizedData = "\r";
                 }
+
                 predecessor.call(this, normalizedData);
             },
     );
@@ -80,12 +85,15 @@ export function applySubmitModeKeymap(): SubmitModePatchHandle {
         dispose(): void {
             if (disposed) return;
             disposed = true;
+
             for (let index = handles.length - 1; index >= 0; index -= 1) {
                 handles[index]?.dispose();
             }
+
             if (installedHandle === handle) installedHandle = undefined;
         },
     };
+
     installedHandle = handle;
     return handle;
 }

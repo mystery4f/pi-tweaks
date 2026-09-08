@@ -102,6 +102,7 @@ function createKeymapEditor(writeClipboard?: ClipboardWriter): TestEditor {
     if (!isTestEditor(editor)) {
         throw new Error("Expected CustomEditor test seam");
     }
+
     return editor;
 }
 
@@ -192,8 +193,9 @@ test("leaves third-party editors without the required navigation seam unchanged"
     } satisfies KeymapEditorContext;
 
     applyKeymapEditor(context);
-    if (editorFactory === undefined) assert.fail("expected editor factory");
-    const editor = editorFactory(
+    const appliedFactory = context.ui.getEditorComponent();
+    if (appliedFactory === undefined) assert.fail("expected editor factory");
+    const editor = appliedFactory(
         new TUI(new FakeTerminal()),
         editorTheme,
         new KeybindingsManager(),
