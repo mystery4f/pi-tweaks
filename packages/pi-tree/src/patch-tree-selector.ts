@@ -117,8 +117,10 @@ function isCallableProperty<Value extends object, Key extends PropertyKey>(
     for (;;) {
         const descriptor = Object.getOwnPropertyDescriptor(owner, key);
         if (descriptor !== undefined) return typeof descriptor.value === "function";
+
         const parent: unknown = Object.getPrototypeOf(owner);
         if (!isObjectIdentity(parent)) return allowAbsent;
+
         owner = parent;
     }
 }
@@ -239,7 +241,6 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
     if (internals === undefined) return;
 
     const [{ TreeSelectorComponent }, { initTheme, theme }] = internals;
-
     initTheme(patchState.getConfiguredThemeName(), false);
 
     if (!isTreeTheme(theme)) return;
@@ -258,12 +259,15 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
     );
     const selectorPrototypeValue: unknown = Object.getPrototypeOf(selector);
     if (!isTreeSelectorPrototype(selectorPrototypeValue)) return;
+
     const selectorPrototype = selectorPrototypeValue;
     const originalGetTreeList = selectorPrototype.getTreeList;
     const treeListValue = originalGetTreeList.call(selector);
     if (!isObjectIdentity(treeListValue)) return;
+
     const treeListPrototypeValue: unknown = Object.getPrototypeOf(treeListValue);
     if (!isTreeListPrototype(treeListPrototypeValue)) return;
+
     const treeListPrototype = treeListPrototypeValue;
 
     if (isTreeHeaderPatchTarget(selectorPrototype)) {
@@ -314,7 +318,6 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
     ): string {
         const currentMode = getTreeTimestampModeFromState(this, patchState);
         const originalLabelTimestampFlag = this.showLabelTimestamps;
-
         this.showLabelTimestamps = false;
 
         const nativeLabels = originalGetStatusLabels.call(this);
@@ -327,6 +330,7 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
             ["[labeled]", "Labeled"],
             ["[all]", "All"],
         ]);
+
         let filterLabel = "Default";
         for (const [statusLabel, label] of filterLabelByStatus) {
             if (nativeLabels.includes(statusLabel)) {
@@ -355,6 +359,7 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
         ): string[] {
             const layout = calculatePreviewLayout(width);
             applyConfiguredMaxVisibleLinesFromState(this, patchState);
+
             if (!getTreePreviewEnabledFromState(this, patchState) || layout === null) {
                 return originalRender.call(this, width);
             }

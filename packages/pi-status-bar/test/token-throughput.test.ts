@@ -40,7 +40,6 @@ test("aggregates the OpenCode reference turn without counting its tool gap", () 
     tracker.startStep();
     tracker.markOutput(1_000);
     tracker.finishStep(3_000, { output: 20 });
-
     tracker.startStep();
     tracker.markOutput(20_000);
     tracker.finishStep(23_000, { output: 30 });

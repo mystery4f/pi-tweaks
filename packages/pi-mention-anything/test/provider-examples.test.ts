@@ -26,6 +26,7 @@ test("published command example supports bounded query paging and exact resoluti
     );
 
     if (first.nextCursor === undefined) assert.fail("Expected a continuation cursor");
+
     const second = await provider.discover({ ...request, cursor: first.nextCursor });
     assert.deepEqual(
         second.items.map((candidate) => candidate.id),

@@ -302,14 +302,17 @@ test("assistant message updates render through the patch and shutdown restores i
         ...message,
         content: [{ type: "text", text: "Updated paragraph.\n\n## Updated heading" }],
     });
+
     assert.deepEqual(
         component.render(80).map((line) => stripAnsi(line).trim()),
         ["", "Updated paragraph.", "", "Updated heading"],
     );
+
     component.updateContent({
         ...message,
         content: [{ type: "text", text: "Before shutdown.\n\n```ts\nconst restored = true;\n```" }],
     });
+
     assert.equal(
         component.render(80).some((line) => line.includes("```")),
         false,

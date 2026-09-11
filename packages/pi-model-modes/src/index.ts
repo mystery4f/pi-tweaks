@@ -32,6 +32,7 @@ export default function (pi: ExtensionAPI) {
 
         return sessionSettings;
     };
+
     const controller = new ModeController(pi, new ModesStore(resolveSessionSettings));
     const picker = new ModePicker(controller);
     const statusPatchSession = new ThinkingStatusPatchSession();
@@ -58,7 +59,6 @@ export default function (pi: ExtensionAPI) {
         sessionGeneration += 1;
 
         const generation = sessionGeneration;
-
         statusPatchSession.reset();
         sessionSettings = undefined;
         sessionSettingsContext = undefined;

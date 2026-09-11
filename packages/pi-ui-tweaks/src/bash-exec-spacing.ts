@@ -68,8 +68,10 @@ export function applyBashExecPromptSpacing(
     config: BashExecSpacingConfig,
 ): boolean {
     if (!config.bashExecPromptSpacing || data !== "!") return false;
+
     const cursor = editor.getCursor();
     if (cursor.line !== 0) return false;
+
     const text = editor.getText();
     if (text.length === 0 && cursor.col === 0) {
         if (typeof editor.insertTextAtCursor === "function") editor.insertTextAtCursor("! ");
@@ -115,6 +117,7 @@ export function installBashExecSpacingEditor(
         (tui, theme, keybindings) => new CustomEditor(tui, theme, keybindings),
         (editor, tui) => {
             if (!isEditorLike(editor)) return editor;
+
             editor.requestRenderNow ??= () => tui.requestRender();
 
             const predecessor = editor.handleInput.bind(editor);
@@ -134,6 +137,7 @@ export function installBashExecSpacingEditor(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             enhancer.dispose();
 

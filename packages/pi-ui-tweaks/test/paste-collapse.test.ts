@@ -147,7 +147,6 @@ test("large paste collapse can be disabled", () => {
         );
 
         editor.handleInput(paste(pastedText));
-
         assert.equal(editor.getText(), pastedText);
         assert.equal(editor.getExpandedText(), pastedText);
     });
@@ -158,7 +157,6 @@ test("paste collapse thresholds are configurable", () => {
         const editor = createPasteCollapseEditor();
 
         editor.handleInput(paste("abcdef"));
-
         assert.equal(editor.getText(), "[paste #1 6 chars]");
         assert.equal(editor.getExpandedText(), "abcdef");
     });
@@ -167,7 +165,6 @@ test("paste collapse thresholds are configurable", () => {
         const editor = createPasteCollapseEditor();
 
         editor.handleInput(paste("one\ntwo"));
-
         assert.equal(editor.getText(), "[paste #1 +2 lines]");
         assert.equal(editor.getExpandedText(), "one\ntwo");
     });
@@ -183,9 +180,7 @@ test("custom expand key expands the paste marker under the cursor", () => {
         () => {
             const editor = createPasteCollapseEditor();
             editor.handleInput(paste("one\ntwo"));
-
             editor.handleInput(CUSTOM_EXPAND);
-
             assert.equal(editor.getText(), "one\ntwo");
             assert.equal(editor.getExpandedText(), "one\ntwo");
         },
@@ -198,9 +193,7 @@ test("tool expand key expands only the marker under the cursor", () => {
         editor.handleInput(paste("one\ntwo"));
         editor.handleInput(" ");
         editor.handleInput(paste("three\nfour"));
-
         editor.handleInput(TOOL_EXPAND);
-
         assert.equal(editor.getText(), "[paste #1 +2 lines] three\nfour");
         assert.equal(editor.getExpandedText(), "one\ntwo three\nfour");
     });
@@ -225,6 +218,7 @@ test("tool expand key falls through when no paste marker is under the cursor", (
             },
             setText() {},
         });
+
         let editorFactory: EditorFactory | undefined = baseFactory;
         const context = {
             hasUI: true,
@@ -247,7 +241,6 @@ test("tool expand key falls through when no paste marker is under the cursor", (
             new KeybindingsManager(),
         );
         editor.handleInput(TOOL_EXPAND);
-
         assert.deepEqual(baseInputs, [TOOL_EXPAND]);
     });
 });
@@ -286,6 +279,7 @@ test("editor wrappers remain idempotent across repeated session starts", () => {
 
             return editor;
         };
+
         let editorFactory: EditorFactory | undefined = baseFactory;
         const context = {
             hasUI: true,
@@ -312,7 +306,6 @@ test("editor wrappers remain idempotent across repeated session starts", () => {
         const tui = new TUI(new FakeTerminal());
         const editor = installedFactory(tui, editorTheme, new KeybindingsManager());
         editor.handleInput(TOOL_EXPAND);
-
         assert.equal(shortcutChecks, 1);
         assert.deepEqual(baseInputs, [TOOL_EXPAND]);
     });

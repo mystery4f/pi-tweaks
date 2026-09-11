@@ -81,7 +81,6 @@ test("loadMentionSkillSettings uses defaults and scaffolds global config", async
             },
         });
         assert.match(await readFile(globalSchemaPath, "utf8"), /Pi Mention Skill settings/);
-
         const customConfig = JSON.stringify({ trigger: "$$", hideSlashSkills: false });
         await writeFile(globalConfigPath, customConfig, "utf8");
         await writeFile(globalSchemaPath, "stale schema", "utf8");

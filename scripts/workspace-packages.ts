@@ -19,6 +19,7 @@ const workspaceManifest = Type.Object({
         }),
     ),
 });
+
 const rootManifest = Type.Object({
     workspaces: Type.Array(Type.String()),
     pi: extensionManifest,
@@ -52,6 +53,7 @@ export function isWithinDirectory(directory: string, file: string): boolean {
 export function loadWorkspacePackages(root: string): WorkspacePackages {
     const rootValue: unknown = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
     if (!Value.Check(rootManifest, rootValue)) throw new Error("Invalid root workspace manifest");
+
     const manifest = Value.Parse(rootManifest, rootValue);
     const manifestPaths = globSync(
         manifest.workspaces.map((pattern) => `${pattern}/package.json`),
@@ -70,6 +72,7 @@ export function loadWorkspacePackages(root: string): WorkspacePackages {
 
         const parsed = Value.Parse(workspaceManifest, value);
         if (names.has(parsed.name)) throw new Error(`Duplicate workspace package ${parsed.name}`);
+
         names.add(parsed.name);
 
         const workspace = { directory, manifest: parsed };
@@ -80,12 +83,15 @@ export function loadWorkspacePackages(root: string): WorkspacePackages {
             if (!isWithinDirectory(directory, source) || !existsSync(source)) {
                 throw new Error(`${manifestPath} declares an invalid extension entry ${entry}`);
             }
+
             if (entries.has(source)) throw new Error(`Duplicate workspace extension ${source}`);
+
             entries.set(source, { workspace, entry, source });
         }
     }
 
     if (packages.length === 0) throw new Error("No workspace packages found");
+
     const extensions: WorkspaceExtension[] = [];
     for (const entry of manifest.pi.extensions) {
         const source = path.resolve(root, entry);

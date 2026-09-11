@@ -148,6 +148,7 @@ function enhanceEditor(editor: EditorLike, options: MentionEditorOptions): Edito
         }
 
         if (!options.isMentionContext(currentLine)) return;
+
         tryTriggerAutocomplete(editor);
     };
 

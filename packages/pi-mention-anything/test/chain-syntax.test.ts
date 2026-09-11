@@ -63,7 +63,6 @@ test("reports incomplete empty, trailing-separator, and unterminated quoted chai
 test("locates an earlier active segment and owns invalid descendants", () => {
     const text = "before t:work:api:logs after";
     const active = activeChainSegment(text, definitions, 11);
-
     assert.equal(active?.index, 0);
     assert.equal(active.query, "wo");
     assert.deepEqual(active.path, []);
@@ -75,13 +74,13 @@ test("locates the empty segment after a separator", () => {
     const text = "t:work:";
 
     const active = activeChainSegment(text, definitions, text.length);
-
     assert.equal(active?.index, 1);
     assert.equal(active.query, "");
     assert.deepEqual(active.path, ["work"]);
     assert.equal(active.start, text.length);
     assert.equal(active.ownedEnd, text.length);
 });
+
 test("only an odd escape run protects trailing punctuation", () => {
     assert.deepEqual(parseMentions(String.raw`t:foo\\,`, definitions), [
         {

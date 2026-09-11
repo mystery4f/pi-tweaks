@@ -122,10 +122,8 @@ test("createGitAheadBehindTracker renders when its query returns a new status", 
 
     resolveQuery({ ahead: 2, behind: 1 });
     await waitForMicrotask();
-
     assert.deepEqual(tracker.getGitAheadBehind(), { ahead: 2, behind: 1 });
     assert.equal(renderRequests, 1);
-
     tracker.dispose();
 });
 
@@ -160,7 +158,6 @@ test("createGitAheadBehindTracker aborts its active query on disposal", async ()
 
     await queryStarted;
     tracker.dispose();
-
     assert.equal(abortObserved, true);
 });
 

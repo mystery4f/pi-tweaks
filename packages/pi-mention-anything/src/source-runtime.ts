@@ -61,12 +61,14 @@ export function createSourceRuntime(
         async discover(request) {
             const response = await controller.discover(request);
             if (provider.filtering !== "local" || request.query !== "") return response;
+
             const initial = configuration.initialSuggestions ?? {
                 strategy: "frecency",
                 pinned: [],
             };
             const identityOf = (candidate: Candidate): string =>
                 JSON.stringify([...request.path.map((parent) => parent.id), candidate.id]);
+
             const pinned = initial.pinned.flatMap((name) =>
                 response.items
                     .filter((candidate) => candidate.id === name || candidate.segment === name)

@@ -136,6 +136,7 @@ function applyModelSelectorAliases(
     const modelAliased = items.map((item) => {
         const alias = getAliasForModel(item.model, settings);
         if (alias === undefined) return item;
+
         return { ...item, id: alias.alias };
     });
 

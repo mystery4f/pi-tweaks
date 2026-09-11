@@ -53,9 +53,11 @@ function assertDefinitions(definitions: readonly ChainDefinition[]): void {
     for (const definition of definitions) {
         if (definition.id.length === 0) throw new Error("Mention source id must not be empty.");
         if (definition.trigger.length === 0) throw new Error("Mention trigger must not be empty.");
+
         if (separatorOf(definition).length === 0) {
             throw new Error(`Mention separator for ${definition.id} must not be empty.`);
         }
+
         if (triggers.has(definition.trigger)) {
             throw new Error(`Duplicate mention trigger: ${definition.trigger}`);
         }
@@ -66,6 +68,7 @@ function assertDefinitions(definitions: readonly ChainDefinition[]): void {
 
 export function isTriggerBoundary(text: string, start: number): boolean {
     if (start <= 0) return true;
+
     const previous = text.at(start - 1);
     if (previous === undefined) return true;
     return !/[\p{L}\p{N}_\\]/u.test(previous);
@@ -134,6 +137,7 @@ function parseChainAt(
                 }
 
                 if (character === undefined || character === "\n" || character === "\r") break;
+
                 value += character;
                 cursor += 1;
             }
@@ -172,6 +176,7 @@ function parseChainAt(
 
                 const escaped = precedingBackslashes % 2 === 1;
                 if (last === undefined || escaped || !TRAILING_PUNCTUATION.has(last)) break;
+
                 raw = raw.slice(0, -1);
                 cursor -= 1;
                 segmentEnd -= 1;
@@ -182,6 +187,7 @@ function parseChainAt(
         }
 
         if (segmentEnd === segmentStart && !quoted) break;
+
         spans.push({
             index: spans.length,
             start: segmentStart,
@@ -192,10 +198,12 @@ function parseChainAt(
             quoted,
             complete: segmentComplete,
         });
+
         segments.push(value);
         expectsSegment = false;
 
         if (!segmentComplete || !text.startsWith(separator, cursor)) break;
+
         cursor += separator.length;
         expectsSegment = true;
     }

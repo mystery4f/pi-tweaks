@@ -36,11 +36,9 @@ test("tree settings scaffold missing global config and schema", async () => {
             treePreviewFullHeight: true,
         });
         assert.match(await readFile(schemaPath, "utf8"), /Pi Tree settings/);
-
         const customConfig = JSON.stringify({ treeTimestampMode: "off", treeMaxVisibleLines: 7 });
         await writeFile(configPath, customConfig, "utf8");
         await writeFile(schemaPath, "stale schema", "utf8");
-
         assert.equal(getPersistedMaxVisibleLines(), 7);
         assert.equal(await readFile(configPath, "utf8"), customConfig);
         assert.match(await readFile(schemaPath, "utf8"), /Pi Tree settings/);

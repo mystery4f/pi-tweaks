@@ -87,6 +87,7 @@ export function createStatusBarLifecycle(appendState: (state: WorkedForState) =>
 
     const unsubscribeStatusBarUpdates = subscribeStatusBarUpdates(() => {
         if (agentRunning || idleWidgetContext === undefined) return;
+
         setWorkedForWidget(idleWidgetContext, idleWorkedForText, idleTokensPerSecond);
     });
 
@@ -103,6 +104,7 @@ export function createStatusBarLifecycle(appendState: (state: WorkedForState) =>
 
     async function session_tree(_event: Pick<ExtensionEvent, "type">, ctx: StatusBarContext) {
         if (agentRunning) return;
+
         idleWidgetContext = ctx;
         restoreWorkedForState(ctx);
         setWorkedForWidget(ctx, idleWorkedForText, idleTokensPerSecond);
@@ -138,11 +140,13 @@ export function createStatusBarLifecycle(appendState: (state: WorkedForState) =>
     }) {
         if (event.message.role !== "assistant") return;
         if (!isProviderOutputEvent(event.assistantMessageEvent.type)) return;
+
         throughput.markOutput(performance.now());
     }
 
     async function message_end(event: { readonly message: StatusBarEndMessage }) {
         if (event.message.role !== "assistant") return;
+
         throughput.finishStep(performance.now(), event.message.usage);
     }
 

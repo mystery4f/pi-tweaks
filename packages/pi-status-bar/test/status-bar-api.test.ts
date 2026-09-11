@@ -50,19 +50,15 @@ test("configureStatusBar controls active and idle status bar state", () => {
 
     handle.pauseTimer();
     assert.equal(getStatusBarSnapshot().active.timerPaused, true);
-
     handle.resetTimer();
     assert.equal(getStatusBarSnapshot().active.timerResetVersion, 1);
-
     handle.hideTimer();
     assert.equal(getStatusBarSnapshot().active.timerVisible, false);
-
     handle.clear();
     assert.equal(getStatusBarSnapshot().active.text, undefined);
     assert.equal(getStatusBarSnapshot().active.timerVisible, true);
     assert.equal(getStatusBarSnapshot().idle.text, undefined);
     assert.equal(getStatusBarSnapshot().idle.showTokensPerSecond, true);
-
     unsubscribe();
 });
 
@@ -90,9 +86,7 @@ test("status bar base config is overridden by public API and restored on dispose
     assert.equal(getStatusBarSnapshot().idle.text, "API idle");
     assert.equal(getStatusBarSnapshot().idle.showLastRunSummary, false);
     assert.equal(getStatusBarSnapshot().idle.showTokensPerSecond, false);
-
     handle.dispose();
-
     assert.equal(getStatusBarSnapshot().active.text, "Configured");
     assert.equal(getStatusBarSnapshot().active.timerVisible, false);
     assert.equal(getStatusBarSnapshot().idle.text, "Configured idle");
@@ -120,10 +114,8 @@ test("registerStatusBarSegment owns namespaced active and idle segments", () => 
     );
     assert.deepEqual(getStatusBarSnapshot().segments[1]?.states, ["idle", "active"]);
     assert.equal(getStatusBarSnapshot().segments[1]?.text, "first");
-
     first.setText("updated");
     assert.equal(getStatusBarSnapshot().segments[1]?.text, "updated");
-
     const replacement = registerStatusBarSegment({ id: "example.status", text: "replacement" });
     first.setText("stale");
     assert.equal(

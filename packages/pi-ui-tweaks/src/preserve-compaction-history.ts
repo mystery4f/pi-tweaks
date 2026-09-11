@@ -105,6 +105,7 @@ function isInteractiveModeCompactionTarget(
 function warnPreserveCompactionHistoryPatchUnavailable(reason?: string): void {
     let suffix = "";
     if (reason !== undefined) suffix = `: ${reason}`;
+
     console.warn(
         `[pi-ui-tweaks] preserve compaction history patch unavailable; Pi internals may have changed${suffix}`,
     );
@@ -170,6 +171,7 @@ export function installPreserveCompactionHistoryPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 

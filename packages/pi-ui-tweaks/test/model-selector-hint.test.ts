@@ -46,6 +46,7 @@ test("model selector hint and its immediate spacer are removed", () => {
         { compactModelSelector: false, hideModelProviderHint: true },
         target,
     );
+
     target.addChild(before);
     target.addChild(new Text(HINT));
     target.addChild(new Spacer());

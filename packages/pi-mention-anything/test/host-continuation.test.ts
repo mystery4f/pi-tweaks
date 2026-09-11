@@ -157,6 +157,7 @@ test("actual Pi editor construction reopens child and paging popups after Tab", 
                         },
                     ];
                     if (cursor === undefined) return { items, nextCursor: "next" };
+
                     return { items };
                 },
                 resolve: async () => ({ status: "unresolved", reason: "unused" }),
@@ -194,6 +195,7 @@ test("actual Pi editor construction reopens child and paging popups after Tab", 
             true,
             "branch Tab must reopen real editor popup",
         );
+
         host.editor.handleInput("\r");
         assert.equal(host.editor.getText(), "tree:left:right ");
 
@@ -213,6 +215,7 @@ test("actual Pi editor construction reopens child and paging popups after Tab", 
             true,
             "edited parent must reopen its children",
         );
+
         host.editor.handleInput("\u001b");
         host.editor.setText("");
         host.editor.handleInput("page:");
@@ -228,6 +231,7 @@ test("actual Pi editor construction reopens child and paging popups after Tab", 
             true,
             "More must reopen without a text change",
         );
+
         host.editor.handleInput("\u001b[B");
         host.editor.handleInput("\r");
         assert.equal(host.editor.getText(), "page:beta ");

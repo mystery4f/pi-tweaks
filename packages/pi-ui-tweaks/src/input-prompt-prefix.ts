@@ -28,6 +28,7 @@ function normalizeInputPromptPrefix(prefix: string): string {
     if (prefix.length === 0) {
         return DEFAULT_INPUT_PROMPT_PREFIX;
     }
+
     if (/\s$/u.test(prefix)) {
         return prefix;
     }
@@ -106,6 +107,7 @@ export function installInputPromptPrefixPatch(
         (predecessor) =>
             function inputPromptPrefixRender(this: InputRenderTarget, width: number): string[] {
                 if (!hasInputRenderState(this)) return predecessor.call(this, width);
+
                 const { value, cursor, focused } = this;
                 const prompt = current.inputPromptPrefix;
                 const promptWidth = visibleWidth(prompt);
@@ -179,6 +181,7 @@ export function installInputPromptPrefixPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 

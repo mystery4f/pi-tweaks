@@ -13,6 +13,7 @@ test("retains the selected snapshot until prompt expansion", () => {
         replacement: "selected-production",
     };
     const selectedRemoved = { name: "removed", replacement: "selected-removed" };
+
     const selected = new Map([
         [selectedProduction.name, selectedProduction],
         [selectedRemoved.name, selectedRemoved],
@@ -24,7 +25,6 @@ test("retains the selected snapshot until prompt expansion", () => {
     ];
 
     const items = includeSelectedItems(current, selected, nameOf);
-
     assert.deepEqual(items, [...current, selectedRemoved]);
     const production = current.at(0);
     const staging = current.at(1);

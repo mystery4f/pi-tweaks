@@ -71,6 +71,7 @@ function host(ui?: HostContext["ui"]): Host {
 
             for (const handler of handlers.get(event) ?? []) {
                 if (!isHostHandler(handler)) throw new Error("Missing host event handler.");
+
                 const result = await handler(payload, ctx);
                 if (event === "context" && isContextResult(result)) {
                     payload = { messages: result.messages };

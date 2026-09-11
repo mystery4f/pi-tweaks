@@ -38,6 +38,7 @@ function isWorkedForState(data: WorkedForEntryData): data is WorkedForState {
     if (typeof data !== "object" || data === null || Array.isArray(data)) {
         return false;
     }
+
     if (
         !("durationMs" in data) ||
         typeof data.durationMs !== "number" ||
@@ -46,6 +47,7 @@ function isWorkedForState(data: WorkedForEntryData): data is WorkedForState {
     ) {
         return false;
     }
+
     if (!("tokensPerSecond" in data) || data.tokensPerSecond === undefined) {
         return true;
     }
@@ -59,6 +61,7 @@ function isWorkedForState(data: WorkedForEntryData): data is WorkedForState {
 
 function parseWorkedForState(data: WorkedForEntryData): WorkedForState | undefined {
     if (!isWorkedForState(data)) return undefined;
+
     if (data.tokensPerSecond === undefined) {
         return { durationMs: data.durationMs };
     }
@@ -86,6 +89,7 @@ export function getWorkedForStateFromBranch(ctx: {
 
 export function clearWorkedForWidget(ctx: WorkedForWidgetContext): void {
     if (!ctx.hasUI) return;
+
     workedForWidgetSignatures.delete(ctx.ui);
     ctx.ui.setWidget(WIDGET_KEY, undefined);
 }
@@ -147,6 +151,7 @@ export function setWorkedForWidget(
     ctx.ui.setWidget(WIDGET_KEY, (_tui, theme) => ({
         render(width: number): string[] {
             if (width <= 0) return [""];
+
             const parts: string[] = [];
             if (snapshot.idle.text !== undefined) {
                 parts.push(snapshot.idle.text);

@@ -98,6 +98,7 @@ function getPredecessorDescriptor<Instance, Args extends unknown[], Result>(
 ): PropertyDescriptor | undefined {
     const descriptor = getOwnDataDescriptor(method, PATCH_PREDECESSOR_DESCRIPTOR)?.value;
     if (descriptor === undefined) return undefined;
+
     if (!isNonNullObject(descriptor)) {
         throw new Error("Linked method patch has invalid predecessor descriptor metadata");
     }
@@ -409,6 +410,7 @@ export function installKeyedLinkedMethodPatch<
         },
         dispose(): void {
             if (disposed) return;
+
             patch.dispose();
 
             if (

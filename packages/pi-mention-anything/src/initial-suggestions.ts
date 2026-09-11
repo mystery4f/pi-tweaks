@@ -42,6 +42,7 @@ function historyRankingNeeded(strategy: InitialSuggestionStrategy): boolean {
 
 function frecencyScore(selection: Selection | undefined, now: number): number {
     if (selection === undefined) return 0;
+
     const ageDays = Math.max(0, now - selection.lastSelectedAt) / MILLISECONDS_PER_DAY;
     return selection.count / (1 + ageDays / FRECENCY_HALF_LIFE_DAYS);
 }
@@ -58,6 +59,7 @@ export function rankInitialSuggestions<T>(
     const ranked = items.map((item, sourceIndex) => {
         let priority = 0;
         if (priorityOf !== undefined) priority = priorityOf(item);
+
         return { item, name: nameOf(item), priority, sourceIndex };
     });
 
@@ -90,6 +92,7 @@ export function rankInitialSuggestions<T>(
             case "frequent": {
                 const comparison = (rightSelection?.count ?? 0) - (leftSelection?.count ?? 0);
                 if (comparison !== 0) return comparison;
+
                 const recencyComparison =
                     (rightSelection?.lastSelectedAt ?? -1) - (leftSelection?.lastSelectedAt ?? -1);
                 if (recencyComparison !== 0) return recencyComparison;
@@ -99,6 +102,7 @@ export function rankInitialSuggestions<T>(
                 const comparison =
                     frecencyScore(rightSelection, now) - frecencyScore(leftSelection, now);
                 if (comparison !== 0) return comparison;
+
                 const recencyComparison =
                     (rightSelection?.lastSelectedAt ?? -1) - (leftSelection?.lastSelectedAt ?? -1);
                 if (recencyComparison !== 0) return recencyComparison;
@@ -136,9 +140,11 @@ export function createLazySelectionHistory(options: SelectionHistoryOptions): Se
 
     const reportError = (): void => {
         if (errorReported) return;
+
         errorReported = true;
         options.onError?.(options.errorMessage);
     };
+
     const unavailableHistory: SelectionHistory = {
         async load() {
             return new Map();
@@ -152,6 +158,7 @@ export function createLazySelectionHistory(options: SelectionHistoryOptions): Se
     };
     const getHistory = async (): Promise<SelectionHistory> => {
         if (historyTask !== undefined) return historyTask;
+
         historyTask = import("./selection-history.ts")
             .then(({ createSelectionHistory }) => createSelectionHistory(options))
             .catch(() => {
@@ -176,6 +183,7 @@ export function createLazySelectionHistory(options: SelectionHistoryOptions): Se
             await pendingRecords;
 
             if (historyTask === undefined) return;
+
             await (await historyTask).flush();
         },
     };

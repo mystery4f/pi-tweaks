@@ -41,6 +41,7 @@ async function readPersistence(path: string): Promise<string> {
         while (offset < buffer.length) {
             const { bytesRead } = await file.read(buffer, offset, buffer.length - offset, offset);
             if (bytesRead === 0) break;
+
             offset += bytesRead;
         }
 
@@ -177,6 +178,7 @@ const cachedRequestSchema = Type.Object(
     },
     { additionalProperties: false },
 );
+
 const persistedEntrySchema = Type.Object(
     {
         key: Type.String(),
@@ -187,6 +189,7 @@ const persistedEntrySchema = Type.Object(
     },
     { additionalProperties: false },
 );
+
 const persistedDocumentSchema = Type.Object(
     {
         version: Type.Literal(PERSISTENCE_VERSION),
@@ -195,6 +198,7 @@ const persistedDocumentSchema = Type.Object(
     },
     { additionalProperties: false },
 );
+
 const ERROR_MESSAGE_BY_CODE = {
     "discovery-failed": "Mention source discovery failed.",
     "persistence-failed": "Mention source persistence failed.",
@@ -209,8 +213,8 @@ function abortCause(signal: AbortSignal): Error {
 
 async function waitForDelay(milliseconds: number, signal: AbortSignal): Promise<void> {
     signal.throwIfAborted();
-
     if (milliseconds === 0) return Promise.resolve();
+
     let timer: ReturnType<typeof setTimeout> | undefined;
     const promise = new Promise<void>((resolve, reject) => {
         const abort = (): void => {
@@ -242,6 +246,7 @@ function validateDiscoveryResponse(response: DiscoveryResponse, limit: number): 
     const ids = new Set<string>();
     for (const item of parsed.items) {
         if (ids.has(item.id)) throw new Error("provider returned duplicate candidate IDs");
+
         ids.add(item.id);
     }
 
@@ -303,6 +308,7 @@ class ConcurrencyLimiter {
         let released = false;
         return (): void => {
             if (released) return;
+
             released = true;
             this.#active -= 1;
             while (this.#queue.length > 0) {
@@ -310,7 +316,6 @@ class ConcurrencyLimiter {
                 if (next === undefined || next.signal.aborted) continue;
                 this.#active += 1;
                 next.start(this.#makeRelease());
-
                 break;
             }
         };
@@ -343,6 +348,7 @@ export function createSourceController<const Options extends SourceControllerOpt
     ) {
         throw new Error("cacheTtlMs must be non-negative");
     }
+
     if (
         options.persistentCachePath !== undefined &&
         (options.configurationKey === undefined || options.configurationKey.length === 0)
@@ -353,6 +359,7 @@ export function createSourceController<const Options extends SourceControllerOpt
     const cacheEnabled = options.cache === true;
     let discoveryLimit = PROVIDER_DISCOVERY_LIMIT;
     if (provider.filtering === "local") discoveryLimit = LOCAL_DISCOVERY_LIMIT;
+
     const now = options.now ?? Date.now;
     const lifetime = new AbortController();
     const limiter = new ConcurrencyLimiter(maxConcurrent);
@@ -382,6 +389,7 @@ export function createSourceController<const Options extends SourceControllerOpt
     const keyFor = (request: CachedRequest): string => {
         let query = "";
         if (provider.filtering === "provider") query = request.query;
+
         return JSON.stringify([
             scope,
             request.path.map((candidate) => candidate.id),
@@ -389,12 +397,14 @@ export function createSourceController<const Options extends SourceControllerOpt
             request.cursor ?? "",
         ]);
     };
+
     const requestScopeFor = (request: CachedRequest): string =>
         JSON.stringify([
             scope,
             request.path.map((candidate) => candidate.id),
             request.cursor ?? "",
         ]);
+
     const resolutionKeyFor = (segments: readonly string[]): string =>
         JSON.stringify([scope, segments]);
 
@@ -402,13 +412,17 @@ export function createSourceController<const Options extends SourceControllerOpt
         errorCodes.add(code);
 
         if (reportedErrorCodes.has(code)) return;
+
         reportedErrorCodes.add(code);
         options.onError?.(ERROR_MESSAGE_BY_CODE[code]);
     };
+
     const reportError = (code: SourceControllerErrorCode): void => {
         if (isDisposed()) return;
+
         recordError(code);
     };
+
     const clearError = (code: SourceControllerErrorCode): void => {
         errorCodes.delete(code);
         reportedErrorCodes.delete(code);
@@ -423,9 +437,11 @@ export function createSourceController<const Options extends SourceControllerOpt
         while (cache.size > maxEntries) {
             const oldest = cache.keys().next().value;
             if (oldest === undefined) return;
+
             cache.delete(oldest);
         }
     };
+
     const touchResolution = (key: string, entry: ResolutionCacheEntry): void => {
         resolutionCache.delete(key);
         resolutionCache.set(key, entry);
@@ -435,16 +451,20 @@ export function createSourceController<const Options extends SourceControllerOpt
         while (resolutionCache.size > maxEntries) {
             const oldest = resolutionCache.keys().next().value;
             if (oldest === undefined) return;
+
             resolutionCache.delete(oldest);
         }
     };
+
     const trimAuxiliary = <Value>(entries: Map<string, Value>): void => {
         while (entries.size > maxEntries) {
             const oldest = entries.keys().next().value;
             if (oldest === undefined) return;
+
             entries.delete(oldest);
         }
     };
+
     const failureRetryAt = (key: string, currentTime: number): number | undefined => {
         const retryAt = failures.get(key);
         if (retryAt === undefined) return undefined;
@@ -459,11 +479,13 @@ export function createSourceController<const Options extends SourceControllerOpt
 
         return retryAt;
     };
+
     const rememberFailure = (key: string): void => {
         failures.delete(key);
         failures.set(key, now() + FAILED_RETRY_DELAY_MS);
         trimAuxiliary(failures);
     };
+
     const latestRequestFor = (requestScope: string, currentTime: number): string | undefined => {
         const latest = latestRequestByScope.get(requestScope);
         if (latest === undefined) return undefined;
@@ -478,6 +500,7 @@ export function createSourceController<const Options extends SourceControllerOpt
 
         return latest.key;
     };
+
     const rememberLatestRequest = (requestScope: string, key: string): void => {
         latestRequestByScope.delete(requestScope);
         latestRequestByScope.set(requestScope, {
@@ -486,6 +509,7 @@ export function createSourceController<const Options extends SourceControllerOpt
         });
         trimAuxiliary(latestRequestByScope);
     };
+
     const pruneAuxiliary = (currentTime: number): void => {
         for (const [key, retryAt] of failures) {
             if (retryAt <= currentTime) failures.delete(key);
@@ -505,6 +529,7 @@ export function createSourceController<const Options extends SourceControllerOpt
     const savePersistence = (): void => {
         const path = options.persistentCachePath;
         if (!cacheEnabled || path === undefined || isDisposed()) return;
+
         const expectedGeneration = generation;
         const contents = JSON.stringify(persistedDocument());
         if (Buffer.byteLength(contents) > MAX_PERSISTENCE_BYTES) {
@@ -514,6 +539,7 @@ export function createSourceController<const Options extends SourceControllerOpt
 
         const writeSnapshot = async (): Promise<void> => {
             if (isDisposed() || expectedGeneration !== generation) return;
+
             await mkdir(dirname(path), { recursive: true });
 
             const temporaryPath = `${path}.${randomUUID()}.tmp`;
@@ -522,6 +548,7 @@ export function createSourceController<const Options extends SourceControllerOpt
                 await writeFile(temporaryPath, contents, { encoding: "utf8", mode: 0o600 });
 
                 if (isDisposed() || expectedGeneration !== generation) return;
+
                 await rename(temporaryPath, path);
 
                 if (!isDisposed() && expectedGeneration === generation)
@@ -530,6 +557,7 @@ export function createSourceController<const Options extends SourceControllerOpt
                 await rm(temporaryPath, { force: true });
             }
         };
+
         const previousWrite = persistenceWriters.get(path) ?? Promise.resolve();
 
         persistenceWrite = previousWrite.then(writeSnapshot, writeSnapshot).catch(() => {
@@ -548,12 +576,14 @@ export function createSourceController<const Options extends SourceControllerOpt
     const loadPersistence = async (): Promise<void> => {
         const path = options.persistentCachePath;
         if (!cacheEnabled || path === undefined) return;
+
         const expectedGeneration = generation;
 
         try {
             const text = await readPersistence(path);
 
             if (isDisposed() || expectedGeneration !== generation) return;
+
             const value = Value.Parse(persistedDocumentSchema, JSON.parse(text));
             if (value.scope !== scope) throw new Error("invalid persistent cache scope");
 
@@ -572,6 +602,7 @@ export function createSourceController<const Options extends SourceControllerOpt
             clearError("persistence-failed");
         } catch (cause: unknown) {
             if (cause instanceof Error && "code" in cause && cause.code === "ENOENT") return;
+
             reportError("persistence-failed");
         }
     };
@@ -609,10 +640,9 @@ export function createSourceController<const Options extends SourceControllerOpt
         }
 
         const response = await limiter.run(signal, async () => provider.discover(discoveryRequest));
-
         signal.throwIfAborted();
-
         if (isDisposed() || expectedGeneration !== generation) throw abortCause(lifetime.signal);
+
         const parsed = validateDiscoveryResponse(response, discoveryLimit);
 
         clearError("discovery-failed");
@@ -640,6 +670,7 @@ export function createSourceController<const Options extends SourceControllerOpt
                     const cachedAt = now();
                     let expiresAt = Number.MAX_SAFE_INTEGER;
                     if (options.cacheTtlMs !== undefined) expiresAt = cachedAt + options.cacheTtlMs;
+
                     const entry: CacheEntry = {
                         request,
                         response,
@@ -671,6 +702,7 @@ export function createSourceController<const Options extends SourceControllerOpt
 
         return shared;
     };
+
     const runResolution = async (
         segments: readonly string[],
         signal: AbortSignal,
@@ -754,11 +786,13 @@ export function createSourceController<const Options extends SourceControllerOpt
         signal?: AbortSignal,
     ): Promise<Result> => {
         if (signal?.aborted === true) return Promise.reject(abortCause(signal));
+
         shared.waiters += 1;
 
         let finished = false;
         const finish = (): void => {
             if (finished) return;
+
             finished = true;
             shared.waiters -= 1;
             if (shared.waiters === 0 && !shared.settled) shared.controller.abort();
@@ -778,6 +812,7 @@ export function createSourceController<const Options extends SourceControllerOpt
                     signal?.removeEventListener("abort", abort);
 
                     if (finished) return;
+
                     finish();
                     resolve(response);
                 },
@@ -785,6 +820,7 @@ export function createSourceController<const Options extends SourceControllerOpt
                     signal?.removeEventListener("abort", abort);
 
                     if (finished) return;
+
                     finish();
 
                     if (cause instanceof Error) reject(cause);
@@ -809,12 +845,13 @@ export function createSourceController<const Options extends SourceControllerOpt
 
     const discover = async (request: SourceControllerDiscovery): Promise<DiscoveryResponse> => {
         if (isDisposed()) throw new Error("source controller is disposed");
+
         request.signal?.throwIfAborted();
         await persistenceReady;
 
         if (isDisposed()) throw new Error("source controller is disposed");
-        request.signal?.throwIfAborted();
 
+        request.signal?.throwIfAborted();
         let cachedRequest: CachedRequest;
         if (request.cursor === undefined) {
             cachedRequest = { query: request.query, path: request.path };
@@ -866,10 +903,12 @@ export function createSourceController<const Options extends SourceControllerOpt
             if (result.status === "rejected" && isDisposed()) return;
         }
     };
+
     const refresh = async (): Promise<void> => {
         await persistenceReady;
 
         if (isDisposed()) return;
+
         const requests = [...cache.values()].map((entry) => entry.request);
         if (requests.length === 0) requests.push({ query: "", path: [] });
 
@@ -882,6 +921,7 @@ export function createSourceController<const Options extends SourceControllerOpt
 
     const invalidate = (): void => {
         if (isDisposed()) return;
+
         generation += 1;
         resolutionGeneration += 1;
 
@@ -924,6 +964,7 @@ export function createSourceController<const Options extends SourceControllerOpt
             try {
                 const fileWatcher = watch(parent, (_eventType, filename) => {
                     if (filename !== null && !names.has(filename)) return;
+
                     clearTimeout(watchTimer);
                     watchTimer = setTimeout(invalidate, debounceMs);
                 });
@@ -940,8 +981,8 @@ export function createSourceController<const Options extends SourceControllerOpt
         discover,
         async resolve(segments, signal) {
             if (isDisposed()) throw new Error("source controller is disposed");
-            signal?.throwIfAborted();
 
+            signal?.throwIfAborted();
             const stableSegments = [...segments];
             const key = resolutionKeyFor(stableSegments);
             if (cacheEnabled) {
@@ -997,6 +1038,7 @@ export function createSourceController<const Options extends SourceControllerOpt
         },
         async dispose() {
             if (disposal !== undefined) return disposal;
+
             generation += 1;
             resolutionGeneration += 1;
             lifetime.abort();

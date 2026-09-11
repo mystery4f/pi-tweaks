@@ -80,6 +80,7 @@ export default async function modelAliasExtension(pi: ExtensionAPI): Promise<voi
         reportConfigError(state, ctx, loaded);
 
         if (!isProviderPayloadObject(event.payload)) return undefined;
+
         const alias = aliasForProviderRequest(event.payload, ctx.model, loaded.settings);
         if (alias === undefined) return undefined;
         return rewritePayloadModel(event.payload, alias.model);

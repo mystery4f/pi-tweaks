@@ -94,6 +94,7 @@ try {
 
     for (const { manifest } of workspaces.packages) {
         if (manifest.piExtensionSettings === undefined) continue;
+
         const installedPackage = path.join(installedModules, manifest.name);
         for (const relativePath of Object.values(manifest.piExtensionSettings)) {
             assert.ok(

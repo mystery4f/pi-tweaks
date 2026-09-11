@@ -104,6 +104,7 @@ function isTreeTitle(component: ComponentLike): boolean {
 
 function updateLegacyTreeHelp(component: ComponentLike): void {
     if (!hasText(component) || !component.text.includes(LEGACY_TREE_HELP_TEXT)) return;
+
     component.text = `  ${getTreeHelpText()}`;
 }
 
@@ -114,6 +115,7 @@ export function patchTreeHeaderText(prototype: TreeHeaderPatchTarget): void {
     const originalAddChild = prototype.addChild;
     const patchedAddChild: AddChild = function patchedTreeSelectorAddChild(component): void {
         if (isTreeTitle(component)) return;
+
         updateLegacyTreeHelp(component);
         originalAddChild.call(this, component);
     };

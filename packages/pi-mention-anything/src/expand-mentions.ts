@@ -33,6 +33,7 @@ export function expandMentions<T>(text: string, options: MentionExpansionOptions
         ) => {
             const parsed = parseMentionName(quotedName, unquotedName, knownNames);
             if (parsed === undefined) return match;
+
             const item = byName.get(parsed.name);
             if (item === undefined) return match;
 
@@ -56,6 +57,7 @@ type ParsedUserContent =
 
 function parseUserContent(content: UserContextMessage["content"]): ParsedUserContent {
     if (Array.isArray(content)) return { kind: "blocks", blocks: content };
+
     return { kind: "text", text: content };
 }
 
@@ -110,6 +112,7 @@ function expandMentionsInUserMessage<T>(
     if (parsedContent.kind === "text") {
         const expanded = expandMentions(parsedContent.text, options);
         if (expanded === parsedContent.text) return message;
+
         return { ...message, content: expanded };
     }
 
@@ -132,6 +135,7 @@ function expandMentionsInUserMessage<T>(
     }
 
     if (!changed) return message;
+
     return { ...message, content };
 }
 
@@ -146,6 +150,7 @@ export function expandMentionsInMessages<T>(
     for (const index of indexes) {
         const message = messages.at(index);
         if (message?.role !== "user") continue;
+
         const expanded = expandMentionsInUserMessage(message, options);
         if (expanded === message) continue;
 

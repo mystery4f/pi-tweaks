@@ -163,6 +163,7 @@ async function patchMarkdownFences(): Promise<void> {
         { scope: SCOPE, feature: "assistant message patch", parse: assistantMessageRuntime.parse },
     );
     if (assistantComponent === undefined) return;
+
     const assistantPrototype = assistantComponent.prototype;
 
     patch.assistantRenderPatch = installLinkedRenderPatch(

@@ -60,6 +60,7 @@ function textComponentValue(component: ProviderRowComponent): string | undefined
 
 function setTextComponentValue(component: ProviderRowComponent, text: string): void {
     if (!isTextComponentView(component) || typeof component.setText !== "function") return;
+
     component.setText(text);
 }
 
@@ -133,6 +134,7 @@ function removeModelCatalogStatusSpacer(container: ListContainer): void {
     );
     if (statusIndex <= 0) return;
     if (textComponentValue(container.children[statusIndex - 1]) !== undefined) return;
+
     container.children.splice(statusIndex - 1, 1);
 }
 
@@ -172,6 +174,7 @@ export function setSearchCounter(
         const baseLine = firstLine.replace(/ +$/, "");
         const gap = width - visibleWidth(baseLine) - visibleWidth(counterText);
         if (gap < 1) return lines;
+
         return [`${baseLine}${" ".repeat(gap)}${counterText}`, ...lines.slice(1)];
     };
     input[SEARCH_COUNTER_RENDER_PATCH_KEY] = true;
@@ -220,6 +223,7 @@ export function formatProviderRows(
         const suffix = text.slice(badgeIndex + badge.length);
         let checkmark = "";
         if (suffix.replace(ANSI_PATTERN, "").trim() === "✓") checkmark = suffix;
+
         const padding = " ".repeat(
             Math.max(0, modelWidth - visibleWidth(row.modelText) - visibleWidth(checkmark)) +
                 PROVIDER_GAP_EXTRA_WIDTH,

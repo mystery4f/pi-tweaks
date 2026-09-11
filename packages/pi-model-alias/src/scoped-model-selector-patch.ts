@@ -100,6 +100,7 @@ function getDisplayItems(
         const displayedModel = { ...item.model, id: getModelDisplayId(item.model, settings) };
         const alias = getProviderAlias(item.model.provider, settings);
         if (alias !== undefined) displayedModel.provider = alias.name;
+
         return { ...item, model: displayedModel };
     });
 }
@@ -109,9 +110,11 @@ function getSearchText(item: ScopedModelsSelectorItem, settings: ModelAliasSetti
     const providerAlias = getProviderAlias(model.provider, settings);
     let provider = model.provider;
     if (providerAlias !== undefined) provider = `${providerAlias.name} ${model.provider}`;
+
     const modelAlias = getAliasForModel(model, settings);
     let ids = model.id;
     if (modelAlias !== undefined) ids = `${modelAlias.alias} ${model.id}`;
+
     const names = [model.name, modelAlias?.name]
         .filter((name): name is string => name !== undefined && name.length > 0)
         .join(" ");
@@ -149,6 +152,7 @@ export function installScopedModelsProviderPatch(
             "scoped models provider alias patch",
             new Error("missing updateList"),
         );
+
         return;
     }
 
@@ -199,7 +203,6 @@ export function installScopedModelsProviderPatch(
             }
 
             this.updateList();
-
             const footerText = this.getFooterText?.();
             if (footerText !== undefined) this.footerText?.setText(footerText);
         };
@@ -214,5 +217,6 @@ export async function installScopedModelsProviderPatchFromPi(state: SelectorPoli
         return undefined;
     });
     if (prototype === undefined) return;
+
     installScopedModelsProviderPatch(state, prototype);
 }

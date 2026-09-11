@@ -72,6 +72,7 @@ const commandDiscoveryResponseSchema = Type.Object(
     },
     { additionalProperties: false },
 );
+
 const commandResolveResponseSchema = Type.Object(
     {
         version: Type.Literal(COMMAND_PROVIDER_PROTOCOL_VERSION),
@@ -119,7 +120,6 @@ export async function executeJsonCommand(
 ): Promise<unknown> {
     validateProcessOptions(options);
     signal.throwIfAborted();
-
     let input: string | undefined;
     if (request !== undefined) {
         try {
@@ -154,6 +154,7 @@ export async function executeJsonCommand(
 
         const finishFailure = (cause: Error): void => {
             if (settled) return;
+
             settled = true;
             clearTimeout(timeout);
 
@@ -176,9 +177,11 @@ export async function executeJsonCommand(
         child.once("error", () => {
             finishFailure(new Error("command could not be started"));
         });
+
         child.stdin.once("error", () => {
             if (!settled) failure = new Error("command stdin failed");
         });
+
         child.stdout.on("data", (chunk: Buffer) => {
             outputBytes += chunk.byteLength;
             if (outputBytes > maxOutputBytes) {
@@ -189,6 +192,7 @@ export async function executeJsonCommand(
 
             stdout.push(chunk);
         });
+
         child.stderr.on("data", (chunk: Buffer) => {
             outputBytes += chunk.byteLength;
             if (outputBytes > maxOutputBytes) {
@@ -196,8 +200,10 @@ export async function executeJsonCommand(
                 killProcessTree(child);
             }
         });
+
         child.once("close", (code, closeSignal) => {
             if (settled) return;
+
             settled = true;
             clearTimeout(timeout);
             signal.removeEventListener("abort", abortListener);

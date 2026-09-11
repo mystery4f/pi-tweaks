@@ -122,7 +122,6 @@ test("ctrl+x copies and deletes the current line", async () => {
     renderEditor(editor);
     editor.handleInput(CTRL_X);
     renderEditor(editor);
-
     assert.equal(editor.getText(), "first\nthird");
     assert.deepEqual(editor.getCursor(), { line: 1, col: 0 });
     assert.deepEqual(copiedLines, ["second"]);
@@ -140,7 +139,6 @@ test("up arrow does not recall prompt history from a non-empty draft", () => {
     renderEditor(editor);
     editor.handleInput(UP);
     renderEditor(editor);
-
     assert.equal(editor.getText(), "line one\nline two");
     assert.deepEqual(editor.getCursor(), { line: 0, col: 0 });
 });
@@ -154,11 +152,9 @@ test("up arrow still recalls prompt history when the editor is empty", () => {
     editor.handleInput(UP);
     renderEditor(editor);
     assert.equal(editor.getText(), "newer prompt");
-
     editor.handleInput(UP);
     renderEditor(editor);
     assert.equal(editor.getText(), "older prompt");
-
     editor.handleInput(DOWN);
     renderEditor(editor);
     assert.equal(editor.getText(), "newer prompt");
@@ -195,13 +191,13 @@ test("leaves third-party editors without the required navigation seam unchanged"
     applyKeymapEditor(context);
     const appliedFactory = context.ui.getEditorComponent();
     if (appliedFactory === undefined) assert.fail("expected editor factory");
+
     const editor = appliedFactory(
         new TUI(new FakeTerminal()),
         editorTheme,
         new KeybindingsManager(),
     );
     editor.handleInput(UP);
-
     assert.equal(editor, thirdPartyEditor);
     assert.deepEqual(inputs, [UP]);
 });

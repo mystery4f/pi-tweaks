@@ -240,6 +240,7 @@ function parseStates(states: readonly string[] | undefined): readonly StatusBarS
                 `[pi-status-bar] Status bar segment states must be "active" or "idle".`,
             );
         }
+
         if (!parsed.includes(state)) {
             parsed.push(state);
         }
@@ -275,6 +276,7 @@ function emitStatusBarUpdates(state: StatusBarState): void {
     if (causes.length === 1) {
         throw causes[0];
     }
+
     if (causes.length > 1) {
         throw new AggregateError(causes, "Status bar update listeners failed.");
     }
@@ -411,6 +413,7 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
         }
 
         if (!mutator(current)) return;
+
         emitStatusBarUpdates(state);
     }
 
@@ -460,6 +463,7 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
         pauseTimer(): void {
             updateOwned((current) => {
                 if (current.timerPaused === true) return false;
+
                 current.timerPaused = true;
                 return true;
             });
@@ -467,6 +471,7 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
         resumeTimer(): void {
             updateOwned((current) => {
                 if (current.timerPaused === false) return false;
+
                 current.timerPaused = false;
                 return true;
             });
@@ -484,6 +489,7 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
         hideTimer(): void {
             updateOwned((current) => {
                 if (current.timerVisible === false) return false;
+
                 current.timerVisible = false;
                 return true;
             });
@@ -491,6 +497,7 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
         showTimer(): void {
             updateOwned((current) => {
                 if (current.timerVisible === true) return false;
+
                 current.timerVisible = true;
                 return true;
             });
@@ -503,6 +510,7 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
             disposed = true;
 
             if (current === undefined) return;
+
             delete state.override;
             emitStatusBarUpdates(state);
         },
@@ -513,6 +521,7 @@ export function configureStatusBar(config: StatusBarConfig): StatusBarHandle {
 export function setStatusBarBaseConfig(config: StatusBarConfig): void {
     const state = getStatusBarState();
     if (!applyStatusBarConfig(state.base, config)) return;
+
     emitStatusBarUpdates(state);
 }
 
@@ -550,6 +559,7 @@ export function registerStatusBarSegment(
 
     function getOwnedSegment(): MutableStatusBarSegment | undefined {
         if (disposed) return undefined;
+
         const current = state.segments.get(id);
         if (current?.owner !== owner) {
             disposed = true;
@@ -579,6 +589,7 @@ export function registerStatusBarSegment(
             const current = getOwnedSegment();
             if (current === undefined) return;
             if (current.text === undefined) return;
+
             delete current.text;
             emitStatusBarUpdates(state);
         },
@@ -587,6 +598,7 @@ export function registerStatusBarSegment(
             disposed = true;
 
             if (current === undefined) return;
+
             state.segments.delete(id);
             emitStatusBarUpdates(state);
         },

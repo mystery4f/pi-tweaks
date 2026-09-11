@@ -47,6 +47,7 @@ test("explicit null does not patch Pi's default compaction handler", async () =>
             Object.getOwnPropertyDescriptor(InteractiveMode.prototype, "handleEvent"),
             original,
         );
+
         handle.dispose();
     });
 
@@ -63,7 +64,6 @@ test("preserve compaction history leaves successful live compaction UI intact", 
 
     const mode = new FakeInteractiveMode();
     await mode.handleEvent({ type: "compaction_end", aborted: false, result: {} });
-
     assert.equal(mode.clearCount, 0);
     assert.equal(mode.rebuildCount, 0);
     assert.equal(mode.summaryCount, 1);
@@ -81,7 +81,6 @@ test("preserve compaction history keeps Pi's normal redraw when disabled", async
 
     const mode = new FakeInteractiveMode();
     await mode.handleEvent({ type: "compaction_end", aborted: false, result: {} });
-
     assert.equal(mode.clearCount, 1);
     assert.equal(mode.rebuildCount, 1);
     assert.equal(mode.summaryCount, 1);

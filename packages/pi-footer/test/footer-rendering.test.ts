@@ -72,7 +72,6 @@ test("createFooterComponent renders key session status without exceeding width",
 
     const line = component.render(120)[0] ?? "";
     const plain = stripAnsi(line);
-
     assert.equal(visibleWidth(line) <= 118, true);
     assert.match(plain, /\/workspace\/pi-tweaks/);
     assert.match(plain, /main/);
@@ -99,7 +98,6 @@ test("createFooterComponent leaves plain footer background transparent", () => {
     );
 
     const line = component.render(120)[0] ?? "";
-
     assert.doesNotMatch(line, BACKGROUND_ANSI_PATTERN);
     assert.match(line, /<muted>.*\/workspace\/pi-tweaks.*<\/muted>/);
     assert.match(line, /<dim> · <\/dim>/);
@@ -116,7 +114,6 @@ test("createFooterComponent renders configured plain separator", () => {
 
     const line = component.render(120)[0] ?? "";
     const plain = stripAnsi(line);
-
     assert.match(plain, /pi-tweaks \/ .*main \/ .*copilot \/ .*gpt-5 \/ .*medium/);
     assert.doesNotMatch(plain, / · /);
 });
@@ -144,9 +141,7 @@ test("createFooterComponent renders git ahead and behind counts beside the branc
 
     const line = component.render(120)[0] ?? "";
     const plain = stripAnsi(line);
-
     assert.match(plain, /main ↑3 ↓2/);
-
     component.dispose();
     assert.equal(disposed, true);
 });
@@ -177,7 +172,6 @@ test("createFooterComponent prefers model display names over model ids", () => {
 
     const line = component.render(120)[0] ?? "";
     const plain = stripAnsi(line);
-
     assert.match(plain, /GPT-5\.5/);
     assert.doesNotMatch(plain, /gpt-5\.5/);
 });
@@ -213,7 +207,6 @@ test("createFooterComponent uses provider display names from the model registry"
 
     const line = component.render(120)[0] ?? "";
     const plain = stripAnsi(line);
-
     assert.match(plain, /Codex/);
     assert.doesNotMatch(plain, /openai-codex/);
 });
@@ -244,7 +237,6 @@ test("createFooterComponent uses snapshotted provider display names", () => {
 
     const line = component.render(120)[0] ?? "";
     const plain = stripAnsi(line);
-
     assert.match(plain, /Codex/);
     assert.doesNotMatch(plain, /openai-codex/);
 });
@@ -259,7 +251,6 @@ test("createFooterComponent preserves the primary path and drops optional narrow
 
     const line = component.render(30)[0] ?? "";
     const plain = stripAnsi(line);
-
     assert.equal(visibleWidth(line) <= 28, true);
     assert.equal(plain.trim(), "/workspace/pi-tweaks");
     assert.doesNotMatch(plain, /feature\/very-long-branch/);
@@ -288,7 +279,6 @@ test("createFooterComponent renders configured layout order and omissions", () =
 
     const line = component.render(120)[0] ?? "";
     const plain = stripAnsi(line);
-
     assert.match(plain, /gpt-5 · copilot/);
     assert.doesNotMatch(plain, /\/workspace\/pi-tweaks/);
     assert.doesNotMatch(plain, /main/);
@@ -318,21 +308,16 @@ test("createFooterComponent renders custom API slots and updates on text changes
         let line = component.render(120)[0] ?? "";
         let plain = stripAnsi(line);
         assert.match(plain, /ready/);
-
         handle.setText("working\nnow");
         assert.equal(renderRequests, 1);
-
         line = component.render(120)[0] ?? "";
         plain = stripAnsi(line);
         assert.match(plain, /working now/);
-
         handle.clear();
         assert.equal(renderRequests, 2);
-
         line = component.render(120)[0] ?? "";
         plain = stripAnsi(line);
         assert.doesNotMatch(plain, /working now/);
-
         component.dispose();
     } finally {
         handle.dispose();
@@ -363,7 +348,6 @@ test("createFooterComponent places explicit custom API slots from config", () =>
 
         const line = component.render(120)[0] ?? "";
         const plain = stripAnsi(line);
-
         assert.match(plain.trim(), /^custom · \/workspace\/pi-tweaks/);
     } finally {
         handle.dispose();
@@ -395,7 +379,6 @@ test("createFooterComponent hides custom API slots through config", () => {
 
         const line = component.render(120)[0] ?? "";
         const plain = stripAnsi(line);
-
         assert.doesNotMatch(plain, /hidden custom/);
     } finally {
         handle.dispose();
@@ -425,6 +408,5 @@ test("createFooterComponent disposes the branch-change subscription", () => {
         () => undefined,
     );
     component.dispose();
-
     assert.equal(unsubscribed, true);
 });

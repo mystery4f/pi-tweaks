@@ -32,6 +32,7 @@ const work: Candidate = {
     selectable: true,
     navigable: true,
 };
+
 const api: Candidate = {
     id: "window-api",
     label: "api",
@@ -39,6 +40,7 @@ const api: Candidate = {
     selectable: false,
     navigable: true,
 };
+
 const logs: Candidate = {
     id: "pane-logs",
     label: "logs",
@@ -63,6 +65,7 @@ function treeSource(overrides: Partial<ChainCompletionSource> = {}): ChainComple
         async discover({ path }) {
             if (path.length === 0) return { items: [work] };
             if (path.length === 1) return { items: [api] };
+
             return { items: [logs] };
         },
         async resolve(segments) {
@@ -119,6 +122,7 @@ test("deleting and retyping a branch resolves its new identity through both edit
         const source = treeSource({
             async discover({ path }) {
                 if (path.length === 0) return { items: [parent] };
+
                 childParents.push(path[0]?.id ?? "");
 
                 return { items: [logs] };
@@ -161,6 +165,7 @@ test("abandoned continuation identities have a bounded retained lifetime", async
         const input = `${text}t:`;
         const roots = await provider.getSuggestions([input], 0, input.length, request());
         if (roots === null) assert.fail("Expected roots");
+
         const result = provider.applyCompletion(
             [input],
             0,
@@ -195,6 +200,7 @@ test("traverses branches, exposes a selectable branch target, and completes a le
 
     const roots = await provider.getSuggestions(["t:"], 0, 2, request());
     if (roots === null) assert.fail("Expected root suggestions");
+
     const afterSession = provider.applyCompletion(
         ["t:"],
         0,
@@ -204,9 +210,9 @@ test("traverses branches, exposes a selectable branch target, and completes a le
     );
     assert.deepEqual(afterSession, { lines: ["t:work:"], cursorLine: 0, cursorCol: 7 });
     assert.equal(continuations, 1);
-
     const windows = await provider.getSuggestions(afterSession.lines, 0, 7, request());
     if (windows === null) assert.fail("Expected window suggestions");
+
     assert.deepEqual(
         windows.items.map((item) => item.label),
         ["Use work", "api"],
@@ -219,9 +225,9 @@ test("traverses branches, exposes a selectable branch target, and completes a le
         windows.prefix,
     );
     assert.deepEqual(afterWindow, { lines: ["t:work:api:"], cursorLine: 0, cursorCol: 11 });
-
     const panes = await provider.getSuggestions(afterWindow.lines, 0, 11, request());
     if (panes === null) assert.fail("Expected pane suggestions");
+
     const completed = provider.applyCompletion(
         afterWindow.lines,
         0,
@@ -240,6 +246,7 @@ test("traverses branches, exposes a selectable branch target, and completes a le
         editorText: "t:work:api:logs ",
     });
 });
+
 test("selecting a navigable parent use row removes the trailing separator", async () => {
     let selection: ChainSelection | undefined;
     const provider = createChainAutocompleteProvider({
@@ -306,6 +313,7 @@ test("selection positions are absolute in joined editor lines", async () => {
         editorText: "intro\npick t:logs tail",
     });
 });
+
 test("uses insertionText only for the final target and snapshots the inserted span", async () => {
     const branch: Candidate = {
         ...work,
@@ -328,6 +336,7 @@ test("uses insertionText only for the final target and snapshots the inserted sp
             treeSource({
                 async discover({ path }) {
                     if (path.length === 0) return { items: [branch] };
+
                     return { items: [leaf] };
                 },
             }),
@@ -339,6 +348,7 @@ test("uses insertionText only for the final target and snapshots the inserted sp
 
     const roots = await provider.getSuggestions(["t:"], 0, 2, request());
     if (roots === null) assert.fail("Expected branch suggestions");
+
     const continued = provider.applyCompletion(
         ["t:"],
         0,
@@ -347,9 +357,9 @@ test("uses insertionText only for the final target and snapshots the inserted sp
         roots.prefix,
     );
     assert.deepEqual(continued, { lines: ["t:branch:"], cursorLine: 0, cursorCol: 9 });
-
     const children = await provider.getSuggestions(continued.lines, 0, 9, request());
     if (children === null) assert.fail("Expected leaf suggestions");
+
     const completed = provider.applyCompletion(
         continued.lines,
         0,
@@ -383,9 +393,9 @@ test("completion prefixes never trigger Pi's slash-command submit fallthrough", 
     });
 
     const suggestions = await provider.getSuggestions(["t:/lo"], 0, 5, request());
-
     assert.equal(suggestions?.prefix, "");
 });
+
 test("keeps duplicate-segment branch IDs through chained navigation", async () => {
     const duplicateA: Candidate = {
         ...work,
@@ -407,6 +417,7 @@ test("keeps duplicate-segment branch IDs through chained navigation", async () =
             discoveredPaths.push(path);
 
             if (path.length === 0) return { items: [duplicateA, duplicateB] };
+
             return { items: [logs] };
         },
         async resolve() {
@@ -424,6 +435,7 @@ test("keeps duplicate-segment branch IDs through chained navigation", async () =
 
     const roots = await provider.getSuggestions(["t:"], 0, 2, request());
     if (roots === null) assert.fail("Expected duplicate roots");
+
     const continued = provider.applyCompletion(
         ["t:"],
         0,
@@ -433,6 +445,7 @@ test("keeps duplicate-segment branch IDs through chained navigation", async () =
     );
     const children = await provider.getSuggestions(continued.lines, 0, 12, request());
     if (children === null) assert.fail("Expected duplicate branch children");
+
     provider.applyCompletion(
         continued.lines,
         0,
@@ -482,7 +495,6 @@ test("prefers an occurrence snapshot before exact provider resolution", async ()
     });
 
     const suggestions = await provider.getSuggestions(["say t:duplicate:"], 0, 16, request());
-
     assert.notEqual(suggestions, null);
     assert.deepEqual(selectedLookup, {
         sourceId: "tmux",
@@ -601,6 +613,7 @@ test("owned empty and failed discovery never falls through to another provider",
         { sourceId: "tmux", status: "failed" },
     ]);
 });
+
 test("reports unresolved parents without attempting discovery", async () => {
     let discoveries = 0;
     const states: string[] = [];
@@ -622,7 +635,6 @@ test("reports unresolved parents without attempting discovery", async () => {
     });
 
     const suggestions = await provider.getSuggestions(["t:missing:"], 0, 10, request());
-
     assert.deepEqual(suggestions, { prefix: "", items: [] });
     assert.equal(discoveries, 0);
     assert.deepEqual(states, ["unresolved"]);
@@ -631,11 +643,13 @@ test("reports unresolved parents without attempting discovery", async () => {
 test("an explicit More row requests and accumulates the next page", async () => {
     const cursors: Array<string | undefined> = [];
     let continuations = 0;
+
     const source = treeSource({
         async discover({ cursor }) {
             cursors.push(cursor);
 
             if (cursor === undefined) return { items: [work], nextCursor: "page-2" };
+
             return { items: [logs] };
         },
     });
@@ -651,7 +665,6 @@ test("an explicit More row requests and accumulates the next page", async () => 
     if (first === null) assert.fail("Expected first page");
     provider.applyCompletion(["t:"], 0, 2, itemNamed(first.items, "More…"), first.prefix);
     const second = await provider.getSuggestions(["t:"], 0, 2, request());
-
     assert.deepEqual(cursors, [undefined, "page-2"]);
     assert.equal(continuations, 1);
     assert.deepEqual(
@@ -659,6 +672,7 @@ test("an explicit More row requests and accumulates the next page", async () => 
         ["work", "logs"],
     );
 });
+
 test("caps local suggestions and provider-retained candidates", async () => {
     const candidates = Array.from(
         { length: 1_100 },
@@ -694,7 +708,6 @@ test("caps local suggestions and provider-retained candidates", async () => {
 
     const localSuggestions = await local.getSuggestions(["t:"], 0, 2, request());
     const providerSuggestions = await providerFiltered.getSuggestions(["t:"], 0, 2, request());
-
     assert.equal(localSuggestions?.items.length, 100);
     assert.equal(providerSuggestions?.items.length, 1_000);
     assert.equal(
@@ -714,6 +727,7 @@ test("stops repeated cursors without duplicating candidates", async () => {
                     cursors.push(cursor);
 
                     if (cursor === undefined) return { items: [work], nextCursor: "repeat" };
+
                     return { items: [work, logs], nextCursor: "repeat" };
                 },
             }),
@@ -724,7 +738,6 @@ test("stops repeated cursors without duplicating candidates", async () => {
     if (first === null) assert.fail("Expected first page");
     provider.applyCompletion(["t:"], 0, 2, itemNamed(first.items, "More…"), first.prefix);
     const second = await provider.getSuggestions(["t:"], 0, 2, request());
-
     assert.deepEqual(cursors, [undefined, "repeat"]);
     assert.deepEqual(
         second?.items.map((item) => item.label),
@@ -762,6 +775,7 @@ test("stops pagination after ten retained pages", async () => {
     let suggestions = await provider.getSuggestions(["t:"], 0, 2, request());
     for (let page = 1; page < 10; page += 1) {
         if (suggestions === null) assert.fail("Expected paged suggestions");
+
         provider.applyCompletion(
             ["t:"],
             0,
@@ -808,7 +822,6 @@ test("a newer request aborts obsolete discovery", async () => {
     await Promise.resolve();
     const current = provider.getSuggestions(["t:wo"], 0, 4, request());
     firstGate.resolve();
-
     assert.equal(firstSignal?.aborted, true);
     assert.equal(await obsolete, null);
     assert.deepEqual(
@@ -822,7 +835,6 @@ test("retains a mutable sources array and suppresses file completion only for ow
     const sources: ChainCompletionSource[] = [];
     const provider = createChainAutocompleteProvider({ current: fallback, sources });
     sources.push(treeSource());
-
     assert.deepEqual(provider.triggerCharacters, ["t"]);
     assert.equal(provider.shouldTriggerFileCompletion?.(["t:"], 0, 2), false);
     assert.equal(provider.shouldTriggerFileCompletion(["ordinary"], 0, 8), true);

@@ -92,6 +92,7 @@ function ownDataDescriptor(target: object, key: string): MarkdownDataDescriptor 
 
 function isMarkdownTheme(value: unknown): value is MarkdownTheme {
     if (typeof value !== "object" || value === null) return false;
+
     const functionKeys = [
         "heading",
         "link",
@@ -126,9 +127,11 @@ function isNumber(value: unknown): value is number {
 
 function isDefaultTextStyle(value: unknown): value is DefaultTextStyle {
     if (typeof value !== "object" || value === null) return false;
+
     if ("color" in value && value.color !== undefined && typeof value.color !== "function") {
         return false;
     }
+
     if ("bgColor" in value && value.bgColor !== undefined && typeof value.bgColor !== "function") {
         return false;
     }
@@ -143,6 +146,7 @@ function isDefaultTextStyle(value: unknown): value is DefaultTextStyle {
 
 function isMarkdownOptions(value: unknown): value is MarkdownOptions {
     if (typeof value !== "object" || value === null) return false;
+
     const booleanKeys = [
         "preserveOrderedListMarkers",
         "preserveBackslashEscapes",
@@ -168,14 +172,19 @@ function getStyledMarkdownInstance(instance: Markdown): StyledMarkdownInstance {
     const styled: StyledMarkdownInstance = {};
     const text = ownDataDescriptor(instance, "text")?.value;
     if (isString(text)) styled.text = text;
+
     const paddingX = ownDataDescriptor(instance, "paddingX")?.value;
     if (isNumber(paddingX)) styled.paddingX = paddingX;
+
     const theme = ownDataDescriptor(instance, "theme")?.value;
     if (isMarkdownTheme(theme)) styled.theme = theme;
+
     const defaultTextStyle = ownDataDescriptor(instance, "defaultTextStyle")?.value;
     if (isDefaultTextStyle(defaultTextStyle)) styled.defaultTextStyle = defaultTextStyle;
+
     const options = ownDataDescriptor(instance, "options")?.value;
     if (isMarkdownOptions(options)) styled.options = options;
+
     return styled;
 }
 
@@ -437,6 +446,7 @@ function shouldCollapseBlankLine(
 ): boolean {
     // Array.at(-1) wraps; the first line has no predecessor.
     if (index === 0) return false;
+
     const previousLine = lines.at(index - 1);
     const nextLine = lines.at(index + 1);
     if (previousLine === undefined || nextLine === undefined) {

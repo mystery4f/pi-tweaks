@@ -70,6 +70,7 @@ function hasSetting(layer: SettingsLayer, key: string): boolean {
 
 function isGeneratedDefaultLayer(layer: SettingsLayer): boolean {
     if (layer === undefined) return false;
+
     const generatedKeys = new Set([
         "trigger",
         "roots",
@@ -93,8 +94,10 @@ function isGeneratedDefaultLayer(layer: SettingsLayer): boolean {
     }
 
     if (!("initialSuggestions" in layer)) return true;
+
     const initialSuggestions = layer.initialSuggestions;
     if (!Value.Check(initialSuggestionsSchema, initialSuggestions)) return false;
+
     const parsed = Value.Parse(initialSuggestionsSchema, initialSuggestions);
     return parsed.strategy === "frecency" && parsed.pinned.length === 0;
 }
@@ -148,8 +151,10 @@ function loadLegacySettings(ctx: MentionProjectSettingsContext): LegacyMentionPr
     const paths = legacySettingsPaths(ctx);
     const globalSettingsPath = paths.at(0);
     const projectSettingsPath = paths.at(1);
+
     let globalSettings: LegacyMentionProjectSettings = {};
     if (globalSettingsPath !== undefined) globalSettings = readLegacySettings(globalSettingsPath);
+
     let projectSettings: LegacyMentionProjectSettings = {};
     if (projectSettingsPath !== undefined) {
         projectSettings = readLegacySettings(projectSettingsPath);
@@ -248,5 +253,6 @@ export function applyMentionProjectCliFlags(
     const loaded = { ...settings };
     if (flags.includeNonGit === true) loaded.gitReposOnly = false;
     if (flags.includeDotFolders === true) loaded.includeDotFolders = true;
+
     return loaded;
 }

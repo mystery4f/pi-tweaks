@@ -133,6 +133,7 @@ function sourceFor(
 function itemFor(candidate: Candidate): AutocompleteItem {
     const item: AutocompleteItem = { value: candidate.segment, label: candidate.label };
     if (candidate.description !== undefined) item.description = candidate.description;
+
     return item;
 }
 
@@ -167,6 +168,7 @@ function retainPageState(states: Map<string, PageState>, key: string, state: Pag
     while (states.size > MAX_PAGE_SCOPES) {
         const oldest = states.keys().next().value;
         if (oldest === undefined) break;
+
         states.delete(oldest);
     }
 }
@@ -224,6 +226,7 @@ export function createChainAutocompleteProvider(
     let previousText = "";
     const reconcile = (text: string): void => {
         if (text === previousText) return;
+
         activeRequest?.abort();
         requestGeneration += 1;
 
@@ -269,6 +272,7 @@ export function createChainAutocompleteProvider(
 
             retained.push(updated);
         }
+
         continuationPaths.clear();
 
         for (const entry of retained)
@@ -379,11 +383,11 @@ export function createChainAutocompleteProvider(
                 });
 
                 request.signal.throwIfAborted();
-
                 if (generation !== requestGeneration) return null;
 
                 let existingPage: PageState | undefined;
                 if (cursorForRequest !== undefined) existingPage = pageStates.get(key);
+
                 const requestedCursors = new Set(existingPage?.requestedCursors);
                 if (cursorForRequest !== undefined) requestedCursors.add(cursorForRequest);
 
@@ -484,6 +488,7 @@ export function createChainAutocompleteProvider(
                         key,
                         cursor: response.nextCursor,
                     });
+
                     items.push(more);
                 }
 
@@ -492,6 +497,7 @@ export function createChainAutocompleteProvider(
                 return { prefix: completionPrefix, items };
             } catch {
                 if (request.signal.aborted) return null;
+
                 options.onState?.(source.id, "failed");
 
                 return { prefix: completionPrefix, items: [] };
@@ -549,6 +555,7 @@ export function createChainAutocompleteProvider(
             let mention = formatChain(segments, action.active.chain.trigger, separator);
             const target = action.path.at(-1);
             if (target?.insertionText !== undefined) mention = target.insertionText;
+
             const text = lines.join("\n");
             const suffix = completionSuffixFor(
                 text.slice(action.active.ownedEnd),

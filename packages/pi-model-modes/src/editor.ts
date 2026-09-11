@@ -31,6 +31,7 @@ export function applyModeEditor(
         (tui, theme, keybindings) => new CustomEditor(tui, theme, keybindings),
         (editor, tui) => {
             if (!isEditorLike(editor)) return editor;
+
             const defaultBorderColor = editor.borderColor;
             const borderColor = (text: string): string => {
                 if (editor.getText().trimStart().startsWith("!")) {
@@ -50,6 +51,7 @@ export function applyModeEditor(
                 configurable: true,
                 enumerable: true,
             });
+
             controller.setEditorRenderRequest(() => tui.requestRender());
 
             return editor;

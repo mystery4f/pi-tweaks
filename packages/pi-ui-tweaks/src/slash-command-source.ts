@@ -53,6 +53,7 @@ function isPrefixView(
 function warnSlashCommandSourcePatchUnavailable(reason?: string): void {
     let suffix = "";
     if (reason !== undefined) suffix = `: ${reason}`;
+
     console.warn(
         `[pi-ui-tweaks] slash command source patch unavailable; Pi internals may have changed${suffix}`,
     );
@@ -103,6 +104,7 @@ export function installSlashCommandSourcePatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 

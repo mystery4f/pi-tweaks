@@ -117,6 +117,7 @@ function renderableTextComponent(text: string): RenderableTestTextComponent {
 function textValues(children: ProviderRowComponent[]): string[] {
     return children.flatMap((child) => {
         if (isTextFixture(child)) return [child.text];
+
         return [];
     });
 }
@@ -134,13 +135,11 @@ test("aliases models without mutating unrelated models", () => {
 
 test("does not apply aliases when config has a load error", () => {
     const loaded = loadedConfig(aliases, "invalid config");
-
     assert.deepEqual(aliasModels(nativeModels, loaded.settings), nativeModels);
 });
 
 test("resolves provider display aliases without changing provider ids", () => {
     const loaded = loadedConfig([], undefined, [{ provider: "openai", name: "OpenAI Work" }]);
-
     assert.equal(getProviderDisplayName("openai", "OpenAI", loaded.settings), "OpenAI Work");
     assert.equal(getProviderDisplayName("anthropic", "Anthropic", loaded.settings), "Anthropic");
 });
@@ -162,7 +161,6 @@ test("detects alias collisions with native model ids per provider", () => {
 
 test("finds aliases by model and by provider lookup", () => {
     const loaded = loadedConfig(aliases);
-
     assert.deepEqual(getAliasForModel(nativeModels[0], loaded.settings), aliases[0]);
     assert.deepEqual(getAliasForLookup("anthropic", "smart", loaded.settings), aliases[1]);
     assert.equal(getAliasForLookup("openai", "missing", loaded.settings), undefined);
@@ -273,7 +271,6 @@ test("model selector patch aliases snapshot display and search while preserving 
     installModelSelectorProviderPatch(state, prototype);
     prototype.loadModelsFromSnapshot();
     prototype.updateList();
-
     assert.equal(prototype.allModels[0]?.provider, "OpenAI Work");
     assert.equal(prototype.allModels[0]?.model, openaiModel);
     assert.equal(prototype.allModels[0]?.id, "fast");
@@ -285,16 +282,13 @@ test("model selector patch aliases snapshot display and search while preserving 
     ]);
     assert.equal(prototype.listContainer.children.length, 3);
     assert.equal(prototype.searchInput.render(20)[0], ">              (1/2)");
-
     prototype.filterModels("gpt-5");
     assert.equal(prototype.filteredModels.length, 1);
     assert.equal(prototype.filteredModels[0], prototype.allModels[0]);
     assert.equal(prototype.filteredModels[0]?.model, openaiModel);
-
     prototype.filterModels("OpenAI Work");
     assert.equal(prototype.filteredModels.length, 1);
     assert.equal(prototype.filteredModels[0], prototype.allModels[0]);
-
     prototype.filterModels("Fast");
     assert.equal(prototype.filteredModels.length, 1);
     assert.equal(prototype.filteredModels[0], prototype.allModels[0]);
@@ -449,6 +443,7 @@ test("model selector provider rows stay single-line at narrow widths", () => {
             this.listContainer.children = this.filteredModels.map((item, index) => {
                 let prefix = "  ";
                 if (index === this.selectedIndex) prefix = "→ ";
+
                 return renderableTextComponent(`${prefix}${item.id} [${item.provider}]`);
             });
         },
@@ -543,6 +538,7 @@ test("scoped models patch aliases rendered and searched models without changing 
         updateList(this: ScopedModelsSelectorPatchTarget) {
             const container = this.listContainer;
             if (container === undefined) throw new Error("missing list container fixture");
+
             container.children = this.filteredItems.map((item, index) => {
                 let prefix = "  ";
                 if (index === this.selectedIndex) {
@@ -619,7 +615,6 @@ test("registry patch aliases list and lookup methods and updates config at runti
         name: "Fast",
     });
     assert.equal(registry.getProviderDisplayName("openai"), "OPENAI");
-
     loaded = loadedConfig([], undefined, [{ provider: "openai", name: "OpenAI Work" }]);
     installRegistryPatch(registry, state);
 
@@ -652,7 +647,6 @@ test("registry reuses collision validation until an explicit model refresh", () 
     registry.getAvailable();
     registry.getAvailable();
     assert.equal(getAllCalls, 1);
-
     state.load(() => getNativeModels(registry), true);
     assert.equal(getAllCalls, 2);
 });
@@ -674,7 +668,6 @@ test("registry collision disables model and provider aliases and reports a diagn
     installRegistryPatch(registry, state);
 
     const resolved = state.load(() => getNativeModels(registry));
-
     assert.deepEqual(resolved.settings.aliases, []);
     assert.deepEqual(resolved.settings.providerAliases, []);
     assert.match(resolved.diagnostic ?? "", /conflicts with an existing model id/);

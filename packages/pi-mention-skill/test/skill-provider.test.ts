@@ -58,9 +58,7 @@ test("skill provider resolves manually and preserves selected snapshots across r
             signal: signal(),
         });
         assert.equal(manual.status, "resolved");
-
         assert.match(manual.replacement ?? "", /Initial body\./);
-
         commands = [];
         await writeFile(filePath, "Body loaded after selection.\n", "utf8");
         const refreshedTime = new Date("2030-01-01T00:00:00.000Z");

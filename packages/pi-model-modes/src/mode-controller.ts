@@ -164,6 +164,7 @@ export class ModeController {
 
     async persist(ctx: ExtensionContext): Promise<void> {
         if (this.runtime.filePath.length === 0) return;
+
         this.runtime.baseline ??= cloneModesFile(this.runtime.data);
 
         try {
@@ -266,6 +267,7 @@ export class ModeController {
 
     async storeSelection(ctx: ExtensionContext, mode: string, selection: ModeSpec): Promise<void> {
         if (mode === CUSTOM_MODE_NAME) return;
+
         await this.ensure(ctx);
 
         const next: ModeSpec = { ...this.runtime.data.modes[mode] };
@@ -278,6 +280,7 @@ export class ModeController {
             next.provider = selection.provider;
             next.modelId = selection.modelId;
         }
+
         if (selection.thinkingLevel !== undefined) next.thinkingLevel = selection.thinkingLevel;
         this.runtime.data.modes[mode] = next;
         await this.persist(ctx);
@@ -333,10 +336,12 @@ export class ModeController {
 
     async cycle(ctx: ExtensionContext, direction: 1 | -1 = 1): Promise<void> {
         if (!ctx.hasUI) return;
+
         await this.ensure(ctx);
 
         const names = orderedModeNames(this.runtime.data.modes);
         if (names.length === 0) return;
+
         let baseMode =
             findModeForModel(this.runtime.data.modes, ctx.model?.provider, ctx.model?.id) ??
             this.runtime.currentMode;
@@ -346,6 +351,7 @@ export class ModeController {
 
         const fallbackMode = names.at(0);
         if (fallbackMode === undefined) return;
+
         const index = Math.max(0, names.indexOf(baseMode));
         await this.applyMode(
             ctx,
@@ -385,6 +391,7 @@ export class ModeController {
     ): Promise<void> {
         this.lastObservedModel = { provider: event.model.provider, modelId: event.model.id };
         if (this.runtime.applying) return;
+
         await this.ensure(ctx);
 
         if (this.runtime.currentMode !== CUSTOM_MODE_NAME) {
@@ -410,6 +417,7 @@ export class ModeController {
     private async applyConfiguredDefaultModel(ctx: ExtensionContext): Promise<void> {
         const spec = this.runtime.data.defaultModel;
         if (spec === undefined) return;
+
         const model = ctx.modelRegistry.find(spec.provider, spec.modelId);
         if (model === undefined) {
             if (ctx.hasUI) {
@@ -418,6 +426,7 @@ export class ModeController {
                     "warning",
                 );
             }
+
             return;
         }
 
@@ -432,6 +441,7 @@ export class ModeController {
                         "warning",
                     );
                 }
+
                 return;
             }
 

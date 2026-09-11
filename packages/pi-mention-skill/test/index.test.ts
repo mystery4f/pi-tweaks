@@ -105,6 +105,7 @@ async function startSharedRuntime(
 ): Promise<void> {
     const handler = handlers.get("session_start");
     if (!isSharedStartHandler(handler)) throw new Error("Expected session_start handler");
+
     await handler(
         { type: "session_start" },
         {

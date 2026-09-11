@@ -53,6 +53,7 @@ function validateModeNameOrError(
     if (name.length === 0) return "Mode name cannot be empty";
     if (/\s/.test(name)) return "Mode name cannot contain whitespace";
     if (isReservedModeName(name)) return `Mode name "${name}" is reserved`;
+
     if (options?.allowExisting !== true && modeSpec(existing, name) !== undefined) {
         return `Mode "${name}" already exists`;
     }
@@ -139,14 +140,15 @@ export class ModePicker {
     private async configure(ctx: ExtensionContext): Promise<void> {
         for (;;) {
             await this.controller.ensure(ctx);
-
             const settingsContext = this.controller.getSettingsContext(ctx);
             const colorsEnabled = this.controller.thinkingBorderColorsEnabled;
             const statusEnabled = this.controller.thinkingLevelStatusEnabled;
             let thinkingColorsChoice = MODE_UI_THINKING_COLORS_OFF;
             if (colorsEnabled) thinkingColorsChoice = MODE_UI_THINKING_COLORS_ON;
+
             let thinkingStatusChoice = MODE_UI_THINKING_STATUS_OFF;
             if (statusEnabled) thinkingStatusChoice = MODE_UI_THINKING_STATUS_ON;
+
             const choice = await ctx.ui.select("Configure modes", [
                 ...orderedModeNames(this.controller.modes.modes),
                 MODE_UI_ADD,
@@ -188,7 +190,6 @@ export class ModePicker {
                 let stateLabel = "disabled";
                 if (next) stateLabel = "enabled";
                 ctx.ui.notify(`Thinking border colors ${stateLabel}`, "info");
-
                 continue;
             }
 
@@ -211,7 +212,6 @@ export class ModePicker {
                 let stateLabel = "disabled";
                 if (next) stateLabel = "enabled";
                 ctx.ui.notify(`Thinking level status ${stateLabel}`, "info");
-
                 continue;
             }
 
@@ -228,6 +228,7 @@ export class ModePicker {
         };
         const selectedModel = await this.pickModel(ctx, currentSpec);
         if (selectedModel === undefined) return;
+
         const model =
             ctx.modelRegistry.find(selectedModel.provider, selectedModel.modelId) ?? ctx.model;
         const thinkingLevel = await this.pickThinkingLevel(
@@ -236,6 +237,7 @@ export class ModePicker {
             model,
         );
         if (thinkingLevel === undefined) return;
+
         const defaultModel: DefaultModelSpec = selectedModel;
 
         if (thinkingLevel !== null) defaultModel.thinkingLevel = thinkingLevel;
@@ -252,6 +254,7 @@ export class ModePicker {
         for (;;) {
             const raw = await ctx.ui.input("New mode name", "e.g. docs, review, planning");
             if (raw === undefined) return undefined;
+
             const name = normalizeModeNameInput(raw);
             const error = validateModeNameOrError(name, this.controller.modes.modes);
             if (error !== null) {
@@ -277,8 +280,10 @@ export class ModePicker {
         for (;;) {
             const raw = await ctx.ui.input(`Rename mode "${oldName}"`, oldName);
             if (raw === undefined) return undefined;
+
             const newName = normalizeModeNameInput(raw);
             if (newName.length === 0 || newName === oldName) return oldName;
+
             const error = validateModeNameOrError(newName, this.controller.modes.modes);
             if (error !== null) {
                 ctx.ui.notify(error, "warning");
@@ -300,6 +305,7 @@ export class ModePicker {
 
             const spec = modeSpec(this.controller.modes.modes, name);
             if (spec === undefined) return;
+
             let modelLabel = "(no model)";
             if (spec.provider !== undefined && spec.modelId !== undefined) {
                 modelLabel = `${spec.provider}/${spec.modelId}`;
@@ -340,6 +346,7 @@ export class ModePicker {
 
                 const level = await this.pickThinkingLevel(ctx, spec.thinkingLevel, model);
                 if (level === undefined) continue;
+
                 const next = { ...spec };
                 if (level === null) delete next.thinkingLevel;
                 else next.thinkingLevel = level;

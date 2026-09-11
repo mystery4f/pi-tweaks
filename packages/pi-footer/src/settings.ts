@@ -63,6 +63,7 @@ const BUILTIN_FOOTER_SLOT_IDS = new Set([
     "mcp",
     "context",
 ]);
+
 const FOOTER_CUSTOM_SLOT_ID_REGEX = new RegExp(FOOTER_CUSTOM_SLOT_ID_PATTERN);
 
 export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
@@ -146,9 +147,11 @@ function parseFooterLayoutSettings(
     if (layout.left !== undefined) {
         settings.left = parseSlotIds(layout.left);
     }
+
     if (layout.right !== undefined) {
         settings.right = parseSlotIds(layout.right);
     }
+
     if (layout.hidden !== undefined) {
         settings.hidden = parseSlotIds(layout.hidden);
     }
@@ -259,7 +262,6 @@ export function resolveFooterConfig(
                 }
 
                 errors.push(`${source.label} is invalid: ${messages.join("; ")}${suffix}`);
-
                 continue;
             }
 
@@ -312,6 +314,7 @@ export function loadFooterSettings(cwd: string, projectTrusted: boolean): Loaded
             settings: settings.globalSettingsLayer,
         });
     }
+
     if (settings.projectSettingsLayer !== undefined && settings.projectConfigPath !== undefined) {
         settingsSources.push({
             label: settings.projectConfigPath,

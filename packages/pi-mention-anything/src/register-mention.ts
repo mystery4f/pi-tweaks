@@ -43,6 +43,7 @@ export function registerMentionSources(
 
     pi.on("session_start", async (_event, ctx) => {
         if (hub !== undefined) for (const handle of owned) await hub.remove(handle);
+
         owned = [];
 
         const registrations = load(ctx);
@@ -50,26 +51,29 @@ export function registerMentionSources(
         hub = undefined;
 
         if (registrations.length === 0) return;
+
         hub = sharedHub(ctx);
         for (const registration of registrations) owned.push(hub.add(registration));
     });
+
     pi.on("input", (event) => {
         hub?.input(event.text);
         return { action: "continue" };
     });
+
     pi.on("context", async (event, ctx) => {
         if (hub === undefined) return undefined;
+
         const messages = await hub.context(event.messages, ctx.signal);
         if (messages !== event.messages) return { messages };
         return undefined;
     });
+
     pi.on("session_shutdown", async () => {
         const previous = hub;
-
         hub = undefined;
 
         const handles = owned;
-
         owned = [];
 
         if (previous !== undefined) for (const handle of handles) await previous.remove(handle);

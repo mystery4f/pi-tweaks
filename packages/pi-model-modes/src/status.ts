@@ -65,7 +65,9 @@ function isInteractiveModeModule(value: unknown): value is InteractiveModeModule
     if ((typeof value !== "object" || value === null) && typeof value !== "function") {
         return false;
     }
+
     if (!("InteractiveMode" in value)) return false;
+
     const { InteractiveMode } = value;
     if (
         (typeof InteractiveMode !== "object" || InteractiveMode === null) &&
@@ -73,7 +75,9 @@ function isInteractiveModeModule(value: unknown): value is InteractiveModeModule
     ) {
         return false;
     }
+
     if (!("prototype" in InteractiveMode)) return false;
+
     const { prototype } = InteractiveMode;
     return (
         ((typeof prototype === "object" && prototype !== null) ||
@@ -96,6 +100,7 @@ async function loadInteractiveModePrototype(): Promise<InteractiveModePrototype 
 
 export function restoreThinkingLevelStatusPatch(prototype?: InteractiveModePrototype): void {
     if (prototype === undefined) return;
+
     const state: unknown = prototype[STATUS_PATCH_MARKER];
     if (!isStatusPatchState(state)) {
         delete prototype[STATUS_PATCH_MARKER];

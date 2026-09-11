@@ -118,19 +118,14 @@ test("setWorkedForWidget skips unchanged widget updates", () => {
 
     setWorkedForWidget(ctx, undefined);
     assert.equal(updateCount(), 0);
-
     setWorkedForWidget(ctx, "10s", 2);
     assert.equal(updateCount(), 1);
-
     setWorkedForWidget(ctx, "10s", 2);
     assert.equal(updateCount(), 1);
-
     setWorkedForWidget(ctx, "11s", 2);
     assert.equal(updateCount(), 2);
-
     setWorkedForWidget(ctx, undefined);
     assert.equal(updateCount(), 3);
-
     setWorkedForWidget(ctx, undefined);
     assert.equal(updateCount(), 3);
 });
@@ -141,7 +136,6 @@ test("setWorkedForWidget tracks separate Pi UI contexts independently", () => {
 
     setWorkedForWidget(first.ctx, "10s", 2);
     setWorkedForWidget(second.ctx, "10s", 2);
-
     assert.equal(first.updateCount(), 1);
     assert.equal(second.updateCount(), 1);
 });
@@ -152,9 +146,9 @@ test("setWorkedForWidget renders duration and token rate within the provided wid
 
     const widget = currentWidget();
     if (widget === undefined) throw new Error("Expected widget factory");
+
     const theme = { fg: (_role: string, text: string) => `[dim]${text}` };
     const component = widget(new RenderCountingTui(), theme);
-
     assert.deepEqual(component.render(80), ["[dim] Worked for 1m 05s. [42.3 tok/s]"]);
     const narrowLine = component.render(12)[0] ?? "";
     assert.equal(stripAnsi(narrowLine), "[dim] Worked for ");
@@ -174,9 +168,9 @@ test("setWorkedForWidget renders idle status bar overrides with the last-run sum
 
     const widget = currentWidget();
     if (widget === undefined) throw new Error("Expected widget factory");
+
     const theme = { fg: (_role: string, text: string) => `[dim]${text}` };
     const component = widget(new RenderCountingTui(), theme);
-
     assert.deepEqual(component.render(80), ["[dim] Ready · Worked for 9s. [3.0 tok/s]"]);
 });
 
@@ -193,9 +187,9 @@ test("setWorkedForWidget can hide token throughput without hiding duration", () 
 
     const widget = currentWidget();
     if (widget === undefined) throw new Error("Expected widget factory");
+
     const theme = { fg: (_role: string, text: string) => `[dim]${text}` };
     const component = widget(new RenderCountingTui(), theme);
-
     assert.deepEqual(component.render(80), ["[dim] Worked for 9s."]);
 });
 
@@ -211,9 +205,7 @@ test("clearWorkedForWidget removes configured idle status during active runs", (
     setWorkedForWidget(ctx, undefined);
     assert.notEqual(currentWidget(), undefined);
     assert.equal(updateCount(), 1);
-
     clearWorkedForWidget(ctx);
-
     assert.equal(currentWidget(), undefined);
     assert.equal(updateCount(), 2);
 });

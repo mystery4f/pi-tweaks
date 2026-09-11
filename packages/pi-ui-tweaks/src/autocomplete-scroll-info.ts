@@ -45,6 +45,7 @@ function hasRender(
 function warnAutocompleteScrollInfoPatchUnavailable(reason?: string): void {
     let suffix = "";
     if (reason !== undefined) suffix = `: ${reason}`;
+
     console.warn(
         `[pi-ui-tweaks] autocomplete scroll info patch unavailable; Pi internals may have changed${suffix}`,
     );
@@ -52,6 +53,7 @@ function warnAutocompleteScrollInfoPatchUnavailable(reason?: string): void {
 
 function shouldRenderScrollInfo(target: SelectListScrollInfoTarget): boolean {
     if (target.filteredItems.length === 0) return false;
+
     const startIndex = Math.max(
         0,
         Math.min(
@@ -111,6 +113,7 @@ export function installAutocompleteScrollInfoPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 

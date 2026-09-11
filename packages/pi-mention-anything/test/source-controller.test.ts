@@ -32,9 +32,11 @@ function deferred<T>(): Deferred<T> {
     let resolveDeferred = (_value: T): void => {
         throw new Error("deferred resolver was not initialized");
     };
+
     let rejectDeferred = (_cause?: Error): void => {
         throw new Error("deferred rejecter was not initialized");
     };
+
     const promise = new Promise<T>((resolve, reject) => {
         resolveDeferred = resolve;
         rejectDeferred = reject;
@@ -155,7 +157,6 @@ test("equivalent requests share work while each waiter owns cancellation", async
     firstSignal.abort();
     await firstRejection;
     assert.equal(providerSignal?.aborted, false);
-
     result.resolve({ items: [candidate("ready")] });
     assert.deepEqual(await second, { items: [candidate("ready")] });
     assert.equal(calls, 1);
@@ -212,11 +213,9 @@ test("equivalent exact resolutions share work and resolved paths expire with cac
     assert.deepEqual(await second, resolved);
     assert.deepEqual(await controller.resolve(["parent"]), resolved);
     assert.equal(calls, 1);
-
     clock = 100;
     assert.deepEqual(await controller.resolve(["parent"]), resolved);
     assert.equal(calls, 2);
-
     controller.invalidate();
     assert.deepEqual(await controller.resolve(["parent"]), resolved);
     assert.equal(calls, 3);
@@ -234,6 +233,7 @@ test("exact resolution cache is bounded and never retains unresolved results", a
             calls += 1;
             const segment = request.segments.at(0);
             if (segment === "missing") return { status: "unresolved", reason: "missing" };
+
             return { status: "resolved", path: [candidate(segment ?? "")] };
         },
     };
@@ -262,6 +262,7 @@ test("exact resolution cache is bounded and never retains unresolved results", a
     assert.equal(calls, 6);
     await controller.dispose();
 });
+
 test("local providers receive the enumerable limit before local filtering", async () => {
     const items = Array.from({ length: 101 }, (_unused, index) => {
         const item = candidate(String(index));
@@ -348,7 +349,6 @@ test("injected time deterministically drives TTL refresh and safe cache ages", a
     await Promise.resolve();
     assert.equal(calls, 2);
     assert.equal(controller.status().oldestCacheAgeMs, 100);
-
     refresh.resolve({ items: [candidate("new")] });
     await controller.refresh();
     assert.deepEqual(await controller.discover({ query: "x", path: [] }), {
@@ -357,10 +357,12 @@ test("injected time deterministically drives TTL refresh and safe cache ages", a
     assert.equal(controller.status().oldestCacheAgeMs, 0);
     await controller.dispose();
 });
+
 test("a newer query cancels unshared work in the same scope", async () => {
     let obsoleteSignal: AbortSignal | undefined;
     const provider = unresolvedProvider(async (request) => {
         if (request.query === "new") return Promise.resolve({ items: [candidate("new")] });
+
         obsoleteSignal = request.signal;
 
         return new Promise((_resolve, reject) => {
@@ -740,12 +742,14 @@ test("fresh same-key requests do not join aborted discovery or resolution work",
         async discover(request) {
             discoveryCalls += 1;
             if (discoveryCalls > 1) return freshDiscoveryResult.promise;
+
             oldDiscoverySignal = request.signal;
             return oldDiscoveryResult.promise;
         },
         async resolve(request) {
             resolutionCalls += 1;
             if (resolutionCalls > 1) return freshResolutionResult.promise;
+
             oldResolutionSignal = request.signal;
             return oldResolutionResult.promise;
         },
@@ -803,6 +807,7 @@ test("fresh same-key requests do not join aborted discovery or resolution work",
         status: "resolved",
         path: [candidate("fresh-resolution")],
     });
+
     assert.deepEqual(await freshResolution, {
         status: "resolved",
         path: [candidate("fresh-resolution")],
@@ -898,7 +903,6 @@ test("failed request and latest-scope tracking are bounded LRU entries with expi
 
     assert.equal(controller.status().failedRequestKeys, 2);
     assert.equal(controller.status().latestRequestScopes, 2);
-
     clock = 60_001;
     assert.equal(controller.status().failedRequestKeys, 0);
     assert.equal(controller.status().latestRequestScopes, 0);

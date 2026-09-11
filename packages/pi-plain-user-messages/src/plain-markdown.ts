@@ -237,12 +237,15 @@ export class PlainMarkdownText implements Component {
         if (defaultTextStyle.bold === true) {
             styled = markdownTheme.bold(styled);
         }
+
         if (defaultTextStyle.italic === true) {
             styled = markdownTheme.italic(styled);
         }
+
         if (defaultTextStyle.strikethrough === true) {
             styled = markdownTheme.strikethrough(styled);
         }
+
         if (defaultTextStyle.underline === true) {
             styled = markdownTheme.underline(styled);
         }

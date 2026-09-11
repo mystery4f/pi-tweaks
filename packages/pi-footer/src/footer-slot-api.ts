@@ -137,6 +137,7 @@ function emitFooterSlotUpdates(state: FooterSlotState): void {
     if (causes.length === 1) {
         throw causes[0];
     }
+
     if (causes.length > 1) {
         throw new AggregateError(causes, "Footer slot update listeners failed.");
     }

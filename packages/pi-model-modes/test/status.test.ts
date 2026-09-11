@@ -58,7 +58,6 @@ test("thinking level status patch restores its linked predecessor", async () => 
         },
     });
     restore();
-
     assert.equal(prototype.showStatus, original);
     prototype.showStatus("Thinking level: medium");
     assert.deepEqual(messages, ["Thinking level: medium"]);

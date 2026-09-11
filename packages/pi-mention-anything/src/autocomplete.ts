@@ -90,6 +90,7 @@ function itemDescription<T>(item: T, options: MentionAutocompleteOptions<T>): st
 
 function itemSearchText<T>(item: T, options: MentionAutocompleteOptions<T>): string {
     if (options.searchTextOf !== undefined) return options.searchTextOf(item);
+
     const description = itemDescription(item, options);
     if (description === undefined) return options.nameOf(item);
     return `${options.nameOf(item)} ${description}`;
@@ -112,6 +113,7 @@ function toAutocompleteItem<T>(item: T, options: MentionAutocompleteOptions<T>):
     };
     const description = itemDescription(item, options);
     if (description !== undefined) result.description = description;
+
     return result;
 }
 

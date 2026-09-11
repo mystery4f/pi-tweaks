@@ -56,14 +56,12 @@ export async function resolveSkillCandidate(
     signal?: AbortSignal,
 ): Promise<string> {
     signal?.throwIfAborted();
-
     const target = candidatePath.at(-1);
     if (target === undefined) throw new Error("Skill mention resolved without a target.");
+
     const expansionTarget: SkillExpansionTarget = candidateData(target);
     const expansion = await loadSkillExpansion(expansionTarget);
-
     signal?.throwIfAborted();
-
     return formatSkillBlock(expansion);
 }
 
@@ -74,7 +72,6 @@ export function createSkillProvider(
 ): Provider {
     const provider = createListProvider(async (request) => {
         request.signal.throwIfAborted();
-
         const commands = loadCommands();
         if (options.projectSkillsFirst) {
             commands.sort((left, right) => {
@@ -94,6 +91,7 @@ export function createSkillProvider(
         async resolve(request) {
             const resolution = await provider.resolve(request);
             if (resolution.status === "unresolved") return resolution;
+
             return {
                 ...resolution,
                 replacement: await resolveSkillCandidate(

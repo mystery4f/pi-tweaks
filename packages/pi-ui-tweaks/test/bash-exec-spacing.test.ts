@@ -47,7 +47,6 @@ test("bash exec prompt spacing handles empty and excluded bang prefixes", () => 
     assert.equal(applyBashExecPromptSpacing(empty, "!", { bashExecPromptSpacing: true }), true);
     assert.equal(empty.text, "! ");
     assert.equal(empty.renderRequests, 1);
-
     const excluded = new TestEditor("! ");
     assert.equal(applyBashExecPromptSpacing(excluded, "!", { bashExecPromptSpacing: true }), true);
     assert.equal(excluded.text, "!! ");

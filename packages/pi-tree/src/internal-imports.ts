@@ -35,6 +35,7 @@ export const treeSelectorRuntime = {
 
         const component = module.TreeSelectorComponent;
         if (!("prototype" in component)) return undefined;
+
         const prototype: unknown = component.prototype;
         if (
             !isObjectIdentity(prototype) ||
@@ -66,6 +67,7 @@ export const treeThemeRuntime = {
         ) {
             return undefined;
         }
+
         if (!isObjectIdentity(module.theme)) return undefined;
         // SAFETY: initTheme is callable and theme is an object. Its proxy-backed methods
         // cannot be read until initialization, so the caller validates them immediately after initTheme.

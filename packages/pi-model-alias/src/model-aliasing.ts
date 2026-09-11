@@ -76,6 +76,7 @@ export function applyAlias(model: ModelLike, alias: AliasConfig): ModelLike {
     if (alias.name !== undefined) {
         aliased.name = alias.name;
     }
+
     return aliased;
 }
 

@@ -101,6 +101,7 @@ export function cloneModeSpec(spec: ModeSpec): ModeSpec {
     if (spec.modelId !== undefined) cloned.modelId = spec.modelId;
     if (spec.thinkingLevel !== undefined) cloned.thinkingLevel = spec.thinkingLevel;
     if (spec.color !== undefined) cloned.color = spec.color;
+
     return cloned;
 }
 
@@ -110,6 +111,7 @@ export function cloneDefaultModelSpec(spec: DefaultModelSpec): DefaultModelSpec 
         modelId: spec.modelId,
     };
     if (spec.thinkingLevel !== undefined) cloned.thinkingLevel = spec.thinkingLevel;
+
     return cloned;
 }
 
@@ -127,6 +129,7 @@ export function cloneModesFile(file: ModesFile): ModesFile {
     if (file.defaultModel !== undefined) {
         cloned.defaultModel = cloneDefaultModelSpec(file.defaultModel);
     }
+
     return cloned;
 }
 
@@ -161,6 +164,7 @@ export function computeModesPatch(
     }
 
     const keys = new Set([...Object.keys(base.modes), ...Object.keys(next.modes)]);
+
     const modesPatch: Record<string, ModeSpecPatch | null> = {};
 
     for (const key of keys) {
@@ -180,12 +184,15 @@ export function computeModesPatch(
         if (before.provider !== after.provider) {
             diff.provider = after.provider ?? null;
         }
+
         if (before.modelId !== after.modelId) {
             diff.modelId = after.modelId ?? null;
         }
+
         if (before.thinkingLevel !== after.thinkingLevel) {
             diff.thinkingLevel = after.thinkingLevel ?? null;
         }
+
         if (before.color !== after.color) {
             diff.color = after.color ?? null;
         }

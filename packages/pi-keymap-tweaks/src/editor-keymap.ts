@@ -94,6 +94,7 @@ function hasEditorInternals(editor: EditorLike): editor is EditorLike & EditorIn
     ) {
         return false;
     }
+
     if (
         "pushUndoSnapshot" in editor &&
         editor.pushUndoSnapshot !== undefined &&
@@ -129,8 +130,8 @@ function isEditorLike(value: ReturnType<EditorFactory>): value is EditorLike {
 
 function moveToCodexLineStart(editor: EditorLike): void {
     if (!hasEditorInternals(editor)) return;
-    const state = editor.state;
 
+    const state = editor.state;
     editor.lastAction = null;
 
     if (state.cursorCol === 0 && state.cursorLine > 0) {
@@ -143,6 +144,7 @@ function moveToCodexLineStart(editor: EditorLike): void {
 
 function moveToCodexLineEnd(editor: EditorLike): void {
     if (!hasEditorInternals(editor)) return;
+
     const state = editor.state;
     const currentLine = state.lines[state.cursorLine] || "";
 
@@ -181,6 +183,7 @@ function deleteCurrentLine(
     notify: Notifier,
 ): void {
     if (!hasEditorInternals(editor)) return;
+
     const currentLine = editor.state.lines[editor.state.cursorLine] ?? "";
 
     if (editor.pushUndoSnapshot === undefined) return;

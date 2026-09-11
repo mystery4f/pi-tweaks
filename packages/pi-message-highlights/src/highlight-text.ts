@@ -139,6 +139,7 @@ function readEscapeSequence(text: string, start: number): string {
         const belIndex = text.indexOf(BEL, start + 2);
         const stIndex = text.indexOf(ST, start + 2);
         if (belIndex === -1 && stIndex === -1) return text.slice(start);
+
         if (belIndex !== -1 && (stIndex === -1 || belIndex < stIndex)) {
             return text.slice(start, belIndex + BEL.length);
         }
@@ -164,6 +165,7 @@ function parseSgrNumbers(sequence: string): number[] | undefined {
 
         const value = Number(param);
         if (!Number.isInteger(value)) return undefined;
+
         numbers.push(value);
     }
 
@@ -272,6 +274,7 @@ function trimMatchEnd(text: string, kind: "url" | "filepath"): string {
         const openingCount = result.split(opener).length - 1;
         const closingCount = result.split(last).length - 1;
         if (closingCount <= openingCount) break;
+
         result = result.slice(0, -1);
     }
 
@@ -285,6 +288,7 @@ function overlapsRange(ranges: readonly HighlightRange[], start: number, end: nu
 function addHighlightRange(ranges: HighlightRange[], range: HighlightRange): void {
     if (range.end <= range.start) return;
     if (overlapsRange(ranges, range.start, range.end)) return;
+
     ranges.push(range);
 }
 
@@ -337,6 +341,7 @@ export function collectHighlightRanges(
         const prefix = match.at(1) ?? "";
         const filepath = match.at(2);
         if (filepath === undefined) continue;
+
         const start = match.index + prefix.length;
         if (shouldSkipFilepathMatch(plainText, start, filepath)) continue;
         addRange(ranges, start, filepath, "filepath", styles.filepath);
@@ -414,6 +419,7 @@ function leadingSpaceLength(text: string): number {
     while (text[index] === " ") {
         index += 1;
     }
+
     return index;
 }
 
@@ -470,6 +476,7 @@ function buildJoinedLineVariants(contents: readonly LineContent[]): JoinedLineVa
         const previousContent = contents.at(index - 1);
         const content = contents.at(index);
         if (previousContent === undefined || content === undefined) continue;
+
         const joiners = getWrappedLineJoiners(previousContent.text, content.text);
         const nextVariants: JoinedLineVariant[] = [];
         for (const variant of variants) {
@@ -553,6 +560,7 @@ function addWrappedHighlightRanges(
         ) {
             const content = contents.at(endIndex);
             if (content === undefined || content.text.length === 0) break;
+
             windowContents.push(content);
 
             if (windowContents.length < 2) continue;
@@ -561,6 +569,7 @@ function addWrappedHighlightRanges(
                 const ranges = collectHighlightRanges(variant.text, styles);
                 for (const range of ranges) {
                     if (!rangeSpansMultipleChunks(range, variant.chunks)) continue;
+
                     const matchedText = variant.text.slice(range.start, range.end);
                     if (!isWrappedHighlightCandidate(matchedText)) continue;
                     addWrappedRangeToLines(lineRanges, range, variant);

@@ -39,6 +39,7 @@ const previewContentParser = {
     parse(content: unknown): PreviewContent {
         if (isString(content)) return { kind: "text", text: content };
         if (!Array.isArray(content)) return { kind: "empty" };
+
         return { kind: "blocks", blocks: content.filter(isTextContentBlock) };
     },
 };
@@ -79,12 +80,15 @@ export function getPreviewText(node: TreeNode | undefined): string {
             if (message?.role === "bashExecution") {
                 return normalizePreviewText(message.command ?? "");
             }
+
             if (message?.errorMessage !== undefined && message.errorMessage.length > 0) {
                 return normalizePreviewText(message.errorMessage);
             }
+
             if (message?.stopReason === "aborted") {
                 return "(aborted)";
             }
+
             if (message?.role === "toolResult") {
                 return `[${message.toolName ?? "tool"}]`;
             }

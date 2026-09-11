@@ -20,6 +20,7 @@ const selectionSchema = Type.Object(
     },
     { additionalProperties: false },
 );
+
 const selectionHistorySchema = Type.Object(
     {
         version: Type.Literal(HISTORY_VERSION),
@@ -80,12 +81,14 @@ export function createSelectionHistory(options: SelectionHistoryOptions): Select
 
     const reportError = (): void => {
         if (errorReported) return;
+
         errorReported = true;
         options.onError?.(options.errorMessage);
     };
 
     const ensureLoaded = async (): Promise<void> => {
         if (loadTask !== undefined) return loadTask;
+
         loadTask = fs
             .readFile(filePath, "utf8")
             .then((text) => {

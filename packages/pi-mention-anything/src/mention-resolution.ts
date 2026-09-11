@@ -38,6 +38,7 @@ export function createMentionSelections(): MentionSelections {
     let snapshots: MentionSnapshot[] = [];
     const reconcile = (text: string): void => {
         if (text === previousText) return;
+
         let prefix = 0;
         while (
             prefix < text.length &&
@@ -58,6 +59,7 @@ export function createMentionSelections(): MentionSelections {
         const delta = text.length - previousText.length;
         let changedText = text.slice(prefix, text.length - suffix);
         if (delta < 0) changedText = previousText.slice(prefix, oldEnd);
+
         const ambiguous = new Set(
             snapshots
                 .filter(
@@ -73,6 +75,7 @@ export function createMentionSelections(): MentionSelections {
             .flatMap((snapshot) => {
                 if (ambiguous.has(snapshot.text)) return [];
                 if (snapshot.end <= prefix) return [snapshot];
+
                 if (snapshot.start >= oldEnd)
                     return [
                         { ...snapshot, start: snapshot.start + delta, end: snapshot.end + delta },
@@ -83,6 +86,7 @@ export function createMentionSelections(): MentionSelections {
             .filter((snapshot) => {
                 if (text.slice(snapshot.start, snapshot.end) !== snapshot.text) return false;
                 if (!isTriggerBoundary(text, snapshot.start)) return false;
+
                 const adjacent = /^\S*/.exec(text.slice(snapshot.end))?.[0] ?? "";
                 return /^[.,;!?)}\]]*$/.test(adjacent);
             });
@@ -117,6 +121,7 @@ export function createMentionSelections(): MentionSelections {
 export function renderReplacementTemplate(template: string, path: readonly Candidate[]): string {
     const target = path.at(-1);
     if (target === undefined) throw new Error("Cannot render an empty mention target.");
+
     const fields = new Map<string, string>([
         ["id", target.id],
         ["label", target.label],
@@ -196,7 +201,6 @@ export async function expandMentionText(
                 options.signal?.throwIfAborted();
                 result += literal;
                 options.onUnresolved?.(source.id);
-
                 continue;
             }
         }
@@ -269,6 +273,7 @@ export function createMentionExpansion(): MentionExpansion {
             } = {},
         ): Promise<ContextEvent["messages"]> {
             if (processed.has(messages)) return messages;
+
             let changed = false;
             const activeKeys = new Set<string>();
             const expanded: ContextEvent["messages"] = [];

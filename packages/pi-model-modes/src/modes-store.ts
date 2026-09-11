@@ -32,6 +32,7 @@ const ModeSpecJsonSchema = Type.Object(
     },
     { additionalProperties: false },
 );
+
 const DefaultModelJsonSchema = Type.Object(
     {
         provider: Type.String({ minLength: 1 }),
@@ -126,6 +127,7 @@ function sanitizeModeSpec(spec: ModeSpecJson | undefined): ModeSpec {
     if (spec.provider !== undefined) sanitized.provider = spec.provider;
     if (spec.modelId !== undefined) sanitized.modelId = spec.modelId;
     if (spec.color !== undefined) sanitized.color = parseModeColor(spec.color);
+
     return sanitized;
 }
 
@@ -140,6 +142,7 @@ function sanitizeDefaultModelSpec(
     };
     const thinkingLevel = normalizeThinkingLevel(spec.thinkingLevel);
     if (thinkingLevel !== undefined) sanitized.thinkingLevel = thinkingLevel;
+
     return sanitized;
 }
 
@@ -323,6 +326,7 @@ export class ModesStore {
             const raw = await fs.readFile(filePath, "utf8");
             const parsedJson: unknown = JSON.parse(raw);
             const parsed = modesFileJsonDecoder.parse(parsedJson);
+
             const modes: Record<string, ModeSpec> = {};
             for (const [key, value] of Object.entries(parsed.modes ?? {})) {
                 modes[key] = sanitizeModeSpec(value);

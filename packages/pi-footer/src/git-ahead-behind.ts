@@ -78,11 +78,8 @@ async function loadGitAheadBehind(
 ): Promise<GitAheadBehind | undefined> {
     try {
         options.signal.throwIfAborted();
-
         const output = await runGitAheadBehindQuery(cwd, options);
-
         options.signal.throwIfAborted();
-
         return parseGitAheadBehind(output);
     } catch (cause: unknown) {
         if (options.signal.aborted || isAbortCause(cause)) {
@@ -120,7 +117,6 @@ class GitAheadBehindTracker implements GitAheadBehindSource {
         this.requestRender = requestRender;
         this.query = options.query ?? loadGitAheadBehind;
         this.refreshIntervalMs = options.refreshIntervalMs ?? GIT_AHEAD_BEHIND_REFRESH_INTERVAL_MS;
-
         this.refresh();
 
         if (this.refreshIntervalMs > 0) {
@@ -146,6 +142,7 @@ class GitAheadBehindTracker implements GitAheadBehindSource {
 
     dispose(): void {
         if (this.disposed) return;
+
         this.disposed = true;
         this.abortController.abort();
 
@@ -186,6 +183,7 @@ class GitAheadBehindTracker implements GitAheadBehindSource {
 
     private setGitAheadBehind(nextStatus: GitAheadBehind | undefined): void {
         if (gitAheadBehindEqual(this.gitAheadBehind, nextStatus)) return;
+
         this.gitAheadBehind = nextStatus;
         this.requestRender();
     }

@@ -20,6 +20,7 @@ export default function (pi: Pick<ExtensionAPI, "on">): void {
                     replacementTemplate: mention.replacementTemplate,
                 };
                 if (mention.source.type === "static") return { ...base, cache: true };
+
                 const source = mention.source;
                 const configurationKey = createHash("sha256")
                     .update(JSON.stringify(mention))

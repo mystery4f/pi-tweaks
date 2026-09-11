@@ -99,12 +99,10 @@ test("loadModelFilterSettings falls back for missing and malformed config files"
         exclude: [],
     });
     assert.match(await readFile(schemaPath, "utf8"), /Pi Model Filter settings/);
-
     await writeFile(schemaPath, "stale schema", "utf8");
     state.configCache = undefined;
     modelFilter.loadModelFilterSettings(state);
     assert.match(await readFile(schemaPath, "utf8"), /Pi Model Filter settings/);
-
     await writeFile(configPath, "{ not json", "utf8");
     state.configCache = undefined;
     const malformed = modelFilter.loadModelFilterSettings(state);
@@ -137,10 +135,8 @@ test("loadModelFilterSettings reuses an unchanged config without reloading setti
 
     await writeFile(schemaPath, "stale after scaffold", "utf8");
     const loadedAgain = modelFilter.loadModelFilterSettings(state);
-
     assert.equal(loadedAgain, loaded);
     assert.equal(await readFile(schemaPath, "utf8"), "stale after scaffold");
-
     state.configCache = undefined;
     modelFilter.loadModelFilterSettings(state);
     assert.match(await readFile(schemaPath, "utf8"), /Pi Model Filter settings/);
@@ -224,7 +220,6 @@ test("registry patch filters list and lookup results and remains idempotent", ()
     );
     assert.equal(registry.find("openai", "gpt-5-mini"), undefined);
     assert.deepEqual(registry.find("openai", "gpt-5"), models[0]);
-
     loaded = loadedConfig([], []);
     assert.deepEqual(
         registry.getAll().map((model) => model.id),
@@ -276,7 +271,6 @@ test("model runtime patch filters synchronous and asynchronous model views", asy
     );
     assert.equal(runtime.getModel("openai", "gpt-5-mini"), undefined);
     assert.deepEqual(runtime.getModel("openai", "gpt-5"), models[0]);
-
     loaded = loadedConfig([], []);
     assert.deepEqual(
         (await runtime.getAvailable()).map((model) => model.id),

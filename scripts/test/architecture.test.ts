@@ -25,6 +25,7 @@ function fixture(): string {
             include: ["packages/**/*.ts", "packages/**/*.js"],
         }),
     );
+
     write(
         root,
         "package.json",
@@ -46,6 +47,7 @@ function fixture(): string {
                 pi: { extensions: ["./src/index.ts"] },
             }),
         );
+
         write(root, `packages/${name}/src/index.ts`, "export default function extension() {}\n");
         write(root, `packages/${name}/src/api.ts`, "export const value = 1;\n");
     }
@@ -71,6 +73,7 @@ function settings(root: string, source: string): void {
             },
         }),
     );
+
     write(root, "packages/a/src/schema-input.ts", source);
 }
 
@@ -94,10 +97,12 @@ test("discovers workspaces while preserving the root extension load order", () =
         "@test/b",
         "@test/library",
     ]);
+
     expect(inventory.extensions.map((extension) => extension.workspace.manifest.name)).toEqual([
         "@test/b",
         "@test/a",
     ]);
+
     expect(checkArchitecture(inventory)).toEqual([]);
 });
 
@@ -136,6 +141,7 @@ test("allows published imports and host peers but rejects hidden workspace subpa
             'import { hidden } from "@test/b/src/api.ts";',
         ].join("\n"),
     );
+
     expect(checkArchitecture(loadWorkspacePackages(root))).toEqual([
         expect.stringContaining("@test/b/src/api.ts is not a published export"),
     ]);
@@ -174,6 +180,7 @@ test("workspace runtime dependencies cannot be supplied only as peers", () => {
             pi: { extensions: ["./src/index.ts"] },
         }),
     );
+
     write(root, "packages/a/src/index.ts", 'import "@test/b/api";');
     expect(checkArchitecture(loadWorkspacePackages(root))).toEqual([
         expect.stringContaining("Workspace runtime dependency @test/b must be in dependencies"),
@@ -191,6 +198,7 @@ test("settings may depend on pure leaves, schema libraries, and erased host type
             'import { type Model } from "@earendil-works/pi-ai";',
         ].join("\n"),
     );
+
     write(root, "packages/a/src/thinking-levels.ts", 'export const levels = ["off", "high"];');
     expect(checkArchitecture(loadWorkspacePackages(root))).toEqual([]);
 });

@@ -19,6 +19,7 @@ function isCodingAgentPackageDirectory(directory: string): boolean {
 
 function findEntrypointPackageDirectory(): string | undefined {
     if (process.env.PI_CODING_AGENT !== "true") return undefined;
+
     const entrypoint = process.argv.at(1);
     if (entrypoint === undefined || entrypoint.length === 0) return undefined;
 
@@ -33,6 +34,7 @@ function findEntrypointPackageDirectory(): string | undefined {
 
         const parent = dirname(directory);
         if (parent === directory) return undefined;
+
         directory = parent;
     }
 }
@@ -48,6 +50,7 @@ const ENTRYPOINT_IMPORT_PATTERN = /(?:\bfrom\s*|(?:^|;)\s*import\s*)["'](\.\/[^"
 
 function resolvePiEntrypointModuleUrls(): string[] {
     if (process.env.PI_CODING_AGENT !== "true") return [];
+
     const entrypoint = process.argv.at(1);
     if (entrypoint === undefined || entrypoint.length === 0 || !existsSync(entrypoint)) return [];
 
@@ -67,6 +70,7 @@ function resolvePiEntrypointModuleUrls(): string[] {
     for (const match of source.matchAll(ENTRYPOINT_IMPORT_PATTERN)) {
         const specifier = match.at(1);
         if (specifier === undefined) continue;
+
         const modulePath = resolve(dirname(entrypointPath), specifier);
         const moduleWithinPackage = relative(packageDirectory, modulePath);
         if (
@@ -135,6 +139,7 @@ export async function loadPiInternalModule<T>(
     try {
         const parsed = await parseImportedModule(resolvePiInternalModuleUrl(relativePath), options);
         if (parsed !== undefined) return parsed;
+
         warnPiInternalPatchUnavailable(options.scope, options.feature);
 
         return undefined;
@@ -160,6 +165,7 @@ export async function loadPiRuntimeModule<T>(
             options,
         );
         if (fallback !== undefined) return fallback;
+
         warnPiInternalPatchUnavailable(options.scope, options.feature);
 
         return undefined;

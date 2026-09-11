@@ -230,10 +230,8 @@ test("footer and anchor patches record child line ranges during one render frame
         tui.addChild(editorContainer);
         tui.addChild(markFooterComponent(footer, "live"));
         tui.setFocus(editor);
-
         assert.equal(Object.hasOwn(message, "render"), false);
         tui.render(30);
-
         assert.equal(message.renderCount, 1);
         assert.equal(status.renderCount, 1);
         assert.equal(spacer.renderCount, 1);
@@ -281,7 +279,6 @@ test("footer shrink padding keeps the final chat row attached when anchor compac
             .slice(tuiInternals.previousViewportTop)
             .map(stripTestAnsi);
         const finalChatRowIndex = visibleLines.indexOf("USER MESSAGE BOTTOM");
-
         assert.notEqual(finalChatRowIndex, -1);
         assert.equal(visibleLines[finalChatRowIndex - 1], "chat 15");
     } finally {
@@ -312,7 +309,6 @@ test("footer shrink padding preserves visible tail without native clear", () => 
     );
     const lineBeforeFooter = stripTestAnsi(tuiInternals.previousLines.at(-2) ?? "");
     const footerLine = stripTestAnsi(tuiInternals.previousLines.at(-1) ?? "");
-
     assert.equal(tuiInternals.previousLines.length, 25);
     assert.equal(visibleTopLine, "line 04");
     assert.equal(lineBeforeFooter, "line 12");
@@ -369,7 +365,6 @@ test("footer shrink padding yields to full redraw for distant content rebuilds",
     const output = terminal.writes.join("");
     const firstLine = stripTestAnsi(tuiInternals.previousLines[0] ?? "");
     const footerLine = stripTestAnsi(tuiInternals.previousLines.at(-1) ?? "");
-
     assert.equal(tuiInternals.previousLines.length, 9);
     assert.equal(firstLine, "new 00");
     assert.equal(footerLine.includes("FOOTER"), true);
@@ -480,7 +475,6 @@ test("footer shrink padding keeps working loader attached to editor", () => {
         .map(stripTestAnsi);
     const workingIndex = visibleLines.indexOf("⠴ Working... (40s)");
     const editorTopIndex = visibleLines.indexOf("EDITOR TOP");
-
     assert.equal(tuiInternals.previousLines.length, 30);
     assert.notEqual(workingIndex, -1);
     assert.notEqual(editorTopIndex, -1);
@@ -529,7 +523,6 @@ test("footer shrink padding keeps worked-for widget attached to editor", () => {
         .map(stripTestAnsi);
     const workedIndex = visibleLines.indexOf("Worked for 4m 34s. [57 tok/s]");
     const editorTopIndex = visibleLines.indexOf("EDITOR TOP");
-
     assert.equal(tuiInternals.previousLines.length, 30);
     assert.notEqual(workedIndex, -1);
     assert.notEqual(editorTopIndex, -1);

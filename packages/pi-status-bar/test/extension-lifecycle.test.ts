@@ -151,6 +151,7 @@ function createHarness(): LifecycleHarness {
 
 function renderedWidgetText(widget: WidgetFactory | undefined): string {
     if (widget === undefined) throw new Error("Expected widget factory");
+
     const component = widget(new RenderCountingTui(), { fg: (_role, text) => text });
     return component.render(80)[0] ?? "";
 }
@@ -190,10 +191,8 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
         message: { role: "assistant", usage: { output: 200 } },
     });
     assert.equal(harness.hasHandler("agent_end"), false);
-
     assert.deepEqual(harness.appendEntries, []);
     assert.equal(harness.currentWidget(), undefined);
-
     await harness.invoke("agent_start");
     await harness.invoke("message_start", { message: { role: "assistant" } });
     await harness.invoke("message_update", {
@@ -208,12 +207,10 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
     harness.setIdle(false);
     await harness.invoke("agent_settled");
     assert.deepEqual(harness.appendEntries, []);
-
     harness.setIdle(true);
     await harness.invoke("agent_settled");
     assert.deepEqual(harness.appendEntries, [{ durationMs: 9_200, tokensPerSecond: 100 }]);
     assert.equal(renderedWidgetText(harness.currentWidget()), " Worked for 9s. [100.0 tok/s]");
-
     await harness.invoke("agent_start");
     await harness.invoke("message_start", { message: { role: "user" } });
     await harness.invoke("message_start", { message: { role: "assistant" } });
@@ -243,7 +240,6 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
         tokensPerSecond: 25,
     });
     assert.equal(renderedWidgetText(harness.currentWidget()), " Worked for 3s. [25.0 tok/s]");
-
     await harness.invoke("agent_start");
     await harness.invoke("message_start", { message: { role: "user" } });
     await harness.invoke("message_start", { message: { role: "assistant" } });
@@ -258,7 +254,6 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
         tokensPerSecond: undefined,
     });
     assert.equal(renderedWidgetText(harness.currentWidget()), " Worked for 1s.");
-
     await harness.invoke("session_tree");
     assert.equal(renderedWidgetText(harness.currentWidget()), " Worked for 1s.");
     const prototype = parseLoaderPrototypeOwner(Loader.prototype);
@@ -275,7 +270,6 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
     await harness.invoke("session_shutdown");
     assert.equal(harness.currentWidget(), undefined);
     assert.equal(prototype.updateDisplay, laterUpdateDisplay);
-
     const ui = new RenderCountingTui();
     const concurrentLoader = new Loader(
         ui,
@@ -290,11 +284,13 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
         concurrentLoader.render(80).map((line) => line.trimEnd()),
         ["", " ⠙ Working... (0s)"],
     );
+
     vi.advanceTimersByTime(1_100);
     assert.deepEqual(
         concurrentLoader.render(80).map((line) => line.trimEnd()),
         ["", " ⠙ Working... (1s)"],
     );
+
     concurrentLoader.stop();
 
     await concurrentHarness.invoke("session_shutdown");
@@ -311,6 +307,7 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
         unpatchedLoader.render(80).map((line) => line.trimEnd()),
         ["", " ⠙ Working..."],
     );
+
     unpatchedLoader.stop();
     assert.ok(ui.renderRequests >= 3);
     vi.useRealTimers();

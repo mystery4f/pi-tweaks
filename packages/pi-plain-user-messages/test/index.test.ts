@@ -68,7 +68,6 @@ test("renders Markdown heading syntax literally in user messages", async () => {
     try {
         await plainUserMessagesExtension(lifecycle.api);
         const message = new UserMessageComponent("# test 1");
-
         assert.ok(message.render(80).some((line) => line.includes("# test 1")));
     } finally {
         for (const handler of lifecycle.shutdownHandlers) handler();

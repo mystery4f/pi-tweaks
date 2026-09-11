@@ -62,8 +62,10 @@ function parseMessageComponent(
     exportName: "AssistantMessageComponent" | "UserMessageComponent",
 ): RenderablePrototype | undefined {
     if (!isObjectIdentity(module)) return undefined;
+
     const descriptor = Object.getOwnPropertyDescriptor(module, exportName);
     if (!isUnknownModuleDescriptor(descriptor)) return undefined;
+
     const component = descriptor.value;
     if (
         !isObjectIdentity(component) ||
@@ -86,6 +88,7 @@ const themeParser = {
         // Pi exports its theme as a proxy whose properties throw until startup initializes it.
         // Validate the stable proxy boundary now, then resolve methods lazily during rendering.
         if (!isObjectIdentity(module) || !("theme" in module)) return undefined;
+
         const theme = module.theme;
         if (!isObjectIdentity(theme)) return undefined;
 
@@ -195,6 +198,7 @@ export async function loadMessageHighlightTargets(): Promise<MessageHighlightTar
     const editorPrototype = getEditorPrototype();
 
     if (assistantPrototype === undefined || userPrototype === undefined) return undefined;
+
     return { theme, assistantPrototype, userPrototype, editorPrototype };
 }
 

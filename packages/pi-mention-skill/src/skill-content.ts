@@ -25,6 +25,7 @@ export function stripFrontmatter(content: string): string {
     if (content[afterMarker] === "\r" && content[afterMarker + 1] === "\n") {
         return content.slice(afterMarker + 2);
     }
+
     if (content[afterMarker] === "\n") {
         return content.slice(afterMarker + 1);
     }

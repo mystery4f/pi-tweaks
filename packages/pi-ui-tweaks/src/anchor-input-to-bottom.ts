@@ -122,6 +122,7 @@ function getFocusedTopLevelChildIndex(tui: PatchableTuiInstance): number | undef
 function getBottomChromeStartChildIndex(tui: PatchableTuiInstance): number | undefined {
     const focusedIndex = getFocusedTopLevelChildIndex(tui);
     if (focusedIndex === undefined) return undefined;
+
     if (focusedIndex >= BOTTOM_CHROME_PRECEDING_SIBLINGS) {
         return focusedIndex - BOTTOM_CHROME_PRECEDING_SIBLINGS;
     }
@@ -222,6 +223,7 @@ function getRangeForChild(
 function hasVisibleLine(lines: readonly string[], start: number, end: number): boolean {
     for (let index = start; index < end; index += 1) {
         if (index < 0) continue;
+
         const line = lines.at(index);
         if (line !== undefined && line.trim().length > 0) return true;
     }
@@ -236,6 +238,7 @@ function findComponentPath(
 ): Component[] | undefined {
     if (root === target) return [root];
     if (visited.has(root)) return undefined;
+
     visited.add(root);
 
     if (!isComponentContainer(root)) return undefined;
@@ -296,6 +299,7 @@ function temporarilyCompactBlankComponent(
     ): string[] {
         const lines = originalRender.call(this, width);
         if (lines.length === 0 || hasVisibleLine(lines, 0, lines.length)) return lines;
+
         return [];
     };
 
@@ -339,6 +343,7 @@ function compactBottomChromeSpacing(
     if (gapIndex < 0 || gapLine === undefined || gapLine.trim().length > 0) {
         return { lines: [...lines], bottomChromeStartLine: bottomChromeStartRange.start };
     }
+
     if (!hasVisibleLine(lines, bottomChromeStartRange.start, gapIndex)) {
         return { lines: [...lines], bottomChromeStartLine: bottomChromeStartRange.start };
     }
@@ -388,6 +393,7 @@ function appendBlankRows(result: string[], count: number): void {
 function getTerminalRows(tui: PatchableTuiInstance): number | undefined {
     const rows = tui.terminal?.rows;
     if (rows === undefined || !Number.isFinite(rows)) return undefined;
+
     const roundedRows = Math.floor(rows);
     if (roundedRows <= 0) return undefined;
     return roundedRows;
@@ -415,6 +421,7 @@ function anchorInputToBottomLines(
         compacted.bottomChromeStartLine,
         blankRowCount,
     );
+
     if (blankRowCount === 0) return compacted.lines;
 
     const bottomChromeStartLine = Math.min(compacted.lines.length, compacted.bottomChromeStartLine);
@@ -490,6 +497,7 @@ function installMainAnchorInputToBottomPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 
@@ -544,6 +552,7 @@ function installFullscreenAnchorInputToBottomPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 
@@ -569,17 +578,20 @@ export function installAnchorInputToBottomPatch(
 ): AnchorInputToBottomHandle {
     const main = installMainAnchorInputToBottomPatch(config, prototype ?? TuiMainScreen.prototype);
     if (prototype !== undefined) return main;
+
     const fullscreen = installFullscreenAnchorInputToBottomPatch(config);
     let disposed = false;
 
     return {
         update(next): void {
             if (disposed) return;
+
             main.update(next);
             fullscreen.update(next);
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             fullscreen.dispose();
             main.dispose();

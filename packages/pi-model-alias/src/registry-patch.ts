@@ -89,6 +89,7 @@ export function installRegistryPatch(registry: PatchedModelRegistry, state: Regi
 
         const model = finder?.call(this, provider, modelId);
         if (model === undefined) return undefined;
+
         const modelAlias = getAliasForModel(model, settings);
         if (modelAlias === undefined) return model;
         return applyAlias(model, modelAlias);

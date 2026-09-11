@@ -40,7 +40,6 @@ test("loads fresh candidates for each autocomplete request and reports the selec
     const item = suggestions?.items[0];
     if (item === undefined) assert.fail("expected a mention suggestion");
     provider.applyCompletion(["%prod"], 0, 5, item, "%prod");
-
     assert.equal(loads, 2);
     assert.deepEqual(selected, { name: "production", replacement: "version-2" });
 });

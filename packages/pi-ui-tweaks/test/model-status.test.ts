@@ -32,6 +32,7 @@ test("explicit null does not patch Pi's default model status", async () => {
             Object.getOwnPropertyDescriptor(InteractiveMode.prototype, "showStatus"),
             original,
         );
+
         handle.dispose();
     });
 
@@ -48,7 +49,6 @@ test("model-change status suppression updates without stacking", () => {
     assert.equal(target.showStatus, patched);
     target.showStatus("Model: deepseek-v4-flash");
     assert.deepEqual(target.statuses, ["Model: deepseek-v4-flash"]);
-
     handle.update({ hideModelChangeStatus: true });
     target.showStatus("Model: gpt-5");
     assert.deepEqual(target.statuses, ["Model: deepseek-v4-flash"]);

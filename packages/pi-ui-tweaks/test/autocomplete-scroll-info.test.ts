@@ -25,10 +25,8 @@ function createList(): SelectList {
 test("autocomplete scroll info hides and restores the count footer", () => {
     const handle = installAutocompleteScrollInfoPatch({ hideAutocompleteScrollInfo: true });
     assert.deepEqual(createList().render(80), ["→ settings", "  model"]);
-
     handle.update({ hideAutocompleteScrollInfo: false });
     assert.deepEqual(createList().render(80), ["→ settings", "  model", "count:  (1/3)"]);
-
     handle.dispose();
     assert.deepEqual(createList().render(80), ["→ settings", "  model", "count:  (1/3)"]);
 });

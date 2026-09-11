@@ -43,6 +43,7 @@ export const assistantMessageRuntime = {
 
         const component = module.AssistantMessageComponent;
         if (typeof component !== "function" || !("prototype" in component)) return undefined;
+
         const prototype: unknown = component.prototype;
         if (
             !isObjectIdentity(prototype) ||

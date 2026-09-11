@@ -15,6 +15,7 @@ export default function (pi: ExtensionAPI): void {
                 const parent = request.path.at(-1);
                 const level = request.path.length;
                 if (level > 2) return [];
+
                 let args: string[];
                 if (level === 0) args = ["list-sessions", "-F", "#{session_id}\t#{session_name}"];
                 else if (level === 1 && parent !== undefined)
@@ -68,6 +69,7 @@ export default function (pi: ExtensionAPI): void {
 
                         let description = id;
                         if (command !== undefined) description = `${id} ${command}`;
+
                         const candidate: Candidate = {
                             id,
                             label: segment,
@@ -77,6 +79,7 @@ export default function (pi: ExtensionAPI): void {
                             navigable: level < 2,
                         };
                         if (level !== 2) return candidate;
+
                         return {
                             ...candidate,
                             replacement: `tmux pane ${id} in session ${request.path[0]?.segment}, window ${parent?.segment} (window ID ${parent?.id})`,

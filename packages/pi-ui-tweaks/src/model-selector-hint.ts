@@ -42,6 +42,7 @@ function hasAddChild(target: AddChildView): target is ModelSelectorAddChildTarge
 function warnModelSelectorHintPatchUnavailable(reason?: string): void {
     let suffix = "";
     if (reason !== undefined) suffix = `: ${reason}`;
+
     console.warn(
         `[pi-ui-tweaks] model picker hint patch unavailable; Pi internals may have changed${suffix}`,
     );
@@ -53,6 +54,7 @@ function isObject(value: unknown): value is object {
 
 function isSingleLineSpacer(component: ComponentLike): boolean {
     if (!("lines" in component) || component.lines !== 1) return false;
+
     const constructorValue = component.constructor;
     if (!isObject(constructorValue)) return false;
     return "name" in constructorValue && constructorValue.name === "Spacer";
@@ -124,6 +126,7 @@ export function installModelSelectorHintPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 

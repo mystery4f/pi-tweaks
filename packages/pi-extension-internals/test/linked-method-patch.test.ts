@@ -165,6 +165,7 @@ describe("linked method patches", () => {
         expect(() => installLinkedRenderPatch(Renderer.prototype, () => frozenRender)).toThrow(
             "non-extensible",
         );
+
         expect(new Renderer().render(6)).toEqual(["base:6"]);
     });
 
@@ -191,6 +192,7 @@ describe("linked method patches", () => {
         ).toThrow("Unable to patch method render");
 
         if (transformed === undefined) throw new Error("Expected the transform to run");
+
         expect(Object.hasOwn(transformed, LINKED_PATCH_PREDECESSOR)).toBe(false);
         expect(Object.hasOwn(transformed, LINKED_PATCH_PREDECESSOR_DESCRIPTOR)).toBe(false);
         expect(Object.hasOwn(transformed, LINKED_PATCH_PROTOCOL)).toBe(false);
@@ -222,11 +224,13 @@ describe("linked method patches", () => {
         ).toThrow("setter failed");
 
         if (transformed === undefined) throw new Error("Expected the transform to run");
+
         expect(Object.hasOwn(transformed, LINKED_PATCH_PREDECESSOR)).toBe(false);
         expect(Object.hasOwn(transformed, LINKED_PATCH_PREDECESSOR_DESCRIPTOR)).toBe(false);
         expect(Object.hasOwn(transformed, LINKED_PATCH_PROTOCOL)).toBe(false);
         expect(target.render).toBe(original);
     });
+
     test("rejects incompatible keyed patch records before changing the method", () => {
         const marker = patchKey("incompatible-keyed");
         Reflect.defineProperty(Renderer.prototype, marker, {
@@ -248,6 +252,7 @@ describe("linked method patches", () => {
                     (predecessor) => predecessor,
                 ),
             ).toThrow("Unsupported keyed method patch protocol version 2");
+
             expect(new Renderer().render(6)).toEqual(["base:6"]);
         } finally {
             Reflect.deleteProperty(Renderer.prototype, marker);
@@ -287,6 +292,7 @@ describe("linked method patches", () => {
                 appendRender("unreachable"),
             ),
         ).toThrow(message);
+
         expect(target.render(7)).toEqual(["base:7"]);
     });
 
@@ -296,6 +302,7 @@ describe("linked method patches", () => {
         expect(() => installLinkedRenderPatch(target, appendRender("unreachable"))).toThrow(
             "non-function property render",
         );
+
         expect(Object.getOwnPropertyDescriptor(target, "render")?.value).toBe(42);
     });
 
@@ -320,9 +327,11 @@ describe("linked method patches", () => {
             configurable: true,
             value: 2,
         });
+
         expect(() => new Renderer().render(3)).toThrow(
             "Unsupported linked method patch protocol version 2",
         );
+
         expect(() => first.dispose()).toThrow("Unsupported linked method patch protocol version 2");
 
         Reflect.deleteProperty(first.patched, LINKED_PATCH_PROTOCOL);

@@ -16,7 +16,6 @@ test("registers the mode selector without taking Ctrl+K", () => {
     const selectMode: ShortcutOptions["handler"] = () => {};
 
     registerModeSelectorShortcuts(registrar, selectMode);
-
     assert.equal(shortcuts.has("ctrl+k"), false);
     assert.equal(shortcuts.get("ctrl+shift+m")?.description, "Select prompt mode");
     assert.equal(shortcuts.get("ctrl+shift+m")?.handler, selectMode);

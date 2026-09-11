@@ -32,6 +32,7 @@ test("explicit null does not patch Pi's default select-list prototype", async ()
             Object.getOwnPropertyDescriptor(SelectList.prototype, "render"),
             originalRender,
         );
+
         handle.dispose();
     });
 

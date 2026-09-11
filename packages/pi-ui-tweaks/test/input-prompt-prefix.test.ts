@@ -13,10 +13,8 @@ test("input prompt prefix updates and disposes the single-line marker", () => {
     const original = prototype.render;
     const handle = installInputPromptPrefixPatch({ inputPromptPrefix: "❯" });
     assert.equal((new Input().render(10)[0] ?? "").startsWith("❯ \u001b[7m"), true);
-
     handle.update({ inputPromptPrefix: "> " });
     assert.equal((new Input().render(10)[0] ?? "").startsWith("> \u001b[7m"), true);
-
     handle.dispose();
     assert.equal(prototype.render, original);
 });

@@ -138,12 +138,15 @@ function parseUrlColorSetting(setting: UrlColorSetting): HighlightColor {
     if (isAnsiColorSetting(setting)) {
         return { kind: "ansi256", color: setting };
     }
+
     if (setting === "") {
         return { kind: "none" };
     }
+
     if (isHexColor(setting)) {
         return { kind: "hex", color: setting };
     }
+
     if (isThemeForegroundColor(setting)) {
         return { kind: "theme", color: setting };
     }
@@ -155,6 +158,7 @@ function buildMessageHighlightsConfig(
     settings: MessageHighlightsSettings,
 ): MessageHighlightsConfig {
     if (settings.urlColor === undefined) return DEFAULT_MESSAGE_HIGHLIGHTS_CONFIG;
+
     return {
         urlColor: parseUrlColorSetting(settings.urlColor),
     };
@@ -199,6 +203,7 @@ export function loadMessageHighlightsSettings(
             settings: settings.globalSettingsLayer,
         });
     }
+
     if (settings.projectSettingsLayer !== undefined && settings.projectConfigPath !== undefined) {
         settingsSources.push({
             label: settings.projectConfigPath,

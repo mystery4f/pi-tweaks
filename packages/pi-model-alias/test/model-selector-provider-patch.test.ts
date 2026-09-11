@@ -88,9 +88,7 @@ test("model selector provider patch uses the latest runtime state after reinstal
     target.filteredModels = [];
     target.selectedIndex = 0;
     target.scope = "all";
-
     target.loadModelsFromSnapshot();
-
     assert.equal(target.allModels[0]?.provider, "New Provider");
     assert.equal(target.filteredModels[0]?.provider, "New Provider");
 });
@@ -109,9 +107,7 @@ test("scoped models provider patch uses the latest runtime state after reinstall
     const target: ScopedModelsPrototype = { ...prototype };
     target.filteredItems = [scopedItem()];
     target.selectedIndex = 0;
-
     target.updateList();
-
     assert.deepEqual(renderedProviders, ["New Provider"]);
     assert.equal(target.filteredItems[0]?.model.provider, "openai");
 });
@@ -145,9 +141,7 @@ test("provider alias UI patch waits for scoped selector patch installation", asy
         Promise.resolve("pending" as const),
     ]);
     assert.equal(pendingResult, "pending");
-
     assert.notEqual(finishScopedInstall, undefined);
-
     if (finishScopedInstall === undefined) assert.fail("expected scoped install finisher");
     finishScopedInstall();
 

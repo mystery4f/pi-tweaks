@@ -21,6 +21,7 @@ export type ProjectDirectoryLoadOptions = {
 
 function expandHome(root: string): string {
     if (root === "~") return os.homedir();
+
     if (root.startsWith("~/") || root.startsWith("~\\")) {
         return path.join(os.homedir(), root.slice(2));
     }
@@ -119,6 +120,7 @@ async function listRootProjectDirectories(
     for (const entry of entries) {
         if (isAborted(options)) break;
         if (!(await directoryEntryMatchesSettings(root, entry, settings, options))) continue;
+
         const projectPath = path.join(root, entry.name);
         projects.push({ name: entry.name, path: projectPath, root });
     }
@@ -151,6 +153,7 @@ export async function listProjectDirectories(
     const projects: ProjectDirectory[] = [];
     for (const root of uniqueResolvedRoots(settings.roots, cwd)) {
         if (isAborted(options)) break;
+
         projects.push(...(await listRootProjectDirectories(root, settings, options)));
     }
 

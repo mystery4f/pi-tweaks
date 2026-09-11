@@ -72,6 +72,7 @@ function isGlobalSymbol(value: unknown): value is symbol {
 function hasOwnFunctionProperty(target: object, key: PropertyKey): boolean {
     const descriptor = Object.getOwnPropertyDescriptor(target, key);
     if (descriptor === undefined || !Object.hasOwn(descriptor, "value")) return false;
+
     const value: unknown = descriptor.value;
     return typeof value === "function";
 }
@@ -96,6 +97,7 @@ function readRegistry<Args extends readonly unknown[], Editor>(
 ): EditorEnhancerRegistry<Args, Editor> | undefined {
     const recordValue = getOwnDataDescriptor(ui, EDITOR_ENHANCER_REGISTRY)?.value;
     if (recordValue === undefined) return undefined;
+
     if (!isNonNullObject(recordValue)) {
         throw new TypeError("Incompatible editor enhancer registry");
     }
@@ -215,6 +217,7 @@ export function registerEditorEnhancer<Args extends readonly unknown[], Editor>(
                 for (const entry of enhancers.values()) {
                     editor = entry.enhancer(editor, ...args);
                 }
+
                 return editor;
             },
         };
@@ -272,7 +275,6 @@ export function registerEditorEnhancer<Args extends readonly unknown[], Editor>(
 
             const previousEnhancer = entry.enhancer;
             const previousBase = registry.baseFactory;
-
             entry.enhancer = nextEnhancer;
 
             try {
@@ -319,6 +321,7 @@ export function registerEditorEnhancer<Args extends readonly unknown[], Editor>(
             if (isCurrentSharedFactory(ctx.ui.getEditorComponent(), registry)) {
                 ctx.ui.setEditorComponent(registry.baseFactory);
             }
+
             if (
                 getOwnDataDescriptor(ctx.ui, EDITOR_ENHANCER_REGISTRY)?.value === registry &&
                 !Reflect.deleteProperty(ctx.ui, EDITOR_ENHANCER_REGISTRY)

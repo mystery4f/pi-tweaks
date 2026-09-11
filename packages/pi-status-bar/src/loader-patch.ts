@@ -95,6 +95,7 @@ function isLoaderOwner(value: unknown): value is LoaderOwner {
 
 function parseLoaderOwner(value: LoaderBoundary): LoaderOwner | undefined {
     if (!isLoaderOwner(value)) return undefined;
+
     return {
         frames: value.frames,
         currentFrame: value.currentFrame,
@@ -177,6 +178,7 @@ function getElapsedMs(loader: Loader, now: number): LoaderElapsed {
 
 function formatElapsed(seconds: number): string {
     if (seconds < 60) return `${seconds}s`;
+
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
@@ -186,13 +188,16 @@ function formatElapsed(seconds: number): string {
 function applyStatusBarDisplay(loader: Loader): void {
     const internals = parseLoaderOwner(loader);
     if (internals === undefined) return;
+
     const snapshot = getStatusBarSnapshot();
     const frames = snapshot.active.spinnerFrames ?? internals.frames;
     const frame = frames[internals.currentFrame % Math.max(1, frames.length)] ?? "";
     let renderedFrame = internals.spinnerColorFn(frame);
     if (internals.renderIndicatorVerbatim) renderedFrame = frame;
+
     let indicator = "";
     if (frame.length > 0) indicator = `${renderedFrame} `;
+
     const now = Date.now();
     const elapsed = getElapsedMs(loader, now);
     const baseMessage = snapshot.active.text ?? internals.message;
@@ -208,6 +213,7 @@ function applyStatusBarDisplay(loader: Loader): void {
         messageColorFn: (text: string) => internals.messageColorFn(text),
         startedAt: elapsed.startedAt,
     });
+
     internals.setText(leftText);
 }
 
@@ -221,6 +227,7 @@ function renderDisplay(
 
     const internals = parseLoaderOwner(loader);
     if (internals === undefined) return predecessor.call(loader, width);
+
     let paddingX = Math.floor(internals.paddingX);
     paddingX = Math.min(paddingX, Math.max(0, Math.floor((width - 1) / 2)));
 
@@ -258,6 +265,7 @@ function requestActiveLoaderRenders(): void {
 
 function clearActiveLoaderRefreshInterval(): void {
     if (activeLoaderRefreshInterval === undefined) return;
+
     clearInterval(activeLoaderRefreshInterval);
     activeLoaderRefreshInterval = undefined;
 }
@@ -269,6 +277,7 @@ function updateActiveLoaderRefreshInterval(): void {
     }
 
     if (activeLoaderRefreshInterval !== undefined) return;
+
     activeLoaderRefreshInterval = setInterval(
         requestActiveLoaderRenders,
         STATIC_LOADER_REFRESH_INTERVAL_MS,
@@ -313,6 +322,7 @@ export function installLoaderPatch(): () => void {
                         resetVersion: getStatusBarSnapshot().active.timerResetVersion,
                     },
                 );
+
                 updateActiveLoaderRefreshInterval();
                 requestLoaderUpdate(this);
             },
@@ -348,6 +358,7 @@ export function installLoaderPatch(): () => void {
         (predecessor) =>
             function patchedRender(this: Loader, width: number): string[] {
                 if (!active) return predecessor.call(this, width);
+
                 const display = loaderDisplays.get(this);
                 if (display === undefined) return predecessor.call(this, width);
                 return renderDisplay(this, display, width, predecessor);
@@ -369,6 +380,7 @@ export function installLoaderPatch(): () => void {
             let released = false;
             return () => {
                 if (released) return;
+
                 released = true;
                 leaseCount = Math.max(0, leaseCount - 1);
                 if (leaseCount > 0 || !active) return;

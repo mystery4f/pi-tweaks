@@ -72,6 +72,7 @@ export function loadModelFilterSettings(
     const useProjectConfig = state.projectTrusted === true && existsSync(projectConfigPath);
     let configPath = getGlobalConfigPath();
     if (useProjectConfig) configPath = projectConfigPath;
+
     let mtimeMs = -1;
 
     try {
@@ -115,6 +116,7 @@ export function loadModelFilterSettings(
 
         let layer = loadedLayers.globalSettingsLayer;
         if (useProjectConfig) layer = loadedLayers.projectSettingsLayer;
+
         const loaded: LoadedModelFilterSettings = {
             path: configPath,
             mtimeMs,
@@ -125,6 +127,7 @@ export function loadModelFilterSettings(
     } catch (cause: unknown) {
         let message = String(cause);
         if (cause instanceof Error) message = cause.message;
+
         const loaded: LoadedModelFilterSettings = {
             path: configPath,
             mtimeMs,

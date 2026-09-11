@@ -22,8 +22,10 @@ const PASTE_COLLAPSE_PATCH_MARKER = Symbol.for("zigai.pi-ui-tweaks.paste-collaps
 const PASTE_COLLAPSE_ENHANCER_MARKER = Symbol.for("zigai.pi-ui-tweaks.paste-collapse-enhancer");
 const PASTE_COLLAPSE_ENHANCER_KEY = Symbol.for("zigai.pi-ui-tweaks.paste-collapse");
 const PASTE_MARKER_REGEX = /\[paste #(\d+)( (\+\d+ lines|\d+ chars))?\]/g;
+
 const PASTE_MARKER_FOR_ID = (pasteId: number): RegExp =>
     new RegExp(`\\[paste #${pasteId}( (\\+\\d+ lines|\\d+ chars))?\\]`);
+
 const ESCAPE_CHARACTER = String.fromCharCode(27);
 const CSI_U_CTRL_SEQUENCE_REGEX = new RegExp(`${ESCAPE_CHARACTER}\\[(\\d+);5u`, "g");
 
@@ -197,6 +199,7 @@ function decodeTerminalControlSequences(pastedText: string): string {
         if (codepoint >= 97 && codepoint <= 122) {
             return String.fromCharCode(codepoint - 96);
         }
+
         if (codepoint >= 65 && codepoint <= 90) {
             return String.fromCharCode(codepoint - 64);
         }
@@ -347,6 +350,7 @@ function replaceMarkerWithContent(editor: PasteEditorInternals, marker: PasteMar
  */
 export function expandPasteMarkerAtCursor(editor: PasteCollapseEditor): boolean {
     if (!isPasteEditorInternals(editor)) return false;
+
     const internals = editor;
     const marker = findPasteMarkerAtCursor(internals);
     if (marker === undefined) {
@@ -382,8 +386,8 @@ function installPasteCollapsePatchOnPrototype(
     }
 
     if (!hasPasteHandler(prototype)) return { update(): void {}, dispose(): void {} };
-    const typedTarget = prototype;
 
+    const typedTarget = prototype;
     currentPasteCollapseSettings = settings;
 
     const patch = installLinkedMethodPatch(
@@ -406,6 +410,7 @@ function installPasteCollapsePatchOnPrototype(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 
@@ -433,17 +438,20 @@ export function installPasteCollapsePatch(
     const editor = installPasteCollapsePatchOnPrototype(Editor.prototype, settings);
     const base: unknown = Object.getPrototypeOf(CustomEditor.prototype);
     if (!isInstallHost(base) || base === Editor.prototype) return editor;
+
     const custom = installPasteCollapsePatchOnPrototype(base, settings);
     let disposed = false;
 
     return {
         update(next): void {
             if (disposed) return;
+
             editor.update(next);
             custom.update(next);
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             custom.dispose();
             editor.dispose();
@@ -514,6 +522,7 @@ export function installPasteCollapseEditor(
         (tui, theme, keybindings) => new CustomEditor(tui, theme, keybindings),
         (editor, tui, _theme, keybindings) => {
             if (!isEditorLike(editor)) return editor;
+
             editor.requestRenderNow ??= () => tui.requestRender();
 
             const predecessor = editor.handleInput.bind(editor);
@@ -537,6 +546,7 @@ export function installPasteCollapseEditor(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             enhancer.dispose();
 

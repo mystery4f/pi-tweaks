@@ -60,14 +60,17 @@ export async function installNeutralBorderColorPatch(
         feature: "neutral border color patch",
         parse(module: unknown): ThemePrototype | undefined {
             if (!isThemeModule(module)) return undefined;
+
             const theme = module.Theme;
             if (!isThemeConstructor(theme)) return undefined;
+
             const candidate = theme.prototype;
             if (isThemePrototype(candidate)) return candidate;
             return undefined;
         },
     });
     if (prototype === undefined) return { update(): void {}, dispose(): void {} };
+
     const installed = prototype[THEME_FG_PATCH];
     if (installed !== undefined) {
         installed.handle.update(config);
@@ -94,6 +97,7 @@ export async function installNeutralBorderColorPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 

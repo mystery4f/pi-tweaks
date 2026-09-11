@@ -132,15 +132,12 @@ afterEach(() => {
 describe("status loader lifecycle", () => {
     test("keeps a static indicator timer advancing", () => {
         const { loader, renderCount } = createLoader();
-
         assert.deepEqual(visibleLoaderLines(loader), ["", " ⠙ Working... (0s)"]);
         const initialRenderCount = renderCount();
 
         vi.advanceTimersByTime(1_100);
-
         assert.deepEqual(visibleLoaderLines(loader), ["", " ⠙ Working... (1s)"]);
         assert.ok(renderCount() > initialRenderCount);
-
         loader.stop();
         const stoppedRenderCount = renderCount();
         vi.advanceTimersByTime(2_000);
@@ -151,9 +148,7 @@ describe("status loader lifecycle", () => {
         const { loader } = createLoader();
         vi.advanceTimersByTime(2_100);
         assert.deepEqual(visibleLoaderLines(loader), ["", " ⠙ Working... (2s)"]);
-
         loader.setIndicator({ frames: ["■"] });
-
         assert.deepEqual(visibleLoaderLines(loader), ["", " ■ Working... (2s)"]);
         vi.advanceTimersByTime(1_000);
         assert.deepEqual(visibleLoaderLines(loader), ["", " ■ Working... (3s)"]);
@@ -163,7 +158,6 @@ describe("status loader lifecycle", () => {
     test("composes with update wrappers installed before and after it", () => {
         const { loader } = createLoader();
         assert.ok(predecessorUpdateCount > 0);
-
         const prototype = getLoaderPrototype();
         const statusBarUpdateDisplay = prototype.updateDisplay;
         let laterUpdateCount = 0;
@@ -194,11 +188,9 @@ describe("status loader lifecycle", () => {
         assert.match(wideLine, /Working\.\.\. \(0s\)/);
         assert.match(wideLine, /reviewing/);
         assert.ok(visibleWidth(wideLine) <= 48);
-
         const narrowLine = loader.render(16)[1] ?? "";
         assert.doesNotMatch(narrowLine, /reviewing/);
         assert.ok(visibleWidth(narrowLine) <= 16);
-
         segment.dispose();
         loader.stop();
     });
@@ -228,7 +220,6 @@ describe("status loader lifecycle", () => {
             const wideTerminalWrites = terminal.writes.join("");
             assert.match(wideTerminalWrites, /● Coordinating \(0s\).*reviewing/);
             assert.ok(internals.previousLines.every((line) => visibleWidth(line) <= 48));
-
             terminal.columns = 18;
             terminal.writes = [];
             internals.doRender();

@@ -18,8 +18,10 @@ function isObjectIdentity(value: unknown): value is object {
 export const userMessageRuntime = {
     parse: (module: unknown): UserMessageComponentConstructor | undefined => {
         if (!isObjectIdentity(module) || !("UserMessageComponent" in module)) return undefined;
+
         const component = module.UserMessageComponent;
         if (typeof component !== "function" || !("prototype" in component)) return undefined;
+
         const prototype: unknown = component.prototype;
         if (
             !isObjectIdentity(prototype) ||

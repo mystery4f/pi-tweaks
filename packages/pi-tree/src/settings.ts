@@ -326,11 +326,11 @@ export function getPersistedMaxVisibleLines(): number | null {
 
     const settings = readMergedSettingsObject();
     const configured = settings[MAX_VISIBLE_LINES_SETTINGS_KEY];
-
     cachedMaxVisibleLines = null;
     if (configured !== undefined && Number.isFinite(configured)) {
         cachedMaxVisibleLines = Math.max(MIN_VISIBLE_LINES, Math.floor(configured));
     }
+
     return cachedMaxVisibleLines;
 }
 

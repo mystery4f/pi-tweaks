@@ -30,6 +30,7 @@ function restoreUserMessageRenderingPatch(): void {
     const state: PatchState = globalThis;
     const patch = state[USER_MESSAGE_PLAINTEXT_PATCH_KEY];
     if (patch === undefined || patch === true) return;
+
     patch.dispose();
     delete state[USER_MESSAGE_PLAINTEXT_PATCH_KEY];
 }

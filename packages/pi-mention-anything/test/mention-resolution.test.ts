@@ -16,6 +16,7 @@ const session: Candidate = {
     navigable: true,
     selectable: false,
 };
+
 const pane: Candidate = {
     id: "%7",
     label: "logs",
@@ -24,6 +25,7 @@ const pane: Candidate = {
     selectable: true,
     replacement: "tmux pane %7",
 };
+
 const source: ExpansionSource = {
     id: "tmux",
     trigger: "t:",
@@ -103,11 +105,13 @@ test("extending a selected token invalidates its occurrence snapshot", () => {
         { sourceId: "tmux", start: 0, end: 11, text: "t:work:logs", path: [session, pane] },
         "t:work:logs",
     );
+
     assert.equal(selections.snapshot("t:work:logs:more").length, 0);
     selections.record(
         { sourceId: "tmux", start: 0, end: 11, text: "t:work:logs", path: [session, pane] },
         "t:work:logs",
     );
+
     assert.equal(selections.snapshot("t:work:logs.extra").length, 0);
 });
 
@@ -128,6 +132,7 @@ test("ambiguous deletion of identical occurrences never transfers one selected i
         },
         text,
     );
+
     assert.equal(selections.snapshot("t:work:logs").length, 0);
 });
 

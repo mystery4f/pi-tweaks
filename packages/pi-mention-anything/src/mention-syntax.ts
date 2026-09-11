@@ -50,6 +50,7 @@ function parseUnquotedName(
     while (end > 0) {
         const last = rawName.at(end - 1);
         if (last === undefined || !TRAILING_PUNCTUATION.has(last)) break;
+
         end -= 1;
 
         const candidate = rawName.slice(0, end);
@@ -69,6 +70,7 @@ export function parseMentionName(
     if (quotedName !== undefined) {
         const name = unescapeQuotedName(quotedName);
         if (!knownNames.has(name)) return undefined;
+
         return { name, suffix: "" };
     }
 

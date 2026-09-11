@@ -48,6 +48,7 @@ test("explicit null does not patch Pi's default model selector", async () => {
         Object.getOwnPropertyDescriptor(ModelSelectorComponent.prototype, "updateList"),
         original,
     );
+
     handle.dispose();
 });
 
@@ -70,5 +71,6 @@ test("selected model provider badge follows live configuration", async () => {
         target.listContainer.children[1]?.text.includes("<muted>[anthropic]</muted>"),
         true,
     );
+
     handle.dispose();
 });

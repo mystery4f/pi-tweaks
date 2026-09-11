@@ -103,11 +103,13 @@ function selectRightMessage(
         const message = config.messages.at(index);
         if (message === undefined) continue;
         if (elapsedInRotation < duration) return { elapsedMs: elapsedInRotation, message };
+
         elapsedInRotation -= duration;
     }
 
     const message = config.messages.at(0);
     if (message === undefined) return undefined;
+
     return { elapsedMs: 0, message };
 }
 
@@ -115,6 +117,7 @@ function applyRightMessageStyle(message: string, config: RightMessagesConfig): s
     let styled = message;
     if (config.dimmed) styled = `\x1b[2m${styled}\x1b[22m`;
     if (config.italic) styled = `\x1b[3m${styled}\x1b[23m`;
+
     return styled;
 }
 
@@ -139,6 +142,7 @@ function applySegmentStyle(segment: StatusBarSegmentSnapshot): string {
     let styled = segment.text;
     if (segment.dimmed) styled = `\x1b[2m${styled}\x1b[22m`;
     if (segment.italic) styled = `\x1b[3m${styled}\x1b[23m`;
+
     return styled;
 }
 
@@ -161,6 +165,7 @@ export function renderRightMessage(
         const text = sliceByColumn(statusSegment, 0, viewportWidth);
         const width = visibleWidth(text);
         if (width === 0) return undefined;
+
         return { text: color(text), width };
     }
 
@@ -171,5 +176,6 @@ export function renderRightMessage(
     const segment = renderRightMessageSegment(selected, viewportWidth, config);
     const width = visibleWidth(segment);
     if (width === 0) return undefined;
+
     return { text: color(applyRightMessageStyle(segment, config)), width };
 }

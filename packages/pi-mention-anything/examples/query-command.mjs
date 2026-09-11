@@ -47,6 +47,7 @@ let result;
 if (request.method === "resolve") {
     let value = "";
     if (request.segments.length === 1) value = request.segments[0] ?? "";
+
     const id = Number(value);
     if (/^[1-9]\d*$/.test(value) && id <= 1000000) {
         result = { status: "resolved", path: [ticket(id)] };

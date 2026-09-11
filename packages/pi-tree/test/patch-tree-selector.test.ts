@@ -40,6 +40,7 @@ function isStopThemeWatcher(
 
 function isRuntimeThemeModule(value: unknown): value is RuntimeThemeModule {
     if ((typeof value !== "object" || value === null) && typeof value !== "function") return false;
+
     const stopThemeWatcher = Object.getOwnPropertyDescriptor(value, "stopThemeWatcher");
     return (
         isRuntimeInitTheme(Object.getOwnPropertyDescriptor(value, "initTheme")?.value) &&
@@ -225,6 +226,7 @@ function isNumber(value: unknown): value is number {
 
 function isRuntimeTreeList(value: unknown): value is RuntimeTreeList {
     if ((typeof value !== "object" || value === null) && typeof value !== "function") return false;
+
     const treeList = value;
 
     function getRuntimePropertyDescriptor(
@@ -235,8 +237,10 @@ function isRuntimeTreeList(value: unknown): value is RuntimeTreeList {
         for (;;) {
             const descriptor = Object.getOwnPropertyDescriptor(owner, key);
             if (descriptor !== undefined) return descriptor;
+
             const parent: unknown = Object.getPrototypeOf(owner);
             if (!isRuntimeObjectIdentity(parent)) return undefined;
+
             owner = parent;
         }
     }
@@ -506,15 +510,14 @@ test("tree selector patch composes input, status, timestamps, preview, and narro
                 },
             }),
         );
+
         tree.handleInput("T");
         assert.deepEqual(persistedModes, ["absolute"]);
         assert.match(tree.getStatusLabels(), /Time: Absolute/);
-
         tree.handleInput("P");
         assert.deepEqual(persistedPreviewValues, [false]);
         assert.match(tree.getStatusLabels(), /Preview: Off/);
         assert.deepEqual(tree.render(100), ["native:100"]);
-
         tree.handleInput("x");
         assert.deepEqual(tree.handledInputs, [FILTER_ALL_KEY, "x"]);
     } finally {
@@ -682,16 +685,13 @@ test("registered session lifecycle patches and exercises the installed Pi tree s
             undefined,
         );
         const tree = runtimeTreeListParser.parse(selectorPrototype.getTreeList.call(selector));
-
         assert.equal(tree.maxVisibleLines, 5);
         assert.equal(tree.getStatusLabels(), "  Filter: Default | Time: Relative | Preview: On");
         const timestampedEntry = tree.getEntryDisplayText(node, false);
         assert.match(timestampedEntry, / ago /);
         assert.match(timestampedEntry, /assistant: .*Selected response preview/);
-
         tree.handleInput(FILTER_ALL_KEY);
         assert.equal(tree.getStatusLabels(), "  Filter: Default | Time: Relative | Preview: On");
-
         const wideRender = tree.render(100);
         assert.match(wideRender.join("\n"), / │ .*Selected response preview/);
         const nativeNarrowRender = originalRender.call(tree, 40);
@@ -705,6 +705,7 @@ test("registered session lifecycle patches and exercises the installed Pi tree s
                 },
             }),
         );
+
         tree.handleInput("T");
         assert.match(tree.getStatusLabels(), /Time: Absolute/);
         tree.handleInput("P");

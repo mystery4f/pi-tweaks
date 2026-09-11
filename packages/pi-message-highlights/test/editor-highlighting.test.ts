@@ -33,7 +33,6 @@ test("highlights editor paths across soft-wrapped rendered lines", () => {
     ];
 
     const highlighted = highlightEditorRenderLines(target, 60, renderedLines, styles);
-
     assert.deepEqual(highlighted.map(stripTestStyles), renderedLines);
     assert.equal(highlighted[1]?.includes(`<path>/mnt/d/Software/Linux${ESC}[39m `), true);
     assert.equal(

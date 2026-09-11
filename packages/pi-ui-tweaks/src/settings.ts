@@ -115,6 +115,7 @@ const uiTweaksSettingsParser = {
         } catch (cause: unknown) {
             let message = String(cause);
             if (cause instanceof Error) message = cause.message;
+
             return { settings: {}, errors: [message] } satisfies ParsedUiTweaksSettingsResult;
         }
     },
@@ -234,6 +235,7 @@ export function loadUiTweaksSettings(cwd: string, projectTrusted: boolean): Load
             settings: settings.globalSettingsLayer,
         });
     }
+
     if (settings.projectSettingsLayer !== undefined && settings.projectConfigPath !== undefined) {
         settingsSources.push({
             label: settings.projectConfigPath,

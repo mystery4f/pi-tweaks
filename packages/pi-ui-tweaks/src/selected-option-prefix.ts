@@ -63,6 +63,7 @@ function normalizeSelectedOptionPrefix(prefix: string): string {
     if (prefix.length === 0) {
         return DEFAULT_SELECTED_OPTION_PREFIX;
     }
+
     if (/\s$/u.test(prefix)) {
         return prefix;
     }
@@ -239,6 +240,7 @@ export function installSelectedOptionPrefixSelectListPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 
@@ -259,8 +261,10 @@ function isObjectIdentity(value: unknown): value is object {
 export const selectedOptionThemeRuntime = {
     parse: (module: unknown): ThemePrototype | undefined => {
         if (!isObjectIdentity(module) || !("Theme" in module)) return undefined;
+
         const theme = module.Theme;
         if (!isThemeConstructor(theme)) return undefined;
+
         const candidate = theme.prototype;
         if (isThemePrototype(candidate)) return candidate;
         return undefined;
@@ -277,6 +281,7 @@ export async function installSelectedOptionPrefixThemePatch(
         parse: selectedOptionThemeRuntime.parse,
     });
     if (prototype === undefined) return { update(): void {}, dispose(): void {} };
+
     const installed = prototype[THEME_FG_PATCH_KEY];
     if (installed !== undefined) {
         installed.handle.update(config);
@@ -317,6 +322,7 @@ export async function installSelectedOptionPrefixThemePatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 

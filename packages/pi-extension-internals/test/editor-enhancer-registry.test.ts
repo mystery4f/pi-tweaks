@@ -114,12 +114,14 @@ describe("registerEditorEnhancer", () => {
         second.dispose();
         expect(ui.active).toEqual([]);
     });
+
     test("replaces keyed enhancers without reordering and forwards factory arguments", () => {
         const ui = new EditorUi();
         const ctx = { hasUI: true, ui };
         const createDefault: EditorFactory<FactoryArgs, Editor> = (label, count) => [
             `default:${label}:${count}`,
         ];
+
         const first = registerEditorEnhancer(
             ctx,
             enhancerKey("replacement-first"),
@@ -346,6 +348,7 @@ describe("registerEditorEnhancer", () => {
                 (editor) => editor,
             ),
         ).toThrow("Unable to store the editor enhancer registry");
+
         expect(ui.getEditorComponent()).toBeUndefined();
     });
 
@@ -361,6 +364,7 @@ describe("registerEditorEnhancer", () => {
                 (editor) => [...editor, "unreachable"],
             ),
         ).toThrow("set editor failed");
+
         expect(Object.hasOwn(ui, EDITOR_ENHANCER_REGISTRY)).toBe(false);
         expect(ui.getEditorComponent()).toBeUndefined();
 

@@ -34,6 +34,7 @@ const SHORTCUT_SPECIAL_KEYS = new Set([
     "f11",
     "f12",
 ]);
+
 const SHORTCUT_MODIFIERS = new Set(["ctrl", "shift", "alt", "super"]);
 const SHORTCUT_CHARACTER = /^[a-z0-9`\-=[\]\\;'.,/!@#$%^&*()_+|~{}:<>?]$/i;
 
@@ -45,12 +46,14 @@ export function isShortcutId(value: string): value is ShortcutId {
         if (value.endsWith("++")) {
             const modifierPrefix = value.slice(0, -2);
             if (modifierPrefix.length === 0) return false;
+
             base = "+";
             modifiers = modifierPrefix.split("+");
         } else {
             const parts = value.split("+");
             const parsedBase = parts.pop();
             if (parsedBase === undefined) return false;
+
             base = parsedBase;
             modifiers = parts;
         }

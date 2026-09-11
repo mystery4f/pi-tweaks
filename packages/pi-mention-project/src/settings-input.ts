@@ -23,6 +23,7 @@ export const legacyTriggerSchema = Type.String({
     minLength: 1,
     pattern: "^[^/\\s]+$",
 });
+
 export const legacyRootsSchema = Type.Union([
     Type.String({ minLength: 1 }),
     Type.Array(Type.String({ minLength: 1 })),

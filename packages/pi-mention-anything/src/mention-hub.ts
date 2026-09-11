@@ -63,6 +63,7 @@ function readHub(ui: ExtensionContext["ui"]): MentionHub | undefined {
     const descriptor = getOwnDataDescriptor(ui, MENTION_HUB);
     if (descriptor === undefined) return undefined;
     if (!isNonNullObject(descriptor.value)) throw new TypeError("Incompatible mention hub");
+
     const hub = descriptor.value;
     const version = getOwnDataDescriptor(hub, MENTION_HUB_PROTOCOL)?.value;
     if (version !== MENTION_HUB_PROTOCOL_VERSION) {
@@ -117,6 +118,7 @@ function createHub(ctx: ExtensionContext): MentionHub {
                 });
         }
     };
+
     let unresolved = new Set<string>();
     const processedContexts = new WeakSet<
         Parameters<ReturnType<typeof createMentionExpansion>["messages"]>[0]
@@ -141,6 +143,7 @@ function createHub(ctx: ExtensionContext): MentionHub {
 
             if (!configuration.trigger || /[\s/]/.test(configuration.trigger))
                 throw new Error("Invalid mention trigger.");
+
             if (
                 configuration.separator !== undefined &&
                 (configuration.separator.length !== 1 || /[\s"\\\\]/.test(configuration.separator))
@@ -154,7 +157,6 @@ function createHub(ctx: ExtensionContext): MentionHub {
             handles.set(handle, runtime);
 
             const source = runtime.source;
-
             runtimes.set(registration.id, runtime);
             sources.push(source);
 
@@ -230,6 +232,7 @@ function createHub(ctx: ExtensionContext): MentionHub {
         async remove(handle: symbol): Promise<void> {
             const runtime = handles.get(handle);
             if (runtime === undefined) return;
+
             handles.delete(handle);
             runtimes.delete(runtime.id);
 
@@ -255,6 +258,7 @@ function createHub(ctx: ExtensionContext): MentionHub {
         },
         input(text: string): void {
             if (pendingText === text && pendingSnapshots.length > 0) return;
+
             pendingText = text;
             pendingSnapshots = selections.snapshot(text);
         },
@@ -263,6 +267,7 @@ function createHub(ctx: ExtensionContext): MentionHub {
             signal?: AbortSignal,
         ) {
             if (processedContexts.has(messages)) return messages;
+
             unresolved = new Set();
 
             const result = await expansion.messages(messages, sources, {
@@ -287,6 +292,7 @@ function createHub(ctx: ExtensionContext): MentionHub {
 export function sharedHub(ctx: ExtensionContext): MentionHub {
     const existing = readHub(ctx.ui);
     if (existing !== undefined) return existing;
+
     const hub = createHub(ctx);
     if (
         !Reflect.defineProperty(ctx.ui, MENTION_HUB, {

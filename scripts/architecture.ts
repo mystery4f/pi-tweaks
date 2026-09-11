@@ -103,8 +103,10 @@ function isLocalImport(specifier: string): boolean {
 function resolveLocalImport(file: string, specifier: string): string | undefined {
     let localSpecifier = specifier;
     if (specifier.startsWith("file:")) localSpecifier = fileURLToPath(specifier);
+
     const target = path.resolve(path.dirname(file), localSpecifier);
     if (existsSync(target)) return target;
+
     const extension = path.extname(target);
     if (extension === ".js") {
         const source = `${target.slice(0, -3)}.ts`;
@@ -121,8 +123,10 @@ function checkSettingsClosure(
 ): void {
     const settings = workspace.manifest.piExtensionSettings;
     if (settings === undefined) return;
+
     const definition = path.resolve(workspace.directory, settings.definition);
     const visited = new Set<string>();
+
     const forbidden = new Set([
         path.resolve(workspace.directory, settings.prevalidation),
         ...Object.values(workspace.manifest.exports).map((entry) =>
@@ -132,12 +136,15 @@ function checkSettingsClosure(
             path.resolve(workspace.directory, entry),
         ),
     ]);
+
     const visit = (file: string, chain: readonly string[]): void => {
         if (visited.has(file)) return;
+
         visited.add(file);
 
         for (const dependency of load(file).imports) {
             if (!dependency.runtime) continue;
+
             const specifier = dependency.specifier;
             const context = `settings authoring (${chain.map((entry) => path.relative(workspace.directory, entry)).join(" -> ")})`;
             if (specifier === undefined) {
@@ -193,6 +200,7 @@ function checkProjectArchitecture(workspaces: WorkspacePackages, program: Progra
 
         return module;
     };
+
     const report = (file: string, dependency: ModuleImport, message: string): void => {
         diagnostics.add(`${path.relative(workspaces.root, file)}:${dependency.line}: ${message}`);
     };
@@ -227,6 +235,7 @@ function checkProjectArchitecture(workspaces: WorkspacePackages, program: Progra
                 }
 
                 if (isBuiltin(specifier)) continue;
+
                 const name = packageName(specifier);
                 if (
                     dependency.runtime &&
@@ -239,6 +248,7 @@ function checkProjectArchitecture(workspaces: WorkspacePackages, program: Progra
 
                 const target = packagesByName.get(name);
                 if (target === undefined) continue;
+
                 let exportKey = ".";
                 if (specifier !== name) exportKey = `.${specifier.slice(name.length)}`;
 

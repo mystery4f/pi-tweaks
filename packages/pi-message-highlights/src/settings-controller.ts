@@ -23,6 +23,7 @@ export class MessageHighlightSettingsController {
 
     apply(ctx: MessageHighlightSettingsContext): MessageHighlightsConfig {
         if (this.snapshot !== undefined) return this.snapshot.config;
+
         this.snapshot = this.loadSettings(ctx.cwd, ctx.isProjectTrusted());
         if (ctx.hasUI) {
             for (const error of this.snapshot.errors) {

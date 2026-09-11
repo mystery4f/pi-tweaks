@@ -158,6 +158,7 @@ test("timeouts terminate commands and expose no stderr content", async () => {
         /^Error: command timed out$/,
     );
 });
+
 test("child process start errors do not expose command paths or arguments", async () => {
     await assert.rejects(
         executeJsonCommand(

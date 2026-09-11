@@ -88,11 +88,9 @@ test("scaffoldGlobalModesConfig creates missing global config and schema", async
             modes: {},
         });
         assert.match(await readFile(schemaPath, "utf8"), /Pi Model Modes settings/);
-
         await writeFile(configPath, "{ not json", "utf8");
         await writeFile(schemaPath, "stale schema", "utf8");
         await scaffoldGlobalModesConfig();
-
         assert.equal(await readFile(configPath, "utf8"), "{ not json");
         assert.match(await readFile(schemaPath, "utf8"), /Pi Model Modes settings/);
     } finally {
@@ -225,7 +223,6 @@ test("atomicWriteUtf8 creates parent directories and replaces existing content",
         const filePath = path.join(dir, "nested", "modes.json");
         await atomicWriteUtf8(filePath, "first");
         await atomicWriteUtf8(filePath, "second");
-
         assert.equal(await readFile(filePath, "utf8"), "second");
     } finally {
         await rm(dir, { recursive: true, force: true });
@@ -261,7 +258,6 @@ test("withFileLock removes stale locks before running the callback", async () =>
         await utimes(lockPath, oldDate, oldDate);
 
         const result = await withFileLock(filePath, async () => "locked");
-
         assert.equal(result, "locked");
         assert.equal(await exists(lockPath), false);
     } finally {
@@ -295,7 +291,6 @@ test("ModesStore merges a local patch into the latest file under its lock", asyn
         };
 
         const saved = await store.saveChanges(filePath, baseline, next, fallback);
-
         assert.equal(saved?.data.modes.default?.thinkingLevel, "high");
         assert.deepEqual(saved.data.modes.remote, { provider: "remote", modelId: "new" });
     } finally {

@@ -68,6 +68,7 @@ function isPatchableTuiPrototype(value: unknown): value is PatchableTuiPrototype
 function containsFooterComponent(component: Component, visited = new Set<Component>()): boolean {
     if (isFooterComponent(component)) return true;
     if (visited.has(component)) return false;
+
     visited.add(component);
 
     if (!isComponentContainer(component)) return false;
@@ -78,6 +79,7 @@ function containsFooterComponent(component: Component, visited = new Set<Compone
 function getFooterChildIndex(tui: PatchableTuiInstance): number | undefined {
     const index = tui.children.length - 1;
     if (index < 0) return undefined;
+
     const lastChild = tui.children.at(index);
     if (lastChild === undefined) return undefined;
     if (!containsFooterComponent(lastChild)) return undefined;
@@ -327,6 +329,7 @@ function compactBottomChromeSpacing(
 
     const gapIndex = focusedRange.start - 1;
     if (gapIndex < 0) return { lines: [...lines], removedRows: 0 };
+
     const gapLine = lines.at(gapIndex);
     if (gapLine === undefined || gapLine.trim().length > 0) {
         return { lines: [...lines], removedRows: 0 };
@@ -334,6 +337,7 @@ function compactBottomChromeSpacing(
 
     const tailStartRange = getRangeForChild(ranges, tailStartIndex);
     if (tailStartRange === undefined) return { lines: [...lines], removedRows: 0 };
+
     if (!hasVisibleLine(lines, tailStartRange.start, gapIndex)) {
         return { lines: [...lines], removedRows: 0 };
     }
@@ -409,6 +413,7 @@ function padAtVisibleBoundary(
 export function installFooterShrinkPaddingPatch(): { dispose(): void } | undefined {
     const prototypeValue: unknown = TuiMainScreen.prototype;
     if (!isPatchableTuiPrototype(prototypeValue)) return undefined;
+
     const prototype = prototypeValue;
 
     return installKeyedLinkedMethodPatch(

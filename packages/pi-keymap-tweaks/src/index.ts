@@ -16,6 +16,7 @@ export default function piKeymap(pi: ExtensionAPI): void {
             notify: (message, type) => ctx.ui.notify(message, type),
         });
     });
+
     pi.on("session_shutdown", () => {
         editorHandle?.dispose();
         editorHandle = undefined;

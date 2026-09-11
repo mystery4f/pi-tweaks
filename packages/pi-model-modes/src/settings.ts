@@ -110,6 +110,7 @@ export function formatModelModesSettingsDiagnostic(diagnostic: SettingsDiagnosti
     if (diagnostic.code === "bundled-schema-stale") {
         return `${prefix} Generated settings schema does not match the loaded definition: ${fileURLToPath(BUNDLED_SETTINGS_SCHEMA_URL)}. In a source checkout, run "npm run config:generate" from the repository root and restart Pi; otherwise reinstall or update the extension.`;
     }
+
     if (diagnostic.code === "bundled-schema-read-failed") {
         return `${prefix} Bundled settings schema could not be read: ${fileURLToPath(BUNDLED_SETTINGS_SCHEMA_URL)}.`;
     }

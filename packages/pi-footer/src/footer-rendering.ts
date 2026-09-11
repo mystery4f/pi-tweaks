@@ -216,6 +216,7 @@ function renderPadding(
     theme: PlainFooterTheme | undefined,
 ): string {
     if (width <= 0) return "";
+
     const padding = " ".repeat(width);
     if (variant === "plain") {
         return renderThemeText(padding, "muted", theme);
@@ -295,6 +296,7 @@ function buildFooterItems(
             colors: slot.colors,
         });
     }
+
     return items;
 }
 
@@ -370,6 +372,7 @@ export function createFooterComponent(
             // blank line and make the bottom chrome jump during heavy tool output.
             const renderWidth = Math.max(0, width - 2);
             if (renderWidth === 0) return [""];
+
             const variant: FooterVariant = ACTIVE_FOOTER_VARIANT;
             const customSlots = getFooterSlotSnapshots();
             const layout = resolveFooterLayout(config.layout, customSlots);
@@ -422,6 +425,7 @@ export function createFooterComponent(
                     if (right.length > 0) {
                         return [truncateToWidth(` ${left}${padding}${right} `, renderWidth, "")];
                     }
+
                     return [truncateToWidth(` ${left}${padding} `, renderWidth, "")];
                 }
             }

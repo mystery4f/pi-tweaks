@@ -38,12 +38,14 @@ export function registerMessageHighlights(
 
     async function activate(ctx: MessageHighlightSettingsContext): Promise<void> {
         if (activation !== undefined) return activation;
+
         const config = settings.apply(ctx);
         const activeGeneration = generation;
 
         activation = (async () => {
             const targets = await loadTargets();
             if (activeGeneration !== generation || targets === undefined) return;
+
             patch = installMessageHighlightPatch(targets, config);
         })();
 

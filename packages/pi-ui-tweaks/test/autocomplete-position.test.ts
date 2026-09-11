@@ -164,10 +164,8 @@ test("autocomplete position patch defers forced redraw after above-input autocom
         target.autocompleteState = null;
         target.autocompleteList = undefined;
         prototype.render.call(target, 20);
-
         assert.deepEqual(requestedForces, []);
         await waitForImmediate();
-
         assert.deepEqual(requestedForces, [true]);
     } finally {
         autocompletePosition.updateAutocompleteAboveInput(true);
@@ -181,6 +179,7 @@ test("autocomplete position patch does not force redraw after Tab completion", a
     const prototype: AutocompletePositionPatchTarget = {
         render(this: AutocompletePositionPatchTarget) {
             if (this.autocompleteState === null) return ["input"];
+
             return ["input", "suggestion"];
         },
         handleInput(this: AutocompletePositionPatchTarget): void {
@@ -218,7 +217,6 @@ test("autocomplete position patch does not force redraw after Tab completion", a
         prototype.handleInput?.call(target, "\t");
         prototype.render.call(target, 20);
         await waitForImmediate();
-
         assert.deepEqual(requestedForces, []);
     } finally {
         autocompletePosition.updateAutocompleteAboveInput(true);
@@ -250,7 +248,6 @@ test("autocomplete position patch redraws when above-input rendering is disabled
         autocompletePosition.updateAutocompleteAboveInput(false);
         prototype.render.call(target, 20);
         await waitForImmediate();
-
         assert.deepEqual(requestedForces, [true]);
     } finally {
         autocompletePosition.updateAutocompleteAboveInput(true);
@@ -264,6 +261,7 @@ test("autocomplete position patch redraws after a failed slash confirmation", as
     const prototype: AutocompletePositionPatchTarget = {
         render(this: AutocompletePositionPatchTarget) {
             if (this.autocompleteState === null) return ["input"];
+
             return ["input", "suggestion"];
         },
         handleInput(this: AutocompletePositionPatchTarget): void {
@@ -302,7 +300,6 @@ test("autocomplete position patch redraws after a failed slash confirmation", as
         assert.throws(() => prototype.handleInput?.call(target, "\r"), /command failed/);
         prototype.render.call(target, 20);
         await waitForImmediate();
-
         assert.deepEqual(requestedForces, [true]);
     } finally {
         autocompletePosition.updateAutocompleteAboveInput(true);

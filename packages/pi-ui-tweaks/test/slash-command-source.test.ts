@@ -29,6 +29,7 @@ test("explicit null does not patch Pi's default slash-command formatter", async 
             ),
             original,
         );
+
         handle.dispose();
     });
 
@@ -42,10 +43,8 @@ test("slash-command source tags follow live configuration and dispose cleanly", 
     const original = target.prefixAutocompleteDescription;
     const handle = installSlashCommandSourcePatch({ hideSlashCommandSourceTags: true }, target);
     assert.equal(target.prefixAutocompleteDescription("Open review"), "Open review");
-
     handle.update({ hideSlashCommandSourceTags: false });
     assert.equal(target.prefixAutocompleteDescription("Open review"), "[source] Open review");
-
     handle.dispose();
     assert.equal(target.prefixAutocompleteDescription, original);
 });

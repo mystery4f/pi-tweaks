@@ -94,6 +94,7 @@ function getTransitionState(): FooterTransitionState {
 
 function cloneContextUsage(usage: ContextUsage): ContextUsage {
     if (usage === undefined) return undefined;
+
     return { ...usage };
 }
 
@@ -128,6 +129,7 @@ function cloneModel(ctx: FooterContext): FooterModel | undefined {
     if (providerDisplayName !== undefined) {
         cloned.providerDisplayName = providerDisplayName;
     }
+
     return cloned;
 }
 
@@ -192,8 +194,10 @@ function installBridgeFooter(host: FooterResetHost, snapshot: FooterSnapshot): v
     const timeout = setTimeout(() => {
         const state = getTransitionState();
         if (state.liveInstallGeneration !== generationAtInstall) return;
+
         const footer = host.customFooter;
         if (!isFooterComponent(footer) || footer[FOOTER_COMPONENT_KIND] !== "bridge") return;
+
         host.setExtensionFooter(undefined);
     }, BRIDGE_FOOTER_TTL_MS);
 
@@ -208,6 +212,7 @@ function bridgeAfterFooterReset(
 ): void {
     if (!shouldBridgeFooter(footerKind, state)) return;
     if (snapshot === undefined) return;
+
     installBridgeFooter(host, snapshot);
 }
 
@@ -218,6 +223,7 @@ export function patchFooterReset(): void {
     // during the handoff.
     const prototypeValue: unknown = InteractiveMode.prototype;
     if (!isPatchableInteractiveModePrototype(prototypeValue)) return;
+
     const prototype = prototypeValue;
 
     installKeyedLinkedMethodPatch(
@@ -234,7 +240,6 @@ export function patchFooterReset(): void {
 
                 const state = getTransitionState();
                 const snapshot = state.latestSnapshot;
-
                 predecessor.call(this);
                 state.pendingShutdownReason = undefined;
                 getAfterReset()(this, footerKind, snapshot, state);

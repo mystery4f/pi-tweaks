@@ -59,6 +59,7 @@ export const builtinSlotIdSchema = Type.Union([
     Type.Literal("mcp"),
     Type.Literal("context"),
 ]);
+
 export const footerSlotIdSchema = Type.Union(
     [builtinSlotIdSchema, Type.String({ pattern: FOOTER_CUSTOM_SLOT_ID_PATTERN })],
     {

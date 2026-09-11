@@ -208,6 +208,7 @@ export const DEFAULT_STATUS_BAR_CONFIG: StatusBarConfig = {
 
 function sanitizeOptionalText(text: string | undefined): string | undefined {
     if (text === undefined) return undefined;
+
     const sanitized = text
         .replace(/[\r\n\t]/g, " ")
         .replace(/ +/g, " ")
@@ -239,6 +240,7 @@ function parseStatusBarConfigSettings(
     if (settings === undefined) return undefined;
 
     const parsed = settings;
+
     const statusBar: MutableStatusBarConfig = {};
 
     if (parsed.active !== undefined) {
@@ -270,9 +272,11 @@ function parseStatusBarConfigSettings(
         if (parsed.idle.visible !== undefined) {
             idle.visible = parsed.idle.visible;
         }
+
         if (parsed.idle.showLastRunSummary !== undefined) {
             idle.showLastRunSummary = parsed.idle.showLastRunSummary;
         }
+
         if (parsed.idle.showTokensPerSecond !== undefined) {
             idle.showTokensPerSecond = parsed.idle.showTokensPerSecond;
         }
@@ -328,6 +332,7 @@ function parseStatusBarSettings(
     } catch (error: unknown) {
         let message = String(error);
         if (error instanceof Error) message = error.message;
+
         return { settings: {}, errors: [message] };
     }
 
@@ -396,9 +401,11 @@ function resolveConfiguredPath(path: string, baseDir: string): string {
     if (path === "~") {
         return homedir();
     }
+
     if (path.startsWith("~/")) {
         return join(homedir(), path.slice(2));
     }
+
     if (isAbsolute(path)) {
         return path;
     }
@@ -438,6 +445,7 @@ function readMessagesFile(reference: MessageFileReference): LoadedMessagesFile {
     } catch (cause: unknown) {
         let message = String(cause);
         if (cause instanceof Error) message = cause.message;
+
         return {
             messages: [],
             error: `Failed to read ${reference.label} (${resolvedPath}): ${message}`,
@@ -481,6 +489,7 @@ function buildStatusBarResolvedConfig(settings: StatusBarSettings): LoadedStatus
     if (rightMessages.messagesFile !== undefined) {
         const loaded = readMessagesFile(rightMessages.messagesFile);
         messages.push(...loaded.messages);
+
         if (loaded.error !== undefined) {
             errors.push(loaded.error);
         }

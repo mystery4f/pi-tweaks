@@ -8,7 +8,6 @@ export function createListProvider(
         filtering: "local",
         async discover(request) {
             request.signal.throwIfAborted();
-
             const items = await loadItems(request);
             if (items.length > 10000)
                 throw new Error(
@@ -16,12 +15,10 @@ export function createListProvider(
                 );
 
             request.signal.throwIfAborted();
-
             return { items: items.slice(0, request.limit) };
         },
         async resolve(request) {
             request.signal.throwIfAborted();
-
             const path: Candidate[] = [];
             for (const [index, segment] of request.segments.entries()) {
                 const items = await loadItems({
@@ -45,6 +42,7 @@ export function createListProvider(
                 if (matches.length === 0) {
                     return { status: "unresolved", reason: "missing" };
                 }
+
                 if (matches.length > 1) {
                     return { status: "unresolved", reason: "ambiguous" };
                 }
@@ -63,8 +61,10 @@ export function createListProvider(
             }
 
             if (path.length === 0) return { status: "unresolved", reason: "empty" };
+
             const target = path.at(-1);
             if (target?.replacement === undefined) return { status: "resolved", path };
+
             return { status: "resolved", path, replacement: target.replacement };
         },
     };

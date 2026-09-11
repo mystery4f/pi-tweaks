@@ -84,6 +84,7 @@ export function applySubmitModeKeymap(): SubmitModePatchHandle {
     const handle: SubmitModePatchHandle = {
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
 
             for (let index = handles.length - 1; index >= 0; index -= 1) {

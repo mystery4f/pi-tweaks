@@ -90,6 +90,7 @@ function normalizeAliasConfig(entry: ParsedAliasConfig): AliasConfig {
         alias: entry.alias.trim(),
     };
     if (entry.name !== undefined) normalized.name = entry.name.trim();
+
     return normalized;
 }
 
@@ -159,6 +160,7 @@ export function loadModelAliasSettings(
     const useProjectConfig = state.projectTrusted === true && existsSync(projectConfigPath);
     let configPath = getGlobalConfigPath();
     if (useProjectConfig) configPath = projectConfigPath;
+
     let mtimeMs = -1;
 
     try {
@@ -202,6 +204,7 @@ export function loadModelAliasSettings(
 
         let layer = loadedLayers.globalSettingsLayer;
         if (useProjectConfig) layer = loadedLayers.projectSettingsLayer;
+
         const config = layer ?? {};
         if (!isModelAliasConfigInput(config)) {
             throw new Error("pi-model-alias config.json is invalid: root must be an object");
@@ -217,6 +220,7 @@ export function loadModelAliasSettings(
     } catch (cause: unknown) {
         let message = String(cause);
         if (cause instanceof Error) message = cause.message;
+
         const loaded: LoadedModelAliasSettings = {
             path: configPath,
             mtimeMs,

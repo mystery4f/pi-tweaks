@@ -122,6 +122,7 @@ function getDefaultModelSelectorTarget(): ModelSelectorProviderBadgeTarget | und
 
 function getSelectedModelItem(target: ModelSelectorProviderBadgeTarget): ModelItemLike | undefined {
     if (!hasSelectedIndex(target)) return undefined;
+
     const selectedIndex = target.selectedIndex;
     const filteredModels = target.filteredModels;
     if (!isUnknownArray(filteredModels)) return undefined;
@@ -173,6 +174,7 @@ function highlightSelectedProviderBadge(
 
     for (const child of getListChildren(target)) {
         if (!isTextLike(child)) continue;
+
         const text = child.text;
         if (!text.includes(selectedModelText) || !text.includes(mutedProviderBadge)) continue;
         child.setText(text.replace(mutedProviderBadge, accentProviderBadge));
@@ -187,6 +189,7 @@ async function loadTheme(): Promise<ThemeInstance | undefined> {
         feature: "selected model provider badge patch",
         parse(module: unknown): ThemeInstance | undefined {
             if (!isThemeModule(module)) return undefined;
+
             const theme = module.theme;
             if (!isThemeView(theme)) return undefined;
 
@@ -230,6 +233,7 @@ export async function installModelSelectorProviderBadgePatch(
 
     const theme = providedTheme ?? (await loadTheme());
     if (theme === undefined) return { update(): void {}, dispose(): void {} };
+
     currentProviderBadgeConfig = config;
 
     const patch = installLinkedMethodPatch(
@@ -248,6 +252,7 @@ export async function installModelSelectorProviderBadgePatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 

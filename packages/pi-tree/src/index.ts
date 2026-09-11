@@ -10,6 +10,7 @@ export default function treeTimestampsExtension(pi: Pick<ExtensionAPI, "on">): v
         getPersistedMode();
         await patchTreeSelector();
     });
+
     pi.on("session_shutdown", () => {
         restoreTreeHeaderText();
     });

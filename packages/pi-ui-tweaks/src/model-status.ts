@@ -40,6 +40,7 @@ function isShowStatusView(
 function warnModelStatusPatchUnavailable(reason?: string): void {
     let suffix = "";
     if (reason !== undefined) suffix = `: ${reason}`;
+
     console.warn(
         `[pi-ui-tweaks] model status patch unavailable; Pi internals may have changed${suffix}`,
     );
@@ -96,6 +97,7 @@ export function installModelStatusPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
 

@@ -99,6 +99,7 @@ test("settings entrypoint wires chaining and templates into the shared runtime",
             ).status,
             "resolved",
         );
+
         extension(pi);
         await invoke("session_start", { type: "session_start" });
         const result = await invoke("context", {

@@ -117,6 +117,7 @@ function getSelectedAutocompleteItem(
     if (autocompleteList === undefined) return undefined;
 
     if (typeof autocompleteList.getSelectedItem !== "function") return undefined;
+
     const selectedItem = autocompleteList.getSelectedItem();
     if (selectedItem === null) return undefined;
     return selectedItem;
@@ -130,6 +131,7 @@ function isAutocompleteCompletion(
     if (!config.autocompleteAboveInput) return false;
     if (target.autocompleteState === null || target.autocompleteState === undefined) return false;
     if (target.autocompleteProvider === undefined) return false;
+
     if (
         !getKeybindings().matches(data, "tui.input.tab") &&
         !getKeybindings().matches(data, "tui.select.confirm")
@@ -278,6 +280,7 @@ export function installAutocompletePositionPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             renderPatch.dispose();
             inputPatch?.dispose();
