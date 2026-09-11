@@ -1,3 +1,5 @@
+import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import {
     copyToClipboard,
     CustomEditor,
@@ -5,9 +7,12 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { registerEditorEnhancer, type EditorEnhancerHandle } from "@zigai/pi-extension-internals";
 
+import type { KeymapTweaksConfig } from "./settings-input.ts";
+import { cycleThinkingLevelBackward, isThinkingBackwardKeyMatch } from "./thinking-cycle.ts";
+
 const KEYMAP_EDITOR_ENHANCER = Symbol.for("zigai.pi-keymap-tweaks.editor-enhancer");
 
-type EditorFactory = NonNullable<ReturnType<ExtensionContext["ui"]["getEditorComponent"]>>;
+export type EditorFactory = NonNullable<ReturnType<ExtensionContext["ui"]["getEditorComponent"]>>;
 type EditorFactoryArgs = Parameters<EditorFactory>;
 type EditorComponent = ReturnType<EditorFactory>;
 
@@ -30,10 +35,18 @@ type EditorInternals = {
 
 type ClipboardWriter = (text: string) => Promise<void>;
 type Notifier = (message: string, type?: "info" | "warning" | "error") => void;
+type ModelProvider = () => Model<Api> | undefined;
+type ThinkingLevelProvider = () => ThinkingLevel | undefined;
+type ThinkingLevelSetter = (level: ThinkingLevel) => void;
+type SettingsProvider = () => KeymapTweaksConfig;
 
 type KeymapEditorOptions = {
     readonly writeClipboard?: ClipboardWriter;
     readonly notify?: Notifier;
+    readonly getSettings?: SettingsProvider;
+    readonly getModel?: ModelProvider;
+    readonly getThinkingLevel?: ThinkingLevelProvider;
+    readonly setThinkingLevel?: ThinkingLevelSetter;
 };
 
 type EditorLike = ReturnType<EditorFactory> &
@@ -224,6 +237,34 @@ function enhanceEditor(
 
     editor.handleInput = (data: string) => {
         if (editor.onExtensionShortcut?.(data) === true) return;
+
+        let configuredThinkingKey: string | null | undefined;
+        if (options.getSettings !== undefined) {
+            configuredThinkingKey = options.getSettings().cycleThinkingBackwardKey;
+        }
+
+        const userBindings = keybindings.getUserBindings();
+        const userKeybinding = userBindings["app.thinking.cycleBackward"];
+        if (isThinkingBackwardKeyMatch(data, configuredThinkingKey, userKeybinding)) {
+            if (
+                options.getModel !== undefined &&
+                options.getThinkingLevel !== undefined &&
+                options.setThinkingLevel !== undefined
+            ) {
+                const newLevel = cycleThinkingLevelBackward(
+                    options.getModel(),
+                    options.getThinkingLevel(),
+                    options.setThinkingLevel,
+                );
+                if (newLevel === undefined) {
+                    notify("Current model does not support thinking", "warning");
+                } else {
+                    editor.requestRenderNow?.();
+                }
+
+                return;
+            }
+        }
 
         if (keybindings.matches(data, "app.models.clearAll")) {
             deleteCurrentLine(editor, writeClipboard, notify);
