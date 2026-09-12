@@ -40,6 +40,7 @@ type StatusBarMessage = Pick<MessageStartEvent["message"], "role">;
 
 type StatusBarEndMessage =
     | (Pick<Extract<MessageEndEvent["message"], { role: "assistant" }>, "role"> & {
+          readonly stopReason?: string;
           readonly usage: Pick<
               Extract<MessageEndEvent["message"], { role: "assistant" }>["usage"],
               "output" | "reasoning"
@@ -130,7 +131,7 @@ export function createStatusBarLifecycle(appendState: (state: WorkedForState) =>
         }
 
         if (event.message.role === "assistant") {
-            throughput.startStep();
+            throughput.startStep(performance.now());
         }
     }
 
@@ -147,7 +148,7 @@ export function createStatusBarLifecycle(appendState: (state: WorkedForState) =>
     async function message_end(event: { readonly message: StatusBarEndMessage }) {
         if (event.message.role !== "assistant") return;
 
-        throughput.finishStep(performance.now(), event.message.usage);
+        throughput.finishStep(performance.now(), event.message.usage, event.message.stopReason);
     }
 
     async function agent_settled(_event: Pick<ExtensionEvent, "type">, ctx: StatusBarContext) {

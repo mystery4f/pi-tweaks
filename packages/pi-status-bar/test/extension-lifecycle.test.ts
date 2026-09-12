@@ -125,7 +125,11 @@ function createHarness(): LifecycleHarness {
                     if (payload.message.role === "assistant") {
                         assert.ok(payload.message.usage);
                         await handlers.message_end({
-                            message: { role: "assistant", usage: payload.message.usage },
+                            message: {
+                                role: "assistant",
+                                usage: payload.message.usage,
+                                stopReason: payload.message.stopReason,
+                            },
                         });
                     } else {
                         await handlers.message_end({ message: { role: payload.message.role } });
@@ -209,8 +213,8 @@ test("status extension covers completion, abort, restore, and cleanup lifecycles
     assert.deepEqual(harness.appendEntries, []);
     harness.setIdle(true);
     await harness.invoke("agent_settled");
-    assert.deepEqual(harness.appendEntries, [{ durationMs: 9_200, tokensPerSecond: 100 }]);
-    assert.equal(renderedWidgetText(harness.currentWidget()), " Worked for 9s. [100.0 tok/s]");
+    assert.deepEqual(harness.appendEntries, [{ durationMs: 9_200, tokensPerSecond: 400 / 4.1 }]);
+    assert.equal(renderedWidgetText(harness.currentWidget()), " Worked for 9s. [97.6 tok/s]");
     await harness.invoke("agent_start");
     await harness.invoke("message_start", { message: { role: "user" } });
     await harness.invoke("message_start", { message: { role: "assistant" } });
