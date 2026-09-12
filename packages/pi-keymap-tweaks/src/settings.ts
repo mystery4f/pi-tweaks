@@ -123,25 +123,8 @@ export function loadKeymapTweaksSettings(
         },
     );
 
-    const settingsSources: KeymapTweaksSettingsSource[] = [];
-    if (settings.globalSettingsLayer !== undefined) {
-        settingsSources.push({
-            label: settings.globalConfigPath,
-            settings: settings.globalSettingsLayer,
-        });
-    }
-
-    if (settings.projectSettingsLayer !== undefined && settings.projectConfigPath !== undefined) {
-        settingsSources.push({
-            label: settings.projectConfigPath,
-            settings: settings.projectSettingsLayer,
-        });
-    }
-
-    const loaded = resolveKeymapTweaksConfig(settingsSources);
-
     return {
-        config: loaded.config,
-        errors: [...settings.diagnostics.map((diagnostic) => diagnostic.message), ...loaded.errors],
+        config: settings.settings,
+        errors: settings.diagnostics.map((diagnostic) => diagnostic.message),
     };
 }
