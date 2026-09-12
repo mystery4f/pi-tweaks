@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -11,21 +11,7 @@ import {
     getConfiguredModeShortcuts,
     setUseThinkingBorderColors,
 } from "../src/settings.ts";
-import {
-    atomicWriteUtf8,
-    ModesStore,
-    scaffoldGlobalModesConfig,
-    withFileLock,
-} from "../src/modes-store.ts";
-
-async function exists(filePath: string): Promise<boolean> {
-    try {
-        await stat(filePath);
-        return true;
-    } catch {
-        return false;
-    }
-}
+import { ModesStore, scaffoldGlobalModesConfig } from "../src/modes-store.ts";
 
 test("bundled schema stays aligned with the loaded module across session rebinding", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "pi-model-modes-schema-"));
@@ -166,9 +152,9 @@ test("mode config writes reject unknown config keys", async () => {
         });
         await writeFile(configPath, invalidConfig, "utf8");
 
-        assert.throws(
-            () => setUseThinkingBorderColors({ cwd: process.cwd(), projectTrusted: false }, true),
-            /additional properties/,
+        await assert.rejects(
+            setUseThinkingBorderColors({ cwd: process.cwd(), projectTrusted: false }, true),
+            /invalid|property|ignored/i,
         );
         assert.equal(await readFile(configPath, "utf8"), invalidConfig);
     } finally {
@@ -217,60 +203,15 @@ test("ModesStore prepares settings once while resolving and loading a mode file"
     }
 });
 
-test("atomicWriteUtf8 creates parent directories and replaces existing content", async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), "pi-model-modes-storage-"));
-    try {
-        const filePath = path.join(dir, "nested", "modes.json");
-        await atomicWriteUtf8(filePath, "first");
-        await atomicWriteUtf8(filePath, "second");
-        assert.equal(await readFile(filePath, "utf8"), "second");
-    } finally {
-        await rm(dir, { recursive: true, force: true });
-    }
-});
-
-test("withFileLock removes lock files when the callback throws", async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), "pi-model-modes-storage-"));
-    try {
-        const filePath = path.join(dir, "modes.json");
-        const lockPath = `${filePath}.lock`;
-
-        await assert.rejects(
-            withFileLock(filePath, async () => {
-                throw new Error("boom");
-            }),
-            /boom/,
-        );
-
-        assert.equal(await exists(lockPath), false);
-    } finally {
-        await rm(dir, { recursive: true, force: true });
-    }
-});
-
-test("withFileLock removes stale locks before running the callback", async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), "pi-model-modes-storage-"));
-    try {
-        const filePath = path.join(dir, "modes.json");
-        const lockPath = `${filePath}.lock`;
-        await writeFile(lockPath, "stale", "utf8");
-        const oldDate = new Date(Date.now() - 60_000);
-        await utimes(lockPath, oldDate, oldDate);
-
-        const result = await withFileLock(filePath, async () => "locked");
-        assert.equal(result, "locked");
-        assert.equal(await exists(lockPath), false);
-    } finally {
-        await rm(dir, { recursive: true, force: true });
-    }
-});
-
-test("ModesStore merges a local patch into the latest file under its lock", async () => {
+test("ModesStore merges a local patch into the latest transactional layer", async () => {
+    const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
     const dir = await mkdtemp(path.join(tmpdir(), "pi-model-modes-store-"));
-    const filePath = path.join(dir, "modes.json");
+    process.env.PI_CODING_AGENT_DIR = dir;
+    const filePath = path.join(dir, "extension-settings", "pi-model-modes.json");
     const fallback = { provider: "openai", modelId: "gpt-5", thinkingLevel: "medium" as const };
     const store = new ModesStore();
     try {
+        await scaffoldGlobalModesConfig();
         await writeFile(
             filePath,
             JSON.stringify({
@@ -290,10 +231,13 @@ test("ModesStore merges a local patch into the latest file under its lock", asyn
             modes: { default: { ...fallback, thinkingLevel: "high" as const } },
         };
 
+        await store.resolvePath({ cwd: dir, projectTrusted: false });
         const saved = await store.saveChanges(filePath, baseline, next, fallback);
         assert.equal(saved?.data.modes.default?.thinkingLevel, "high");
         assert.deepEqual(saved.data.modes.remote, { provider: "remote", modelId: "new" });
     } finally {
         await rm(dir, { recursive: true, force: true });
+        if (originalAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+        else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
     }
 });

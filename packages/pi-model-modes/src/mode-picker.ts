@@ -173,7 +173,7 @@ export class ModePicker {
             if (choice === MODE_UI_THINKING_COLORS_ON || choice === MODE_UI_THINKING_COLORS_OFF) {
                 const next = !colorsEnabled;
                 try {
-                    setUseThinkingBorderColors(settingsContext, next);
+                    await setUseThinkingBorderColors(settingsContext, next);
                 } catch (cause: unknown) {
                     ctx.ui.notify(
                         `Thinking border colors were not saved: ${errorMessage(cause)}`,
@@ -196,7 +196,7 @@ export class ModePicker {
             if (choice === MODE_UI_THINKING_STATUS_ON || choice === MODE_UI_THINKING_STATUS_OFF) {
                 const next = !statusEnabled;
                 try {
-                    setShowThinkingLevelStatus(settingsContext, next);
+                    await setShowThinkingLevelStatus(settingsContext, next);
                 } catch (cause: unknown) {
                     ctx.ui.notify(
                         `Thinking level status was not saved: ${errorMessage(cause)}`,
