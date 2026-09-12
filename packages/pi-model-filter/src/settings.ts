@@ -6,9 +6,7 @@ import {
 
 import { existsSync, statSync } from "node:fs";
 
-import { Type, type Static } from "typebox";
-
-import { Value } from "typebox/value";
+import type { Static } from "typebox";
 
 import { definePrevalidatedExtensionSettings } from "@zigai/pi-extension-settings/runtime";
 import { normalizeRules, type FilterRuleConfig, type ModelFilterSettings } from "./model-filter.ts";
@@ -30,17 +28,11 @@ export const modelFilterSettingsDefinition = definePrevalidatedExtensionSettings
 
 export default modelFilterSettingsDefinition;
 
-const FilterConfigSchema = Type.Object(
-    {
-        $schema: Type.Optional(Type.String()),
-        include: Type.Optional(Type.Array(filterRuleSchema)),
-        exclude: Type.Optional(Type.Array(filterRuleSchema)),
-    },
-    { additionalProperties: false },
-);
-
-type ParsedFilterConfig = Static<typeof FilterConfigSchema>;
 type ParsedFilterRuleConfig = Static<typeof filterRuleSchema>;
+type ParsedFilterConfig = {
+    readonly include?: readonly ParsedFilterRuleConfig[];
+    readonly exclude?: readonly ParsedFilterRuleConfig[];
+};
 
 function normalizeRule(rule: ParsedFilterRuleConfig): FilterRuleConfig {
     return {
@@ -64,24 +56,36 @@ export function getProjectConfigPath(cwd: string): string {
     return getPiProjectSettingsPath(EXTENSION_ID, cwd);
 }
 
+function settingsMtime(path: string): number {
+    try {
+        return statSync(path).mtimeMs;
+    } catch {
+        return -1;
+    }
+}
+
+function settingsSignature(globalPath: string, projectPath?: string): string {
+    let projectMtime = "untrusted";
+    if (projectPath !== undefined) projectMtime = String(settingsMtime(projectPath));
+    return `${settingsMtime(globalPath)}:${projectMtime}`;
+}
+
 export function loadModelFilterSettings(
     state: ModelFilterSettingsLoadState,
 ): LoadedModelFilterSettings {
     const cwd = state.configCwd ?? process.cwd();
+    const globalConfigPath = getGlobalConfigPath();
     const projectConfigPath = getProjectConfigPath(cwd);
     const useProjectConfig = state.projectTrusted === true && existsSync(projectConfigPath);
-    let configPath = getGlobalConfigPath();
-    if (useProjectConfig) configPath = projectConfigPath;
-
-    let mtimeMs = -1;
-
-    try {
-        mtimeMs = statSync(configPath).mtimeMs;
-    } catch {
-        // A scaffold failure is surfaced through the loader diagnostics below.
+    let configPath = globalConfigPath;
+    let watchedProjectPath: string | undefined;
+    if (useProjectConfig) {
+        configPath = projectConfigPath;
+        watchedProjectPath = projectConfigPath;
     }
+    const cacheSignature = settingsSignature(globalConfigPath, watchedProjectPath);
 
-    if (state.configCache?.path === configPath && state.configCache.mtimeMs === mtimeMs) {
+    if (state.configCache !== undefined && state.configCacheSignature === cacheSignature) {
         return state.configCache;
     }
 
@@ -95,34 +99,20 @@ export function loadModelFilterSettings(
             },
         },
     );
-
-    configPath = loadedLayers.globalConfigPath;
-    if (useProjectConfig) configPath = projectConfigPath;
-    mtimeMs = -1;
+    const mtimeMs = settingsMtime(configPath);
 
     try {
-        mtimeMs = statSync(configPath).mtimeMs;
-    } catch {
-        // A scaffold failure is surfaced through the loader diagnostics below.
-    }
-
-    try {
-        const configDiagnostics = loadedLayers.diagnostics.filter(
-            (diagnostic) => diagnostic.path === configPath,
-        );
-        if (configDiagnostics.length > 0) {
-            throw new Error(configDiagnostics.map((diagnostic) => diagnostic.message).join("; "));
-        }
-
-        let layer = loadedLayers.globalSettingsLayer;
-        if (useProjectConfig) layer = loadedLayers.projectSettingsLayer;
-
+        const diagnostics = loadedLayers.diagnostics.map((diagnostic) => diagnostic.message);
         const loaded: LoadedModelFilterSettings = {
             path: configPath,
             mtimeMs,
-            settings: decodeModelFilterSettings(Value.Parse(FilterConfigSchema, layer ?? {})),
+            settings: decodeModelFilterSettings(loadedLayers.settings),
         };
+        if (diagnostics.length > 0) {
+            loaded.diagnostic = `Failed to load ${configPath}: ${diagnostics.join("; ")}`;
+        }
         state.configCache = loaded;
+        state.configCacheSignature = settingsSignature(globalConfigPath, watchedProjectPath);
         return loaded;
     } catch (cause: unknown) {
         let message = String(cause);
@@ -135,6 +125,7 @@ export function loadModelFilterSettings(
             diagnostic: `Failed to load ${configPath}: ${message}`,
         };
         state.configCache = loaded;
+        state.configCacheSignature = settingsSignature(globalConfigPath, watchedProjectPath);
         return loaded;
     }
 }

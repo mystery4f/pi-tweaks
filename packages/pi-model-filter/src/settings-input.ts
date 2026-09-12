@@ -14,6 +14,7 @@ export type LoadedModelFilterSettings = {
 
 export type ModelFilterSettingsLoadState = {
     configCache?: LoadedModelFilterSettings;
+    configCacheSignature?: string;
     configCwd?: string;
     projectTrusted?: boolean;
 };
