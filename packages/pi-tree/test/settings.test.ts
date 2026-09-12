@@ -25,6 +25,11 @@ test("tree settings scaffold missing global config and schema", async () => {
             "schemas",
             "pi-tree.schema.json",
         );
+        const context = {
+            cwd: path.join(agentDir, "project"),
+            isProjectTrusted: () => false,
+        };
+        setSettingsContext(context);
 
         assert.equal(getPersistedMode(), "relative");
         assert.equal(getPersistedPreviewEnabled(), false);
@@ -39,6 +44,7 @@ test("tree settings scaffold missing global config and schema", async () => {
         const customConfig = JSON.stringify({ treeTimestampMode: "off", treeMaxVisibleLines: 7 });
         await writeFile(configPath, customConfig, "utf8");
         await writeFile(schemaPath, "stale schema", "utf8");
+        setSettingsContext(context);
         assert.equal(getPersistedMaxVisibleLines(), 7);
         assert.equal(await readFile(configPath, "utf8"), customConfig);
         assert.match(await readFile(schemaPath, "utf8"), /Pi Tree settings/);
