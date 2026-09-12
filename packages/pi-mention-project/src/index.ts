@@ -7,21 +7,24 @@ import {
 import { listProjectDirectories } from "./projects.ts";
 import {
     applyMentionProjectCliFlags,
-    loadMentionProjectSettings,
+    loadMentionProjectSettingsResult,
     INCLUDE_DOT_FOLDERS_FLAG,
     INCLUDE_NON_GIT_FLAG,
-    type MentionProjectSettings,
     type MentionProjectSettingsContext,
 } from "./settings.ts";
 
 function mentionProjectSettings(
     pi: Pick<ExtensionAPI, "getFlag">,
     ctx: MentionProjectSettingsContext,
-): MentionProjectSettings {
-    return applyMentionProjectCliFlags(loadMentionProjectSettings(ctx), {
-        includeNonGit: pi.getFlag(INCLUDE_NON_GIT_FLAG),
-        includeDotFolders: pi.getFlag(INCLUDE_DOT_FOLDERS_FLAG),
-    });
+) {
+    const loaded = loadMentionProjectSettingsResult(ctx);
+    return {
+        settings: applyMentionProjectCliFlags(loaded.settings, {
+            includeNonGit: pi.getFlag(INCLUDE_NON_GIT_FLAG),
+            includeDotFolders: pi.getFlag(INCLUDE_DOT_FOLDERS_FLAG),
+        }),
+        diagnostics: loaded.diagnostics,
+    };
 }
 
 export type ProjectMentionExtensionApi = Pick<ExtensionAPI, "registerFlag" | "getFlag"> &
@@ -39,10 +42,29 @@ export function registerProjectMentionExtension(pi: ProjectMentionExtensionApi):
         default: false,
     });
 
+    const settingsByContext = new WeakMap<object, ReturnType<typeof mentionProjectSettings>>();
+    const settingsFor = (ctx: MentionProjectSettingsContext) => {
+        const cached = settingsByContext.get(ctx);
+        if (cached !== undefined) return cached;
+
+        const settings = mentionProjectSettings(pi, ctx);
+        settingsByContext.set(ctx, settings);
+        return settings;
+    };
+
+    pi.on("session_start", (_event, ctx) => {
+        const loaded = settingsFor(ctx);
+        if (!ctx.hasUI) return;
+
+        for (const diagnostic of loaded.diagnostics) {
+            ctx.ui.notify(diagnostic.message, diagnostic.severity);
+        }
+    });
+
     registerMention(pi, {
         id: "project",
         configuration(ctx) {
-            const settings = mentionProjectSettings(pi, ctx);
+            const { settings } = settingsFor(ctx);
             return {
                 trigger: settings.trigger,
                 completionSuffix: settings.completionSuffix,
@@ -54,7 +76,7 @@ export function registerProjectMentionExtension(pi: ProjectMentionExtensionApi):
             };
         },
         provider(ctx) {
-            const settings = mentionProjectSettings(pi, ctx);
+            const { settings } = settingsFor(ctx);
 
             return createListProvider(async (request) => {
                 const projects = await listProjectDirectories(settings, ctx.cwd, {
