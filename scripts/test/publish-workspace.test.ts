@@ -133,17 +133,70 @@ test("recovers a publication race only when the exact version now exists", async
     expect(attempts).toEqual([internals.name, anything.name, skill.name]);
 });
 
+test("waits for a staged prerequisite to become visible before publishing its consumer", async () => {
+    let elapsed = 0;
+    let staged = false;
+    const attempts: string[] = [];
+    await publishWorkspace(
+        [internals, anything],
+        anything.name,
+        {
+            isPublished: async (workspace) =>
+                workspace.name === internals.name && staged && elapsed >= 30_000,
+            publish: async (workspace) => {
+                attempts.push(workspace.name);
+                if (workspace.name === internals.name) {
+                    staged = true;
+                    throw new Error("Cannot publish over previously staged version");
+                }
+                expect(elapsed).toBeGreaterThanOrEqual(30_000);
+            },
+        },
+        async (milliseconds) => {
+            elapsed += milliseconds;
+        },
+    );
+    expect(attempts).toEqual([internals.name, anything.name]);
+});
+
+test("stops waiting when the exact version never becomes visible", async () => {
+    const error = new Error("publish failed");
+    let elapsed = 0;
+    await expect(
+        publishWorkspace(
+            [internals],
+            internals.name,
+            {
+                isPublished: async () => false,
+                publish: async () => {
+                    throw error;
+                },
+            },
+            async (milliseconds) => {
+                elapsed += milliseconds;
+            },
+        ),
+    ).rejects.toBe(error);
+    expect(elapsed).toBeGreaterThan(0);
+    expect(elapsed).toBeLessThanOrEqual(300_000);
+});
+
 test("propagates a genuine publish failure without publishing consumers", async () => {
     const error = new Error("publish denied");
     const attempts: string[] = [];
     await expect(
-        publishWorkspace(packages, skill.name, {
-            isPublished: async () => false,
-            publish: async (workspace) => {
-                attempts.push(workspace.name);
-                throw error;
+        publishWorkspace(
+            packages,
+            skill.name,
+            {
+                isPublished: async () => false,
+                publish: async (workspace) => {
+                    attempts.push(workspace.name);
+                    throw error;
+                },
             },
-        }),
+            async () => {},
+        ),
     ).rejects.toBe(error);
     expect(attempts).toEqual([internals.name]);
 });

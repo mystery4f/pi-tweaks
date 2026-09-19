@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { setTimeout } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { Type, type Static } from "typebox";
 import { Value } from "typebox/value";
@@ -82,6 +83,7 @@ export async function publishWorkspace(
     packages: readonly ReleasePackage[],
     selected: string,
     services: PublishServices,
+    wait: (milliseconds: number) => Promise<void> = setTimeout,
 ): Promise<void> {
     // Validate the complete graph before performing any registry writes.
     for (const workspace of planWorkspacePublish(packages, selected)) {
@@ -89,9 +91,14 @@ export async function publishWorkspace(
         try {
             await services.publish(workspace);
         } catch (error) {
-            // Other tag workflows may have published this exact prerequisite.
-            // A package name existing, or a registry outage, is not success.
-            if (!(await services.isPublished(workspace))) throw error;
+            // Concurrent publication may be staged before npm exposes the version.
+            // Only the exact version becoming visible confirms another job succeeded.
+            let published = await services.isPublished(workspace);
+            for (let attempt = 0; !published && attempt < 20; attempt++) {
+                await wait(15_000);
+                published = await services.isPublished(workspace);
+            }
+            if (!published) throw error;
         }
     }
 }
