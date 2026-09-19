@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "vitest";
@@ -8,7 +8,7 @@ import { createCachedSkillExpansionLoader } from "../src/skill-content.ts";
 import { createSkillProvider, resolveSkillCandidate } from "../src/skill-provider.ts";
 import type { SkillCommand } from "../src/skill-commands.ts";
 
-function skillCommand(name: string, filePath: string): SkillCommand {
+function skillCommand(name: string, filePath: string, discoveryRoot: string): SkillCommand {
     return {
         source: "skill",
         name: `skill:${name}`,
@@ -18,7 +18,7 @@ function skillCommand(name: string, filePath: string): SkillCommand {
             source: "skill",
             scope: "project",
             origin: "top-level",
-            baseDir: path.dirname(filePath),
+            baseDir: discoveryRoot,
         },
     };
 }
@@ -29,10 +29,12 @@ function signal(): AbortSignal {
 
 test("skill provider resolves manually and preserves selected snapshots across refresh", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "pi-mention-skill-provider-"));
-    const filePath = path.join(dir, "python.md");
-    let commands: SkillCommand[] = [skillCommand("python", filePath)];
+    const skillDir = path.join(dir, "skills", "python");
+    const filePath = path.join(skillDir, "SKILL.md");
+    let commands: SkillCommand[] = [skillCommand("python", filePath, dir)];
 
     try {
+        await mkdir(skillDir, { recursive: true });
         await writeFile(filePath, "Initial body.\n", "utf8");
         const loadExpansion = createCachedSkillExpansionLoader();
         const provider = createSkillProvider(() => [...commands], loadExpansion, {
@@ -59,6 +61,7 @@ test("skill provider resolves manually and preserves selected snapshots across r
         });
         assert.equal(manual.status, "resolved");
         assert.match(manual.replacement ?? "", /Initial body\./);
+        assert.equal(manual.replacement?.split("\n")[1], `References are relative to ${skillDir}.`);
         commands = [];
         await writeFile(filePath, "Body loaded after selection.\n", "utf8");
         const refreshedTime = new Date("2030-01-01T00:00:00.000Z");
@@ -69,6 +72,7 @@ test("skill provider resolves manually and preserves selected snapshots across r
             signal(),
         );
         assert.match(selectedReplacement, /Body loaded after selection\./);
+        assert.equal(selectedReplacement.split("\n")[1], `References are relative to ${skillDir}.`);
 
         const refreshed = await provider.resolve({
             sourceId: "skill",

@@ -35,7 +35,7 @@ function skillCandidate(command: SkillCommand): Candidate {
     const data: SkillCandidateData = {
         name,
         location: command.sourceInfo.path,
-        baseDir: command.sourceInfo.baseDir ?? path.dirname(command.sourceInfo.path),
+        baseDir: path.dirname(command.sourceInfo.path),
     };
 
     return {
