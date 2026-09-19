@@ -83,10 +83,11 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Publish package
+      - name: Publish package and missing workspace prerequisites
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish -w '${{ steps.package.outputs.name }}' --access public --provenance
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+        run: node scripts/publish-workspace.ts "$PACKAGE_NAME"
 
   github-release:
     needs: publish
