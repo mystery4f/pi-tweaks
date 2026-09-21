@@ -122,17 +122,12 @@ function getMcpText(ctx: FooterContext, footerData: FooterData): string | null {
 
 function getSeparator(
     variant: FooterVariant,
-    side: FooterSide,
     config: FooterConfig,
     theme: PlainFooterTheme | undefined,
 ): string {
     if (variant === "blocks") return "";
 
-    if (side === "left") {
-        return renderThemeText(` ${config.separator} `, "dim", theme);
-    }
-
-    return renderThemeText("  ", "dim", theme);
+    return renderThemeText(` ${config.separator} `, "dim", theme);
 }
 
 function renderItem(
@@ -150,11 +145,10 @@ function renderItem(
 function joinRenderedItems(
     rendered: string[],
     variant: FooterVariant,
-    side: FooterSide,
     config: FooterConfig,
     theme: PlainFooterTheme | undefined,
 ): string {
-    return rendered.join(getSeparator(variant, side, config, theme));
+    return rendered.join(getSeparator(variant, config, theme));
 }
 
 function buildSideVariants(
@@ -180,7 +174,6 @@ function buildSideVariants(
             const rendered = joinRenderedItems(
                 items.slice(0, count).map((item) => renderItem(item, variant, theme)),
                 variant,
-                side,
                 config,
                 theme,
             );
@@ -194,7 +187,6 @@ function buildSideVariants(
             const rendered = joinRenderedItems(
                 items.slice(start).map((item) => renderItem(item, variant, theme)),
                 variant,
-                side,
                 config,
                 theme,
             );

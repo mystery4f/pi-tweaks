@@ -103,19 +103,24 @@ test("createFooterComponent leaves plain footer background transparent", () => {
     assert.match(line, /<dim> · <\/dim>/);
 });
 
-test("createFooterComponent renders configured plain separator", () => {
+test("createFooterComponent renders configured plain separator on both sides", () => {
     const component = createFooterComponent(
         footerContext(),
         footerData("main", new Map()),
         () => "medium",
         () => undefined,
-        { ...DEFAULT_FOOTER_CONFIG, separator: "/" },
+        {
+            ...DEFAULT_FOOTER_CONFIG,
+            separator: "/",
+            layout: { ...DEFAULT_FOOTER_CONFIG.layout, right: ["mcp", "context"] },
+        },
     );
 
     const line = component.render(120)[0] ?? "";
     const plain = stripAnsi(line);
     assert.match(plain, /pi-tweaks \/ .*main \/ .*copilot \/ .*gpt-5 \/ .*medium/);
     assert.doesNotMatch(plain, / · /);
+    assert.match(plain, /MCP: 2 servers \/ 75\.0%\/200k/);
 });
 
 test("createFooterComponent renders git ahead and behind counts beside the branch", () => {
