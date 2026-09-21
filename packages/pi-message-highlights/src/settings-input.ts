@@ -19,6 +19,8 @@ export const THEME_FOREGROUND_COLORS = defineThemeColors([
     "dim",
     "text",
     "thinkingText",
+    "scrollbarTrack",
+    "scrollbarThumb",
     "searchMatchText",
     "userMessageText",
     "customMessageText",

@@ -82,6 +82,14 @@
             },
             {
               "type": "string",
+              "const": "scrollbarTrack"
+            },
+            {
+              "type": "string",
+              "const": "scrollbarThumb"
+            },
+            {
+              "type": "string",
               "const": "searchMatchText"
             },
             {
