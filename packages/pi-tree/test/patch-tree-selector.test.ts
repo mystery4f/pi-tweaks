@@ -264,8 +264,10 @@ type RecordedExtensionLifecycle = {
 function createRecordedExtensionLifecycle(): RecordedExtensionLifecycle {
     const handlers = new Map<string, unknown>();
     const api: Pick<ExtensionAPI, "on"> = {
-        on(event, handler): void {
+        on(event, handler): () => void {
             handlers.set(event, handler);
+
+            return () => {};
         },
     };
 

@@ -133,6 +133,8 @@ test("mention skill skips command enumeration when provider context has no trigg
         const pi: MentionSkillExtensionApi = {
             on(event, handler) {
                 registeredHandlers.set(event, handler);
+
+                return () => {};
             },
             getCommands() {
                 getCommandsCount += 1;
@@ -175,6 +177,8 @@ test("mention skill expands provider context through the shared input observer",
         const pi: MentionSkillExtensionApi = {
             on(event, handler) {
                 registeredHandlers.set(event, handler);
+
+                return () => {};
             },
             getCommands() {
                 return [skillCommand("python", skillPath)];
@@ -239,6 +243,8 @@ test("registered skill mentions expand custom triggers without mutating images o
         mentionSkillExtension({
             on(event, handler) {
                 handlers.set(event, handler);
+
+                return () => {};
             },
             getCommands() {
                 return [skillCommand("python", skillPath)];

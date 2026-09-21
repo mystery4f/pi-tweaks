@@ -45,6 +45,8 @@ test("settings entrypoint wires chaining and templates into the shared runtime",
     const pi: Pick<ExtensionAPI, "on"> = {
         on(event, handler) {
             handlers.set(event, handler);
+
+            return () => {};
         },
     };
     const invoke = async (event: string, payload: Payload): Promise<Result> => {

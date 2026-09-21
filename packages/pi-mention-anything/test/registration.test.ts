@@ -55,6 +55,8 @@ function host(ui?: HostContext["ui"]): Host {
             const entries = handlers.get(event) ?? [];
             entries.push(handler);
             handlers.set(event, entries);
+
+            return () => {};
         },
     };
     const ctx: HostContext = {

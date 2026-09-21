@@ -140,6 +140,8 @@ test("mention project preserves submitted prompts and expands provider context",
             },
             on(event, handler) {
                 registeredHandlers.set(event, handler);
+
+                return () => {};
             },
         };
 
@@ -211,6 +213,8 @@ test("registered project mentions preserve queued input and expand multiple cont
             },
             on(event, handler) {
                 handlers.set(event, handler);
+
+                return () => {};
             },
         });
         await startSharedRuntime(handlers, cwd);

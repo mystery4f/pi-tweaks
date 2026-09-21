@@ -82,7 +82,9 @@ function getLoaderPrototype(): LoaderPrototypeOwner {
 function createExtensionApi(): Pick<ExtensionAPI, "on" | "appendEntry"> {
     const api: Pick<ExtensionAPI, "on" | "appendEntry"> = {
         appendEntry(): void {},
-        on(): void {},
+        on(): () => void {
+            return () => {};
+        },
     };
 
     return api;
