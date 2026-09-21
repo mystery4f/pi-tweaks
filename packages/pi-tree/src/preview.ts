@@ -103,6 +103,12 @@ export function getPreviewText(node: TreeNode | undefined): string {
             return normalizePreviewText(entry.summary ?? "");
         case "compaction":
             return `compaction: ${Math.round((entry.tokensBefore ?? 0) / 1000)}k tokens`;
+        case "context_edit": {
+            let action = "replace";
+            if (entry.replacement === null) action = "omit";
+
+            return `[context ${action}: ${entry.targetId ?? ""}]`;
+        }
         case "model_change":
             return `model: ${entry.modelId ?? ""}`;
         case "thinking_level_change":

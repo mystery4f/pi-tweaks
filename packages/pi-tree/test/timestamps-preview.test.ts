@@ -135,6 +135,23 @@ test("getPreviewText uses meaningful fallbacks for non-text entries", () => {
         getPreviewText(node({ id: "compact", type: "compaction", tokensBefore: 12_345 })),
         "compaction: 12k tokens",
     );
+    assert.equal(
+        getPreviewText(
+            node({ id: "omit", type: "context_edit", targetId: "entry-1", replacement: null }),
+        ),
+        "[context omit: entry-1]",
+    );
+    assert.equal(
+        getPreviewText(
+            node({
+                id: "replace",
+                type: "context_edit",
+                targetId: "entry-2",
+                replacement: { content: "replacement" },
+            }),
+        ),
+        "[context replace: entry-2]",
+    );
 });
 
 test("calculatePreviewLayout only enables preview when both panes fit", () => {

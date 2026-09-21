@@ -17,6 +17,8 @@ export type TreeEntry = {
     customType?: string;
     summary?: string;
     tokensBefore?: number;
+    targetId?: string;
+    replacement?: { content: unknown } | null;
     modelId?: string;
     thinkingLevel?: string;
     label?: string;
