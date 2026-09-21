@@ -25,6 +25,9 @@ This extension provides behavior; key assignments still live in your Pi keybindi
   "tui.editor.cursorWordRight": ["ctrl+d", "ctrl+right", "alt+right", "alt+f"],
   "tui.editor.cursorLineStart": ["home", "ctrl+q"],
   "tui.editor.cursorLineEnd": ["end", "ctrl+e"],
+  "tui.editor.jumpBackward": ["ctrl+home"],
+  "tui.editor.jumpForward": ["ctrl+end"],
+  "tui.editor.undo": ["ctrl+z"],
   "tui.editor.deleteCharForward": ["delete"],
   "app.models.clearAll": ["ctrl+x"],
   "app.thinking.cycleBackward": []
