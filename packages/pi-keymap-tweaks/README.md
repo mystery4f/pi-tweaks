@@ -13,6 +13,7 @@ Opinionated editor and message-submit key tweaks for Pi.
 - Adds Codex-style line start/end behavior for Pi's configured `tui.editor.cursorLineStart` and `tui.editor.cursorLineEnd` actions:
   - line start moves to the previous line when already at column 0
   - line end moves to the next line when already at the current line end
+- Supports cycling thinking levels backward, unbound by default and configurable via extension settings or Pi keybindings.
 
 ## Recommended keybindings
 
@@ -24,8 +25,12 @@ This extension provides behavior; key assignments still live in your Pi keybindi
   "tui.editor.cursorWordRight": ["ctrl+d", "ctrl+right", "alt+right", "alt+f"],
   "tui.editor.cursorLineStart": ["home", "ctrl+q"],
   "tui.editor.cursorLineEnd": ["end", "ctrl+e"],
+  "tui.editor.jumpBackward": ["ctrl+home"],
+  "tui.editor.jumpForward": ["ctrl+end"],
+  "tui.editor.undo": ["ctrl+z"],
   "tui.editor.deleteCharForward": ["delete"],
-  "app.models.clearAll": ["ctrl+x"]
+  "app.models.clearAll": ["ctrl+x"],
+  "app.thinking.cycleBackward": []
 }
 ```
 
@@ -34,6 +39,23 @@ This extension provides behavior; key assignments still live in your Pi keybindi
 ```sh
 pi install npm:@zigai/pi-keymap-tweaks
 ```
+
+<!-- pi-extension-settings:start -->
+## Configuration
+
+Global settings are stored in `~/.pi/agent/extension-settings/pi-keymap-tweaks.json`.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `cycleThinkingBackwardKey` | string \| null | `null` | Keybinding to cycle thinking level backward (e.g. 'alt+shift+tab'). Unbound by default. |
+
+```json
+{
+  "$schema": "./schemas/pi-keymap-tweaks.schema.json",
+  "cycleThinkingBackwardKey": null
+}
+```
+<!-- pi-extension-settings:end -->
 
 ## License
 

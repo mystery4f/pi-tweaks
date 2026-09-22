@@ -15,6 +15,7 @@ function reportConfigErrors(ctx: ExtensionContext, loaded: LoadedFooterConfig): 
         if (reportedConfigErrors.has(error)) {
             continue;
         }
+
         reportedConfigErrors.add(error);
         ctx.ui.notify(`[pi-footer] ${error}`, "error");
     }
@@ -28,8 +29,8 @@ function loadAndReportFooterSettings(ctx: ExtensionContext): LoadedFooterConfig 
 
 export default function uiEnhancements(pi: ExtensionAPI) {
     patchFooterReset();
-    const shrinkPaddingHandle = installFooterShrinkPaddingPatch();
 
+    const shrinkPaddingHandle = installFooterShrinkPaddingPatch();
     const getThinkingLevel = () => pi.getThinkingLevel();
     let activeFooterConfig = DEFAULT_FOOTER_CONFIG;
 

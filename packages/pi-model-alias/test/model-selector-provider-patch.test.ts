@@ -1,3 +1,4 @@
+import { AliasPolicy } from "../src/alias-policy.ts";
 import assert from "node:assert/strict";
 import { ModelSelectorComponent } from "@earendil-works/pi-coding-agent";
 import { test } from "vitest";
@@ -7,7 +8,7 @@ import {
     installProviderAliasUiPatches,
 } from "../src/model-selector-patch.ts";
 import { installScopedModelsProviderPatch } from "../src/scoped-model-selector-patch.ts";
-import type { ModelAliasRuntimeState } from "../src/registry-patch.ts";
+
 import type { LoadedModelAliasSettings } from "../src/settings.ts";
 
 type ModelSelectorPrototype = NonNullable<Parameters<typeof installModelSelectorProviderPatch>[1]>;
@@ -28,12 +29,12 @@ function loadedConfig(providerName: string): LoadedModelAliasSettings {
     };
 }
 
-function runtimeState(providerName: string): ModelAliasRuntimeState {
-    return {
+function runtimeState(providerName: string): AliasPolicy {
+    return new AliasPolicy({
         loadSettings() {
             return loadedConfig(providerName);
         },
-    };
+    });
 }
 
 function modelItem(): ModelSelectorItem {
@@ -87,9 +88,7 @@ test("model selector provider patch uses the latest runtime state after reinstal
     target.filteredModels = [];
     target.selectedIndex = 0;
     target.scope = "all";
-
     target.loadModelsFromSnapshot();
-
     assert.equal(target.allModels[0]?.provider, "New Provider");
     assert.equal(target.filteredModels[0]?.provider, "New Provider");
 });
@@ -108,9 +107,7 @@ test("scoped models provider patch uses the latest runtime state after reinstall
     const target: ScopedModelsPrototype = { ...prototype };
     target.filteredItems = [scopedItem()];
     target.selectedIndex = 0;
-
     target.updateList();
-
     assert.deepEqual(renderedProviders, ["New Provider"]);
     assert.equal(target.filteredItems[0]?.model.provider, "openai");
 });
@@ -134,7 +131,7 @@ test("provider alias UI patch waits for scoped selector patch installation", asy
 
     const installPromise = installProviderAliasUiPatches(runtimeState("Provider"), {
         modelSelectorPrototype: prototype,
-        installScopedModelsProviderPatchFromPi() {
+        async installScopedModelsProviderPatchFromPi() {
             return scopedInstallFinished;
         },
     });
@@ -144,7 +141,6 @@ test("provider alias UI patch waits for scoped selector patch installation", asy
         Promise.resolve("pending" as const),
     ]);
     assert.equal(pendingResult, "pending");
-
     assert.notEqual(finishScopedInstall, undefined);
     if (finishScopedInstall === undefined) assert.fail("expected scoped install finisher");
     finishScopedInstall();

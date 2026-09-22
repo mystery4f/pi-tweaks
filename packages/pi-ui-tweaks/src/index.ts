@@ -28,11 +28,14 @@ import {
 import { installSlashCommandSourcePatch } from "./slash-command-source.ts";
 
 const reportedConfigErrors = new Set<string>();
+
 type UiTweaksHandle = {
     update(config: UiTweaksConfig): void;
     dispose(): void;
 };
+
 let handles: UiTweaksHandle[] = [];
+
 export type UiTweaksLifecycleContext = Pick<
     ExtensionContext,
     "cwd" | "hasUI" | "isProjectTrusted"
@@ -42,7 +45,9 @@ export type UiTweaksLifecycleContext = Pick<
         "getEditorComponent" | "notify" | "setEditorComponent"
     >;
 };
+
 export type UiTweaksLifecycleEvent = SessionStartEvent | SessionShutdownEvent;
+
 export type UiTweaksExtensionApi = {
     onSessionStart(
         handler: (
@@ -50,6 +55,7 @@ export type UiTweaksExtensionApi = {
             ctx: UiTweaksLifecycleContext,
         ) => void | Promise<void>,
     ): void;
+
     onSessionShutdown(
         handler: (
             event: UiTweaksLifecycleEvent,
@@ -117,10 +123,12 @@ export function registerUiTweaksLifecycle(pi: UiTweaksExtensionApi): void {
     pi.onSessionStart(async (_event, ctx) => {
         const loaded = loadUiTweaksSettings(ctx.cwd, ctx.isProjectTrusted());
         reportConfigErrors(ctx, loaded);
+
         if (handles.length === 0) {
             handles = await installUiTweaks(ctx, loaded.config);
             return;
         }
+
         for (const handle of handles) handle.update(loaded.config);
     });
     pi.onSessionShutdown(() => {

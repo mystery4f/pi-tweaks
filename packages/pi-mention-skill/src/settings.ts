@@ -17,8 +17,8 @@ export default mentionSkillSettingsDefinition;
 
 export type MentionSkillSettingsContext = Pick<ExtensionContext, "cwd" | "isProjectTrusted">;
 
-/** Load validated global and trusted-project mention settings. */
-export function loadMentionSkillSettings(ctx: MentionSkillSettingsContext): MentionSkillSettings {
+/** Load validated global and trusted-project mention settings with safe diagnostics. */
+export function loadMentionSkillSettingsResult(ctx: MentionSkillSettingsContext) {
     const loaded = loadPiExtensionSettings(
         mentionSkillSettingsDefinition,
         {
@@ -34,13 +34,21 @@ export function loadMentionSkillSettings(ctx: MentionSkillSettingsContext): Ment
     );
 
     return {
-        trigger: loaded.settings.trigger,
-        hideSlashSkills: loaded.settings.hideSlashSkills,
-        completionSuffix: loaded.settings.completionSuffix,
-        initialSuggestions: {
-            strategy: loaded.settings.initialSuggestions.strategy,
-            pinned: [...loaded.settings.initialSuggestions.pinned],
-            projectSkillsFirst: loaded.settings.initialSuggestions.projectSkillsFirst,
+        settings: {
+            trigger: loaded.settings.trigger,
+            hideSlashSkills: loaded.settings.hideSlashSkills,
+            completionSuffix: loaded.settings.completionSuffix,
+            initialSuggestions: {
+                strategy: loaded.settings.initialSuggestions.strategy,
+                pinned: [...loaded.settings.initialSuggestions.pinned],
+                projectSkillsFirst: loaded.settings.initialSuggestions.projectSkillsFirst,
+            },
         },
+        diagnostics: loaded.diagnostics,
     };
+}
+
+/** Load validated global and trusted-project mention settings. */
+export function loadMentionSkillSettings(ctx: MentionSkillSettingsContext): MentionSkillSettings {
+    return loadMentionSkillSettingsResult(ctx).settings;
 }

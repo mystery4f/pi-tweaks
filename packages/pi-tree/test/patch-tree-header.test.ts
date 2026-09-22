@@ -43,7 +43,6 @@ test("tree header patch is selector-scoped and reversible", () => {
         prototype.addChild(title);
         prototype.addChild(legacyHelp);
         prototype.addChild(ordinary);
-
         assert.deepEqual(added, [legacyHelp, ordinary]);
         assert.equal(legacyHelp.text?.includes("shift+p: preview"), true);
         assert.deepEqual(

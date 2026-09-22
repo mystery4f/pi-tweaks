@@ -24,6 +24,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
     await rm(agentDir, { recursive: true, force: true });
+
     if (originalAgentDir === undefined) {
         delete process.env.PI_CODING_AGENT_DIR;
     } else {
@@ -80,7 +81,6 @@ test("loadMentionSkillSettings uses defaults and scaffolds global config", async
             },
         });
         assert.match(await readFile(globalSchemaPath, "utf8"), /Pi Mention Skill settings/);
-
         const customConfig = JSON.stringify({ trigger: "$$", hideSlashSkills: false });
         await writeFile(globalConfigPath, customConfig, "utf8");
         await writeFile(globalSchemaPath, "stale schema", "utf8");

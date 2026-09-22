@@ -32,7 +32,8 @@ function parseGitAheadBehind(output: string): GitAheadBehind | undefined {
     const counts = output.trim().split(/\s+/);
     if (counts.length !== 2) return undefined;
 
-    const [aheadText, behindText] = counts;
+    const aheadText = counts.at(0);
+    const behindText = counts.at(1);
     if (aheadText === undefined || behindText === undefined) return undefined;
 
     const ahead = Number(aheadText);
@@ -44,7 +45,7 @@ function parseGitAheadBehind(output: string): GitAheadBehind | undefined {
     return { ahead, behind };
 }
 
-function runGitAheadBehindQuery(
+async function runGitAheadBehindQuery(
     cwd: string,
     options: { readonly signal: AbortSignal },
 ): Promise<string> {
@@ -60,10 +61,11 @@ function runGitAheadBehindQuery(
                 windowsHide: true,
             },
             (error, stdout) => {
-                if (error !== null) {
+                if (error instanceof Error) {
                     reject(error);
                     return;
                 }
+
                 resolve(stdout);
             },
         );
@@ -83,6 +85,7 @@ async function loadGitAheadBehind(
         if (options.signal.aborted || isAbortCause(cause)) {
             return undefined;
         }
+
         // Repositories without an upstream (and unavailable Git installations)
         // have no meaningful ahead/behind indicator, so keep the footer quiet.
         return undefined;
@@ -114,8 +117,8 @@ class GitAheadBehindTracker implements GitAheadBehindSource {
         this.requestRender = requestRender;
         this.query = options.query ?? loadGitAheadBehind;
         this.refreshIntervalMs = options.refreshIntervalMs ?? GIT_AHEAD_BEHIND_REFRESH_INTERVAL_MS;
-
         this.refresh();
+
         if (this.refreshIntervalMs > 0) {
             this.refreshTimer = setInterval(() => this.refresh(), this.refreshIntervalMs);
             this.refreshTimer.unref();
@@ -128,6 +131,7 @@ class GitAheadBehindTracker implements GitAheadBehindSource {
 
     refresh(): void {
         if (this.disposed) return;
+
         if (this.refreshInFlight !== undefined) {
             this.refreshPending = true;
             return;
@@ -138,8 +142,10 @@ class GitAheadBehindTracker implements GitAheadBehindSource {
 
     dispose(): void {
         if (this.disposed) return;
+
         this.disposed = true;
         this.abortController.abort();
+
         if (this.refreshTimer !== undefined) {
             clearInterval(this.refreshTimer);
             this.refreshTimer = undefined;
@@ -152,6 +158,7 @@ class GitAheadBehindTracker implements GitAheadBehindSource {
             // even a faulty injected query that throws synchronously cannot leave
             // the tracker permanently marked as busy.
             await Promise.resolve();
+
             const nextStatus = await this.query(this.cwd, {
                 signal: this.abortController.signal,
             });
@@ -162,9 +169,11 @@ class GitAheadBehindTracker implements GitAheadBehindSource {
             if (this.disposed || this.abortController.signal.aborted || isAbortCause(cause)) {
                 return;
             }
+
             this.setGitAheadBehind(undefined);
         } finally {
             this.refreshInFlight = undefined;
+
             if (!this.disposed && this.refreshPending) {
                 this.refreshPending = false;
                 this.refresh();
@@ -174,6 +183,7 @@ class GitAheadBehindTracker implements GitAheadBehindSource {
 
     private setGitAheadBehind(nextStatus: GitAheadBehind | undefined): void {
         if (gitAheadBehindEqual(this.gitAheadBehind, nextStatus)) return;
+
         this.gitAheadBehind = nextStatus;
         this.requestRender();
     }

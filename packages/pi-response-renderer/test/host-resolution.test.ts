@@ -4,34 +4,8 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "vitest";
 
+import { assistantMessageRuntime } from "../src/assistant-message-runtime.ts";
 import assistantRenderingExtension from "../src/index.ts";
-
-type AssistantComponent = {
-    render(width: number): string[];
-};
-
-type AssistantConstructor = {
-    new (): AssistantComponent;
-    readonly prototype: {
-        render(width: number): string[];
-        updateContent(): void;
-    };
-};
-
-type ParsedAssistantModule = {
-    readonly AssistantMessageComponent: AssistantConstructor;
-};
-
-function isAssistantModule(module: unknown): module is ParsedAssistantModule {
-    if (typeof module !== "object" || module === null) return false;
-    if (!("AssistantMessageComponent" in module)) return false;
-    const component = module.AssistantMessageComponent;
-    if (typeof component !== "function" || !("prototype" in component)) return false;
-    const prototype: unknown = component.prototype;
-    if (typeof prototype !== "object" || prototype === null) return false;
-    if (!("render" in prototype) || typeof prototype.render !== "function") return false;
-    return "updateContent" in prototype && typeof prototype.updateContent === "function";
-}
 
 test("patches assistant Markdown owned by a separate running Pi installation", async ({
     onTestFinished,
@@ -56,11 +30,13 @@ test("patches assistant Markdown owned by a separate running Pi installation", a
         } else {
             process.env.PI_CODING_AGENT = originalPiFlag;
         }
+
         if (originalPackageDirectory === undefined) {
             delete process.env.PI_PACKAGE_DIR;
         } else {
             process.env.PI_PACKAGE_DIR = originalPackageDirectory;
         }
+
         await rm(fixtureRoot, { recursive: true, force: true });
     });
 
@@ -107,9 +83,12 @@ export class AssistantMessageComponent {
     delete process.env.PI_PACKAGE_DIR;
 
     const imported: unknown = await import(pathToFileURL(bundledAssistantModulePath).href);
-    if (!isAssistantModule(imported)) throw new TypeError("missing fixture assistant component");
+    const AssistantComponent = assistantMessageRuntime.parse(imported);
+    if (AssistantComponent === undefined)
+        throw new TypeError("missing fixture assistant component");
+
     await assistantRenderingExtension();
 
-    const component = new imported.AssistantMessageComponent();
+    const component = new AssistantComponent();
     expect(component.render(80)).toEqual(['{"working":true}']);
 });

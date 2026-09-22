@@ -20,6 +20,7 @@ function hasTheme(value: unknown): value is ThemeModuleView {
     if ((typeof value !== "object" && typeof value !== "function") || value === null) {
         return false;
     }
+
     return "theme" in value && value.theme !== undefined;
 }
 
@@ -27,6 +28,7 @@ function hasInstallation(value: unknown): value is InstallationModuleView {
     if (typeof value !== "object" || value === null || !("installation" in value)) {
         return false;
     }
+
     return typeof value.installation === "string";
 }
 
@@ -41,6 +43,7 @@ async function captureWarnings(run: () => Promise<void> | void): Promise<string[
     } finally {
         console.warn = originalWarn;
     }
+
     return warnings;
 }
 
@@ -97,11 +100,13 @@ test("loads internals from the running Pi entrypoint instead of the extension de
         } else {
             process.env.PI_CODING_AGENT = originalPiFlag;
         }
+
         if (originalPackageDirectory === undefined) {
             delete process.env.PI_PACKAGE_DIR;
         } else {
             process.env.PI_PACKAGE_DIR = originalPackageDirectory;
         }
+
         await rm(fixtureRoot, { recursive: true, force: true });
     });
 
@@ -140,6 +145,7 @@ test("reports parser rejection, parser failures, and missing Pi modules", async 
                 parse: () => undefined,
             }),
         ).toBeUndefined();
+
         expect(
             await loadPiInternalModule("modes/interactive/theme/theme.js", {
                 scope: "pi-example",
@@ -149,6 +155,7 @@ test("reports parser rejection, parser failures, and missing Pi modules", async 
                 },
             }),
         ).toBeUndefined();
+
         expect(
             await loadPiInternalModule("missing/internal-module.js", {
                 scope: "pi-example",
@@ -162,9 +169,11 @@ test("reports parser rejection, parser failures, and missing Pi modules", async 
     expect(warnings[0]).toBe(
         "[pi-example] rejected theme unavailable; Pi internals may have changed",
     );
+
     expect(warnings[1]).toBe(
         "[pi-example] broken parser unavailable; Pi internals may have changed: invalid theme shape",
     );
+
     expect(warnings[2]).toContain(
         "[pi-example] missing module unavailable; Pi internals may have changed:",
     );
@@ -184,6 +193,7 @@ test("rejects internal module paths outside the coding-agent package", async () 
                 parse,
             }),
         ).toBeUndefined();
+
         expect(
             await loadPiInternalModule("/tmp/outside.js", {
                 scope: "pi-example",

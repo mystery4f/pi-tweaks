@@ -20,6 +20,7 @@ type ScopedModelsSelectorModule = {
 function isScopedModelsSelectorModule(value: unknown): value is ScopedModelsSelectorModule {
     if (typeof value !== "object" || value === null) return false;
     if (!("ScopedModelsSelectorComponent" in value)) return false;
+
     const component = value.ScopedModelsSelectorComponent;
     if (
         ((typeof component !== "object" || component === null) &&
@@ -28,6 +29,7 @@ function isScopedModelsSelectorModule(value: unknown): value is ScopedModelsSele
     ) {
         return false;
     }
+
     return typeof component.prototype === "object" && component.prototype !== null;
 }
 

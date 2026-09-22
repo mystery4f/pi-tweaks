@@ -22,7 +22,6 @@ test("loadStatusBarSettings scaffolds missing global config and schema", async (
             "pi-status-bar.schema.json",
         );
         const loaded = loadStatusBarSettings(cwd, false);
-
         assert.deepEqual(loaded.errors, []);
         assert.equal(loaded.config.rightMessages.enabled, false);
         assert.deepEqual(loaded.config.statusBar, {
@@ -65,18 +64,17 @@ test("loadStatusBarSettings scaffolds missing global config and schema", async (
             },
         });
         assert.match(await readFile(schemaPath, "utf8"), /Pi Status Bar settings/);
-
         const customConfig = JSON.stringify({ rightMessages: { messages: ["hello"] } });
         writeFileSync(configPath, customConfig, "utf8");
         writeFileSync(schemaPath, "stale schema", "utf8");
         const loadedAgain = loadStatusBarSettings(cwd, false);
-
         assert.deepEqual(loadedAgain.config.rightMessages.messages, ["hello"]);
         assert.equal(await readFile(configPath, "utf8"), customConfig);
         assert.match(await readFile(schemaPath, "utf8"), /Pi Status Bar settings/);
     } finally {
         rmSync(agentDir, { recursive: true, force: true });
         rmSync(cwd, { recursive: true, force: true });
+
         if (originalAgentDir === undefined) {
             delete process.env.PI_CODING_AGENT_DIR;
         } else {
@@ -87,11 +85,10 @@ test("loadStatusBarSettings scaffolds missing global config and schema", async (
 
 test("status bar right messages default to disabled", () => {
     const loaded = resolveStatusBarResolvedConfig([]);
-
     assert.equal(loaded.config.rightMessages.enabled, false);
     assert.equal(loaded.config.statusBar.active?.timer?.visible, true);
     assert.equal(loaded.config.statusBar.idle?.showLastRunSummary, true);
-    assert.equal(loaded.config.statusBar.idle?.showTokensPerSecond, true);
+    assert.equal(loaded.config.statusBar.idle.showTokensPerSecond, true);
     assert.equal(loaded.config.rightMessages.dimmed, true);
     assert.equal(loaded.config.rightMessages.italic, true);
     assert.deepEqual(loaded.config.rightMessages.messages, []);

@@ -4,23 +4,32 @@ import { test } from "vitest";
 import { installModelSelectorHintPatch } from "../src/model-selector-hint.ts";
 
 const HINT = "Only showing models from configured providers. Use /login to add providers.";
+
 type Component = { render(width: number): string[]; invalidate(): void };
+
 class Text implements Component {
     constructor(readonly text: string) {}
+
     render(): string[] {
         return [];
     }
+
     invalidate(): void {}
 }
+
 class Spacer implements Component {
     readonly lines = 1;
+
     render(): string[] {
         return [];
     }
+
     invalidate(): void {}
 }
+
 function selector() {
     const addedComponents = new Array<Component>();
+
     return {
         addedComponents,
         addChild: (component: Component): void => {
@@ -37,6 +46,7 @@ test("model selector hint and its immediate spacer are removed", () => {
         { compactModelSelector: false, hideModelProviderHint: true },
         target,
     );
+
     target.addChild(before);
     target.addChild(new Text(HINT));
     target.addChild(new Spacer());

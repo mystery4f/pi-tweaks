@@ -4,6 +4,7 @@ import { test } from "vitest";
 
 import { installPreserveCompactionHistoryPatch } from "../src/preserve-compaction-history.ts";
 import { captureConsoleWarnings } from "./capture-console-warnings.ts";
+
 type CompactionEventFixture = {
     readonly aborted?: boolean;
     readonly result?: object;
@@ -14,6 +15,7 @@ class FakeInteractiveMode {
     clearCount = 0;
     rebuildCount = 0;
     summaryCount = 0;
+
     chatContainer = {
         clear: () => {
             this.clearCount += 1;
@@ -45,6 +47,7 @@ test("explicit null does not patch Pi's default compaction handler", async () =>
             Object.getOwnPropertyDescriptor(InteractiveMode.prototype, "handleEvent"),
             original,
         );
+
         handle.dispose();
     });
 
@@ -61,7 +64,6 @@ test("preserve compaction history leaves successful live compaction UI intact", 
 
     const mode = new FakeInteractiveMode();
     await mode.handleEvent({ type: "compaction_end", aborted: false, result: {} });
-
     assert.equal(mode.clearCount, 0);
     assert.equal(mode.rebuildCount, 0);
     assert.equal(mode.summaryCount, 1);
@@ -79,7 +81,6 @@ test("preserve compaction history keeps Pi's normal redraw when disabled", async
 
     const mode = new FakeInteractiveMode();
     await mode.handleEvent({ type: "compaction_end", aborted: false, result: {} });
-
     assert.equal(mode.clearCount, 1);
     assert.equal(mode.rebuildCount, 1);
     assert.equal(mode.summaryCount, 1);

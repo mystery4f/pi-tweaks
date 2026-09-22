@@ -1,5 +1,3 @@
-export const TREE_TIMESTAMP_MODE_KEY = Symbol.for("zigai.pi.tree-timestamps.mode");
-export const TREE_PREVIEW_ENABLED_KEY = Symbol.for("zigai.pi.tree-timestamps.preview-enabled");
 import {
     getPersistedMaxVisibleLines,
     getPersistedMode,
@@ -8,6 +6,9 @@ import {
 } from "./settings.ts";
 import type { FlatTreeNode, TreeNode } from "./tree-node.ts";
 import type { TreeTimestampMode } from "./timestamps.ts";
+
+export const TREE_TIMESTAMP_MODE_KEY = Symbol.for("zigai.pi.tree-timestamps.mode");
+export const TREE_PREVIEW_ENABLED_KEY = Symbol.for("zigai.pi.tree-timestamps.preview-enabled");
 
 export type TreeListInstance = {
     activePathIds?: Set<string>;
@@ -33,7 +34,6 @@ export function setTreeTimestampMode(treeList: TreeListInstance, mode: TreeTimes
 
 export function getTreeTimestampMode(treeList: TreeListInstance): TreeTimestampMode {
     const current = treeList[TREE_TIMESTAMP_MODE_KEY];
-
     if (isTreeTimestampMode(current)) {
         treeList.showLabelTimestamps = false;
         return current;
@@ -41,6 +41,7 @@ export function getTreeTimestampMode(treeList: TreeListInstance): TreeTimestampM
 
     const initialMode = getPersistedMode();
     setTreeTimestampMode(treeList, initialMode);
+
     return initialMode;
 }
 
@@ -53,6 +54,7 @@ export function applyConfiguredMaxVisibleLines(treeList: TreeListInstance): void
     if (configured === null) {
         return;
     }
+
     treeList.maxVisibleLines = configured;
 }
 
@@ -62,5 +64,6 @@ export function getTreePreviewEnabled(treeList: TreeListInstance): boolean {
 
     const initialEnabled = getPersistedPreviewEnabled();
     setTreePreviewEnabled(treeList, initialEnabled);
+
     return initialEnabled;
 }

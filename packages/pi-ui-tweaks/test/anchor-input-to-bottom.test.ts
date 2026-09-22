@@ -101,6 +101,7 @@ function getFullscreenScreen(tui: TuiAltScreen): string[] {
     if (!isScreenLines(previousScreen)) {
         throw new Error("Expected fullscreen TUI render internals.");
     }
+
     return previousScreen;
 }
 
@@ -115,6 +116,7 @@ function createFullscreenLayout(editor: Component): VStack {
     editorContainer.addChild(editor);
     const belowEditor = new Container();
     const footer = new FixedLines(["FOOTER"]);
+
     const dock = new VStack([
         { component: pendingMessages, shrink: 1, minSize: 0 },
         { component: status, shrink: 1, minSize: 0 },
@@ -170,7 +172,6 @@ test("anchor input to bottom leaves short screens unchanged when disabled", () =
     tui.addChild(new FixedLines(["message"]));
     tui.addChild(editor);
     tui.setFocus(editor);
-
     assert.deepEqual(tui.render(30), ["message", "EDITOR TOP", "EDITOR BODY", "EDITOR BOTTOM"]);
 });
 
@@ -181,7 +182,6 @@ test("anchor input range recording preserves inherited child render methods", ()
     const tui = new TUI(terminal);
     const child = new FixedLines(["message"]);
     tui.addChild(child);
-
     assert.equal(Object.hasOwn(child, "render"), false);
     tui.render(30);
     assert.equal(Object.hasOwn(child, "render"), false);
@@ -264,7 +264,6 @@ test("anchor input to bottom compacts the fullscreen spacer below the working lo
         const screen = getFullscreenScreen(tui).map((line) => stripTerminalLineReset(line).trim());
         const workingIndex = screen.indexOf("⠴ Working...");
         const editorIndex = screen.indexOf("EDITOR TOP");
-
         assert.notEqual(workingIndex, -1);
         assert.notEqual(editorIndex, -1);
         assert.equal(editorIndex - workingIndex, 1);
@@ -291,7 +290,6 @@ test("fullscreen anchoring leaves the spacer below the working loader disabled",
         const screen = getFullscreenScreen(tui).map((line) => stripTerminalLineReset(line).trim());
         const workingIndex = screen.indexOf("⠴ Working...");
         const editorIndex = screen.indexOf("EDITOR TOP");
-
         assert.notEqual(workingIndex, -1);
         assert.notEqual(editorIndex, -1);
         assert.equal(editorIndex - workingIndex, 2);

@@ -29,7 +29,6 @@ import type { TreeNode } from "./tree-node.ts";
 
 export const PATCH_KEY = Symbol.for("zigai.pi.tree-timestamps.patched");
 const PREVIEW_TOGGLE_KEY = "P";
-
 const TREE_PATCH_STATE = Symbol.for("zigai.pi-tree.patch-state");
 
 type TreePatchState = {
@@ -95,21 +94,6 @@ function isObjectIdentity(value: unknown): value is object {
     return (typeof value === "object" && value !== null) || typeof value === "function";
 }
 
-function getPropertyDescriptor<Value extends object>(
-    value: Value,
-    key: PropertyKey,
-): PropertyDescriptor | undefined {
-    let owner: object | null = value;
-    while (owner !== null) {
-        const descriptor = Object.getOwnPropertyDescriptor(owner, key);
-        if (descriptor !== undefined) return descriptor;
-        const parent: unknown = Object.getPrototypeOf(owner);
-        if (!isObjectIdentity(parent)) return undefined;
-        owner = parent;
-    }
-    return undefined;
-}
-
 type CallableProperty<Key extends PropertyKey> = {
     [Property in Key]: (...args: never[]) => void;
 };
@@ -117,16 +101,33 @@ type CallableProperty<Key extends PropertyKey> = {
 function isCallableProperty<Value extends object, Key extends PropertyKey>(
     value: Value,
     key: Key,
-): value is Value & CallableProperty<Key> {
-    return typeof getPropertyDescriptor(value, key)?.value === "function";
-}
+): value is Value & CallableProperty<Key>;
+function isCallableProperty<Value extends object, Key extends PropertyKey>(
+    value: Value,
+    key: Key,
+    allowAbsent: true,
+): value is Value & Partial<CallableProperty<Key>>;
+function isCallableProperty<Value extends object, Key extends PropertyKey>(
+    value: Value,
+    key: Key,
+    allowAbsent = false,
+): value is Value & Partial<CallableProperty<Key>> {
+    let owner: object = value;
 
-function isGetTreeList(value: unknown): value is UntrustedGetTreeList {
-    return typeof value === "function";
+    for (;;) {
+        const descriptor = Object.getOwnPropertyDescriptor(owner, key);
+        if (descriptor !== undefined) return typeof descriptor.value === "function";
+
+        const parent: unknown = Object.getPrototypeOf(owner);
+        if (!isObjectIdentity(parent)) return allowAbsent;
+
+        owner = parent;
+    }
 }
 
 function isTreeTheme(value: unknown): value is TreeTheme {
     if (!isObjectIdentity(value)) return false;
+
     // SAFETY: Pi's theme is a Proxy whose methods are intentionally absent from `in` and
     // own-property checks. Reading only these three unknown properties is the observable seam.
     const theme = value as TreeThemeProbe;
@@ -139,7 +140,7 @@ function isTreeTheme(value: unknown): value is TreeTheme {
 
 function isTreeSelectorPrototype(value: unknown): value is TreeSelectorPrototype {
     if (!isObjectIdentity(value)) return false;
-    return isGetTreeList(getPropertyDescriptor(value, "getTreeList")?.value);
+    return isCallableProperty(value, "getTreeList");
 }
 
 function isTreeHeaderPatchTarget(
@@ -150,13 +151,11 @@ function isTreeHeaderPatchTarget(
 
 function isTreeListPrototype(value: unknown): value is TreeListPrototype {
     if (!isObjectIdentity(value)) return false;
-    const getEntryDisplayText = getPropertyDescriptor(value, "getEntryDisplayText");
-    const render = getPropertyDescriptor(value, "render");
     return (
         isCallableProperty(value, "handleInput") &&
         isCallableProperty(value, "getStatusLabels") &&
-        (getEntryDisplayText === undefined || isCallableProperty(value, "getEntryDisplayText")) &&
-        (render === undefined || isCallableProperty(value, "render"))
+        isCallableProperty(value, "getEntryDisplayText", true) &&
+        isCallableProperty(value, "render", true)
     );
 }
 
@@ -187,6 +186,7 @@ function setTreePatchState(settings: TreePatchSettings): TreePatchState {
         value: patchState,
         writable: true,
     });
+
     return patchState;
 }
 
@@ -198,6 +198,7 @@ function applyConfiguredMaxVisibleLinesFromState(
     if (configured === null) {
         return;
     }
+
     treeList.maxVisibleLines = configured;
 }
 
@@ -206,7 +207,6 @@ function getTreeTimestampModeFromState(
     patchState: TreePatchState,
 ): TreeTimestampMode {
     const current = treeList[TREE_TIMESTAMP_MODE_KEY];
-
     if (isTreeTimestampMode(current)) {
         treeList.showLabelTimestamps = false;
         return current;
@@ -214,6 +214,7 @@ function getTreeTimestampModeFromState(
 
     const initialMode = patchState.getPersistedMode();
     setTreeTimestampMode(treeList, initialMode);
+
     return initialMode;
 }
 
@@ -228,20 +229,20 @@ function getTreePreviewEnabledFromState(
 
     const initialEnabled = patchState.getPersistedPreviewEnabled();
     setTreePreviewEnabled(treeList, initialEnabled);
+
     return initialEnabled;
 }
 
 export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}): Promise<void> {
     const patchState = setTreePatchState(options.settings ?? defaultTreePatchSettings());
     const patchHeaderText = options.patchTreeHeaderText ?? patchTreeHeaderText;
-
     const loadInternals = options.loadTreeInternals ?? loadTreeInternals;
     const internals = await loadInternals();
     if (internals === undefined) return;
 
     const [{ TreeSelectorComponent }, { initTheme, theme }] = internals;
-
     initTheme(patchState.getConfiguredThemeName(), false);
+
     if (!isTreeTheme(theme)) return;
 
     if (Object.getOwnPropertyDescriptor(globalThis, PATCH_KEY)?.value === true) return;
@@ -258,31 +259,28 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
     );
     const selectorPrototypeValue: unknown = Object.getPrototypeOf(selector);
     if (!isTreeSelectorPrototype(selectorPrototypeValue)) return;
-    const selectorPrototype = selectorPrototypeValue;
-    const originalGetTreeListDescriptor = getPropertyDescriptor(selectorPrototype, "getTreeList");
-    if (
-        originalGetTreeListDescriptor === undefined ||
-        !isGetTreeList(originalGetTreeListDescriptor.value)
-    ) {
-        return;
-    }
-    const originalGetTreeList = originalGetTreeListDescriptor.value;
 
+    const selectorPrototype = selectorPrototypeValue;
+    const originalGetTreeList = selectorPrototype.getTreeList;
     const treeListValue = originalGetTreeList.call(selector);
     if (!isObjectIdentity(treeListValue)) return;
+
     const treeListPrototypeValue: unknown = Object.getPrototypeOf(treeListValue);
     if (!isTreeListPrototype(treeListPrototypeValue)) return;
+
     const treeListPrototype = treeListPrototypeValue;
 
     if (isTreeHeaderPatchTarget(selectorPrototype)) {
         patchHeaderText(selectorPrototype);
     }
+
     selectorPrototype.getTreeList = function patchedGetTreeList(this: TreeSelectorInstance) {
         const treeListInstance = originalGetTreeList.call(this);
         const configured = patchState.getPersistedMaxVisibleLines();
         if (configured !== null && isObjectIdentity(treeListInstance)) {
             Object.assign(treeListInstance, { maxVisibleLines: configured });
         }
+
         return treeListInstance;
     };
 
@@ -296,8 +294,9 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
         keyData: string,
     ) {
         applyConfiguredMaxVisibleLinesFromState(this, patchState);
+
         const kb = getKeybindings();
-        if (kb.matches(keyData, "app.tree.toggleLabelTimestamp") === true) {
+        if (kb.matches(keyData, "app.tree.toggleLabelTimestamp")) {
             const nextMode = cycleMode(getTreeTimestampModeFromState(this, patchState));
             setTreeTimestampMode(this, nextMode);
             patchState.persistMode(nextMode);
@@ -331,6 +330,7 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
             ["[labeled]", "Labeled"],
             ["[all]", "All"],
         ]);
+
         let filterLabel = "Default";
         for (const [statusLabel, label] of filterLabelByStatus) {
             if (nativeLabels.includes(statusLabel)) {
@@ -359,6 +359,7 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
         ): string[] {
             const layout = calculatePreviewLayout(width);
             applyConfiguredMaxVisibleLinesFromState(this, patchState);
+
             if (!getTreePreviewEnabledFromState(this, patchState) || layout === null) {
                 return originalRender.call(this, width);
             }
@@ -382,15 +383,15 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
             const previewText = theme.fg("muted", getPreviewText(selectedNode));
             const previewLines = wrapTextWithAnsi(previewText, layout.rightWidth);
             const lines: string[] = [];
-
             const treeRowCount = Math.max(0, endIndex - startIndex);
             let rowCount = maxVisibleLines;
             if (!patchState.getPersistedPreviewFullHeight()) {
                 rowCount = Math.max(treeRowCount, Math.min(maxVisibleLines, previewLines.length));
             }
+
             for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
                 const index = startIndex + rowIndex;
-                const flatNode = filteredNodes[index];
+                const flatNode = filteredNodes.at(index);
                 let leftLine = "";
 
                 if (flatNode !== undefined) {
@@ -400,10 +401,12 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
                     if (isSelected) {
                         cursor = theme.fg("accent", "› ");
                     }
+
                     let displayIndent = flatNode.indent;
                     if (this.multipleRoots === true) {
                         displayIndent = Math.max(0, flatNode.indent - 1);
                     }
+
                     let connector = "";
                     if (flatNode.showConnector && !flatNode.isVirtualRootChild) {
                         connector = "├─ ";
@@ -411,10 +414,12 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
                             connector = "└─ ";
                         }
                     }
+
                     let connectorPosition = -1;
                     if (connector.length > 0) {
                         connectorPosition = displayIndent - 1;
                     }
+
                     const totalChars = displayIndent * 3;
                     const prefixChars: string[] = [];
                     const isFolded = this.foldedNodes?.has(entry.id) === true;
@@ -428,6 +433,7 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
                             if (posInLevel === 0 && gutter.show) {
                                 gutterChar = "│";
                             }
+
                             prefixChars.push(gutterChar);
                         } else if (connector.length > 0 && level === connectorPosition) {
                             if (posInLevel === 0) {
@@ -435,6 +441,7 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
                                 if (flatNode.isLast) {
                                     connectorChar = "└";
                                 }
+
                                 prefixChars.push(connectorChar);
                             } else if (posInLevel === 1) {
                                 const foldable = this.isFoldable?.(entry.id) === true;
@@ -442,9 +449,11 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
                                 if (foldable) {
                                     foldChar = "⊟";
                                 }
+
                                 if (isFolded) {
                                     foldChar = "⊞";
                                 }
+
                                 prefixChars.push(foldChar);
                             } else {
                                 prefixChars.push(" ");
@@ -461,15 +470,18 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
                     if (isFolded && !showsFoldInConnector) {
                         foldMarker = theme.fg("accent", "⊞ ");
                     }
+
                     const isOnActivePath = this.activePathIds?.has(entry.id) === true;
                     let pathMarker = "";
                     if (isOnActivePath) {
                         pathMarker = theme.fg("accent", "• ");
                     }
+
                     let label = "";
                     if (flatNode.node.label !== undefined && flatNode.node.label.length > 0) {
                         label = theme.fg("warning", `[${flatNode.node.label}] `);
                     }
+
                     let labelTimestamp = "";
                     if (
                         this.showLabelTimestamps === true &&
@@ -481,6 +493,7 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
                             `${this.formatLabelTimestamp?.(flatNode.node.labelTimestamp) ?? ""} `,
                         );
                     }
+
                     const content = this.getEntryDisplayText?.(flatNode.node, isSelected) ?? "";
                     leftLine =
                         cursor +
@@ -512,6 +525,7 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
                 `  (${selectedIndex + 1}/${filteredNodes.length})${this.getStatusLabels?.() ?? ""}`,
             );
             lines.push(truncateToWidth(status, width));
+
             return lines;
         };
     }
@@ -526,7 +540,7 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
             const currentMode = getTreeTimestampModeFromState(this, patchState);
             if (currentMode === "off") return content;
 
-            const formatted = formatEntryTimestamp(node?.entry?.timestamp, currentMode);
+            const formatted = formatEntryTimestamp(node.entry.timestamp, currentMode);
             if (formatted.length === 0) return content;
 
             const prefix = theme.fg("muted", `${formatted} `);
@@ -534,6 +548,7 @@ export async function patchTreeSelector(options: PatchTreeSelectorOptions = {}):
             if (isSelected) {
                 renderedPrefix = theme.bold(prefix);
             }
+
             return renderedPrefix + content;
         };
     }

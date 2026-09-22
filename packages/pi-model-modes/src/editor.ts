@@ -31,24 +31,29 @@ export function applyModeEditor(
         (tui, theme, keybindings) => new CustomEditor(tui, theme, keybindings),
         (editor, tui) => {
             if (!isEditorLike(editor)) return editor;
+
             const defaultBorderColor = editor.borderColor;
             const borderColor = (text: string): string => {
                 if (editor.getText().trimStart().startsWith("!")) {
                     return ctx.ui.theme.getBashModeBorderColor()(text);
                 }
+
                 return controller.getModeBorderColor(
                     ctx,
                     controller.currentMode,
                     defaultBorderColor,
                 )(text);
             };
+
             Object.defineProperty(editor, "borderColor", {
                 get: () => borderColor,
                 set: () => {},
                 configurable: true,
                 enumerable: true,
             });
+
             controller.setEditorRenderRequest(() => tui.requestRender());
+
             return editor;
         },
     );

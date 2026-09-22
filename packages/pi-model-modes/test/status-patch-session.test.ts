@@ -8,6 +8,7 @@ test("status patch activation is shared and restored once on reset", async () =>
     let restores = 0;
     const session = new ThinkingStatusPatchSession(async () => {
         installs += 1;
+
         return () => {
             restores += 1;
         };
@@ -16,13 +17,10 @@ test("status patch activation is shared and restored once on reset", async () =>
     const first = session.activate(() => false);
     const second = session.activate(() => false);
     await Promise.all([first, second]);
-
     assert.equal(installs, 1);
     assert.equal(restores, 0);
-
     session.reset();
     session.reset();
-
     assert.equal(restores, 1);
 });
 
@@ -33,7 +31,6 @@ test("status patch reset clears ownership before a restore failure", async () =>
         throw new Error("restore failed");
     });
     await session.activate(() => false);
-
     assert.throws(() => session.reset(), /restore failed/);
     assert.doesNotThrow(() => session.reset());
     assert.equal(restores, 1);
@@ -42,8 +39,9 @@ test("status patch reset clears ownership before a restore failure", async () =>
 test("status patch completion after reset restores the stale installation", async () => {
     let resolveInstall: ((restore: () => void) => void) | undefined;
     let restores = 0;
+
     const session = new ThinkingStatusPatchSession(
-        () =>
+        async () =>
             new Promise((resolve) => {
                 resolveInstall = resolve;
             }),
@@ -56,6 +54,5 @@ test("status patch completion after reset restores the stale installation", asyn
         restores += 1;
     });
     await activation;
-
     assert.equal(restores, 1);
 });

@@ -6,12 +6,7 @@ import {
     type ScopedModelsSelectorPrototypeCandidate,
     warnProviderDisplayPatchUnavailable,
 } from "./internal-imports.ts";
-import {
-    getAliasForModel,
-    getAliasModelIdCollision,
-    type ModelAliasSettings,
-    type ModelLike,
-} from "./model-aliasing.ts";
+import { getAliasForModel, type ModelAliasSettings, type ModelLike } from "./model-aliasing.ts";
 import { getProviderAlias } from "./provider-aliasing.ts";
 import {
     formatProviderRows,
@@ -21,7 +16,9 @@ import {
     type ProviderRow,
     type SearchInput,
 } from "./provider-row.ts";
-import type { ModelAliasRuntimeState } from "./registry-patch.ts";
+import type { AliasPolicy } from "./alias-policy.ts";
+
+type SelectorPolicy = Pick<AliasPolicy, "forModels">;
 
 const SCOPED_MODELS_PROVIDER_PATCH_KEY = Symbol.for(
     "zigai.pi-model-alias.scoped-models-provider-patched",
@@ -38,7 +35,7 @@ type ScopedModelsSelectorItem = {
 
 type ScopedModelsSearchInput = { getValue(): string };
 type ScopedModelsFooterText = { setText(text: string): void };
-type RuntimeStateHolder = { state: ModelAliasRuntimeState };
+type RuntimeStateHolder = { state: SelectorPolicy };
 
 export type ScopedModelsSelectorPatchTarget = {
     [SCOPED_MODELS_PROVIDER_PATCH_KEY]?: true;
@@ -63,26 +60,24 @@ function isScopedModelsSelectorPatchTarget(
 
 function setPatchState(
     target: ScopedModelsSelectorPatchTarget,
-    state: ModelAliasRuntimeState,
+    state: SelectorPolicy,
 ): RuntimeStateHolder {
     const existingState = target[SCOPED_MODELS_PROVIDER_STATE_KEY];
     if (existingState !== undefined) {
         existingState.state = state;
         return existingState;
     }
+
     const patchState = { state };
     target[SCOPED_MODELS_PROVIDER_STATE_KEY] = patchState;
     return patchState;
 }
 
 function getSettingsForModels(
-    state: ModelAliasRuntimeState,
+    state: SelectorPolicy,
     models: readonly ModelLike[],
 ): ModelAliasSettings {
-    const loaded = state.loadSettings();
-    if (loaded.diagnostic !== undefined) return loaded.settings;
-    if (getAliasModelIdCollision(loaded.settings, models) === undefined) return loaded.settings;
-    return { ...loaded.settings, aliases: [], providerAliases: [] };
+    return state.forModels(models);
 }
 
 function getModelDisplayId(model: ModelLike, settings: ModelAliasSettings): string {
@@ -94,16 +89,18 @@ function getModelDisplayId(model: ModelLike, settings: ModelAliasSettings): stri
 
 function getDisplayItems(
     items: readonly ScopedModelsSelectorItem[],
-    state: ModelAliasRuntimeState,
+    state: SelectorPolicy,
 ): ScopedModelsSelectorItem[] {
     const settings = getSettingsForModels(
         state,
         items.map((item) => item.model),
     );
+
     return items.map((item) => {
         const displayedModel = { ...item.model, id: getModelDisplayId(item.model, settings) };
         const alias = getProviderAlias(item.model.provider, settings);
         if (alias !== undefined) displayedModel.provider = alias.name;
+
         return { ...item, model: displayedModel };
     });
 }
@@ -113,16 +110,19 @@ function getSearchText(item: ScopedModelsSelectorItem, settings: ModelAliasSetti
     const providerAlias = getProviderAlias(model.provider, settings);
     let provider = model.provider;
     if (providerAlias !== undefined) provider = `${providerAlias.name} ${model.provider}`;
+
     const modelAlias = getAliasForModel(model, settings);
     let ids = model.id;
     if (modelAlias !== undefined) ids = `${modelAlias.alias} ${model.id}`;
+
     const names = [model.name, modelAlias?.name]
         .filter((name): name is string => name !== undefined && name.length > 0)
         .join(" ");
+
     return `${ids} ${provider} ${provider}/${ids} ${provider} ${ids} ${names}`;
 }
 
-function formatList(target: ScopedModelsSelectorPatchTarget, state: ModelAliasRuntimeState): void {
+function formatList(target: ScopedModelsSelectorPatchTarget, state: SelectorPolicy): void {
     const container = target.listContainer;
     const selectedIndex = target.selectedIndex;
     if (container === undefined || selectedIndex === undefined) return;
@@ -144,7 +144,7 @@ function formatList(target: ScopedModelsSelectorPatchTarget, state: ModelAliasRu
 }
 
 export function installScopedModelsProviderPatch(
-    state: ModelAliasRuntimeState,
+    state: SelectorPolicy,
     prototype: ScopedModelsSelectorPatchTarget,
 ): void {
     if (typeof prototype.updateList !== "function") {
@@ -152,9 +152,12 @@ export function installScopedModelsProviderPatch(
             "scoped models provider alias patch",
             new Error("missing updateList"),
         );
+
         return;
     }
+
     const patchState = setPatchState(prototype, state);
+
     if (prototype[SCOPED_MODELS_PROVIDER_PATCH_KEY] === true) return;
 
     const originalRefresh = prototype.refresh;
@@ -164,6 +167,7 @@ export function installScopedModelsProviderPatch(
         return function updateListWithProviderAliases(this: ScopedModelsSelectorPatchTarget): void {
             const originalFilteredItems = this.filteredItems;
             this.filteredItems = getDisplayItems(originalFilteredItems, patchState.state);
+
             try {
                 predecessor.call(this);
                 formatList(this, patchState.state);
@@ -197,6 +201,7 @@ export function installScopedModelsProviderPatch(
                     Math.max(0, this.filteredItems.length - 1),
                 );
             }
+
             this.updateList();
             const footerText = this.getFooterText?.();
             if (footerText !== undefined) this.footerText?.setText(footerText);
@@ -206,13 +211,12 @@ export function installScopedModelsProviderPatch(
     prototype[SCOPED_MODELS_PROVIDER_PATCH_KEY] = true;
 }
 
-export async function installScopedModelsProviderPatchFromPi(
-    state: ModelAliasRuntimeState,
-): Promise<void> {
+export async function installScopedModelsProviderPatchFromPi(state: SelectorPolicy): Promise<void> {
     const prototype = await loadScopedModelsSelectorPrototype((value) => {
         if (isScopedModelsSelectorPatchTarget(value)) return value;
         return undefined;
     });
     if (prototype === undefined) return;
+
     installScopedModelsProviderPatch(state, prototype);
 }

@@ -14,6 +14,7 @@ export type LoadedModelAliasSettings = {
 
 export type ModelAliasSettingsLoadState = {
     configCache?: LoadedModelAliasSettings;
+    configCacheSignature?: string;
     configCwd?: string;
     projectTrusted?: boolean;
 };

@@ -42,6 +42,7 @@ type LoadedMentionProjectSettings = Pick<
     LoadedPiExtensionSettings<typeof mentionProjectSettingsDefinition.schema>,
     "globalSettingsLayer" | "projectSettingsLayer"
 >;
+
 type SettingsLayer = LoadedMentionProjectSettings["globalSettingsLayer"];
 
 function readLegacySettings(filePath: string): LegacyMentionProjectSettings {
@@ -59,6 +60,7 @@ function legacySettingsPaths(ctx: MentionProjectSettingsContext): string[] {
     if (ctx.isProjectTrusted()) {
         paths.push(join(ctx.cwd, CONFIG_DIR_NAME, LEGACY_SETTINGS_FILE));
     }
+
     return paths;
 }
 
@@ -68,6 +70,7 @@ function hasSetting(layer: SettingsLayer, key: string): boolean {
 
 function isGeneratedDefaultLayer(layer: SettingsLayer): boolean {
     if (layer === undefined) return false;
+
     const generatedKeys = new Set([
         "trigger",
         "roots",
@@ -76,7 +79,9 @@ function isGeneratedDefaultLayer(layer: SettingsLayer): boolean {
         "completionSuffix",
         "initialSuggestions",
     ]);
+
     if (Object.keys(layer).some((key) => !generatedKeys.has(key))) return false;
+
     if (
         layer.trigger !== DEFAULT_MENTION_TRIGGER ||
         !Array.isArray(layer.roots) ||
@@ -88,9 +93,11 @@ function isGeneratedDefaultLayer(layer: SettingsLayer): boolean {
         return false;
     }
 
+    if (!("initialSuggestions" in layer)) return true;
+
     const initialSuggestions = layer.initialSuggestions;
-    if (initialSuggestions === undefined) return true;
     if (!Value.Check(initialSuggestionsSchema, initialSuggestions)) return false;
+
     const parsed = Value.Parse(initialSuggestionsSchema, initialSuggestions);
     return parsed.strategy === "frecency" && parsed.pinned.length === 0;
 }
@@ -129,25 +136,30 @@ function normalizeLegacyRoots(value: string | string[]): string[] | undefined {
     let candidates: string[];
     if (Array.isArray(value)) candidates = value;
     else candidates = [value];
+
     const roots: string[] = [];
     for (const root of candidates) {
         const trimmed = root.trim();
         if (trimmed.length > 0) roots.push(trimmed);
     }
+
     if (roots.length === 0 && candidates.length > 0) return undefined;
     return roots;
 }
 
 function loadLegacySettings(ctx: MentionProjectSettingsContext): LegacyMentionProjectSettings {
     const paths = legacySettingsPaths(ctx);
-    const globalSettingsPath = paths[0];
-    const projectSettingsPath = paths[1];
+    const globalSettingsPath = paths.at(0);
+    const projectSettingsPath = paths.at(1);
+
     let globalSettings: LegacyMentionProjectSettings = {};
     if (globalSettingsPath !== undefined) globalSettings = readLegacySettings(globalSettingsPath);
+
     let projectSettings: LegacyMentionProjectSettings = {};
     if (projectSettingsPath !== undefined) {
         projectSettings = readLegacySettings(projectSettingsPath);
     }
+
     return { ...globalSettings, ...projectSettings };
 }
 
@@ -160,6 +172,7 @@ function applyLegacySettings(
         const trigger = legacy.mentionProjectTrigger;
         if (matchesLegacyTrigger(trigger)) settings.trigger = trigger;
     }
+
     if (!hasExplicitExtensionSetting(loaded, "roots")) {
         const legacyRoots = legacy.mentionProjectRoots;
         if (matchesLegacyRoots(legacyRoots)) {
@@ -167,16 +180,19 @@ function applyLegacySettings(
             if (roots !== undefined) settings.roots = roots;
         }
     }
+
     if (!hasExplicitExtensionSetting(loaded, "gitReposOnly")) {
         const gitReposOnly = legacy.mentionProjectGitReposOnly;
         if (matchesLegacyBoolean(gitReposOnly)) settings.gitReposOnly = gitReposOnly;
     }
+
     if (!hasExplicitExtensionSetting(loaded, "includeDotFolders")) {
         const includeDotFolders = legacy.mentionProjectIncludeDotFolders;
         if (matchesLegacyBoolean(includeDotFolders)) {
             settings.includeDotFolders = includeDotFolders;
         }
     }
+
     if (!hasExplicitExtensionSetting(loaded, "completionSuffix")) {
         const completionSuffix = legacy.mentionProjectCompletionSuffix;
         if (matchesLegacyCompletionSuffix(completionSuffix)) {
@@ -189,10 +205,8 @@ export default mentionProjectSettingsDefinition;
 
 export type MentionProjectSettingsContext = Pick<ExtensionContext, "cwd" | "isProjectTrusted">;
 
-/** Load validated global and trusted-project project-mention settings. */
-export function loadMentionProjectSettings(
-    ctx: MentionProjectSettingsContext,
-): MentionProjectSettings {
+/** Load validated project-mention settings with safe diagnostics. */
+export function loadMentionProjectSettingsResult(ctx: MentionProjectSettingsContext) {
     const loaded = loadPiExtensionSettings(
         mentionProjectSettingsDefinition,
         {
@@ -224,8 +238,17 @@ export function loadMentionProjectSettings(
             pinned: [...loaded.settings.initialSuggestions.pinned],
         },
     };
+
     applyLegacySettings(loadLegacySettings(ctx), settings, loaded);
-    return settings;
+
+    return { settings, diagnostics: loaded.diagnostics };
+}
+
+/** Load validated global and trusted-project project-mention settings. */
+export function loadMentionProjectSettings(
+    ctx: MentionProjectSettingsContext,
+): MentionProjectSettings {
+    return loadMentionProjectSettingsResult(ctx).settings;
 }
 
 export function applyMentionProjectCliFlags(
@@ -235,5 +258,6 @@ export function applyMentionProjectCliFlags(
     const loaded = { ...settings };
     if (flags.includeNonGit === true) loaded.gitReposOnly = false;
     if (flags.includeDotFolders === true) loaded.includeDotFolders = true;
+
     return loaded;
 }

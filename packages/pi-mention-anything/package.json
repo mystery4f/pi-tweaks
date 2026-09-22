@@ -1,0 +1,58 @@
+{
+  "name": "@zigai/pi-mention-anything",
+  "version": "0.1.2",
+  "description": "Define arbitrary mention sources and triggers for Pi.",
+  "keywords": [
+    "autocomplete",
+    "custom",
+    "mention",
+    "pi-extension",
+    "pi-package"
+  ],
+  "homepage": "https://github.com/zigai/pi-tweaks/tree/main/packages/pi-mention-anything#readme",
+  "bugs": {
+    "url": "https://github.com/zigai/pi-tweaks/issues"
+  },
+  "license": "MIT",
+  "author": "zigai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zigai/pi-tweaks.git",
+    "directory": "packages/pi-mention-anything"
+  },
+  "files": [
+    "src",
+    "docs",
+    "examples",
+    "config.schema.json",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./api": "./src/api.ts"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@zigai/pi-extension-internals": "0.1.3",
+    "@zigai/pi-extension-settings": "0.5.3"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "piExtensionSettings": {
+    "definition": "./src/settings-input.ts",
+    "schema": "./config.schema.json",
+    "readme": "./README.md",
+    "prevalidation": "./src/settings.prevalidated.ts"
+  }
+}

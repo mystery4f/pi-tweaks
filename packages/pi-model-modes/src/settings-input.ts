@@ -1,5 +1,5 @@
 import { Type } from "typebox";
-import { ALL_THINKING_LEVELS } from "./modes.ts";
+import { ALL_THINKING_LEVELS } from "./thinking-levels.ts";
 
 export const MODE_COLOR_EXAMPLES = [
     "accent",

@@ -1,93 +1,60 @@
-import type {
-    ContextEvent,
-    ExtensionAPI,
-    ExtensionHandler,
-    SessionShutdownEvent,
-    SessionStartEvent,
-} from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { registerMention, type MentionExtensionApi } from "@zigai/pi-mention-anything/api";
+import { createCachedSkillExpansionLoader } from "./skill-content.ts";
+import { loadMentionSkillSettingsResult } from "./settings.ts";
+import { createSkillProvider, resolveSkillCandidate } from "./skill-provider.ts";
+import { getSkillCommands } from "./skill-commands.ts";
+import { createSlashSkillFilter } from "./slash-skill-filter.ts";
 
-import { createSkillMentionProvider } from "./autocomplete.ts";
-import { applyMentionSkillEditor } from "./editor.ts";
-import {
-    contextContainsSkillMentionTrigger,
-    createCachedSkillExpansionLoader,
-    expandSkillMentionsInMessages,
-    type SkillExpansionLoader,
-} from "./expand-mentions.ts";
-import { createLazySelectionHistory, type SelectionHistory } from "./initial-suggestions.ts";
-import { loadMentionSkillSettings } from "./settings.ts";
-import { createSkillCommandSource, type SkillCommandSource } from "./skill-commands.ts";
-
-type SkillMentionContextResult = {
-    messages: ContextEvent["messages"];
-};
-
-type SkillMentionContextHandler = (
-    event: ContextEvent,
-    ctx: import("./settings.ts").MentionSkillSettingsContext,
-) => Promise<SkillMentionContextResult | undefined>;
-
-export type MentionSkillHandlerMap = {
-    session_start: ExtensionHandler<SessionStartEvent>;
-    session_shutdown: ExtensionHandler<SessionShutdownEvent>;
-    context: SkillMentionContextHandler;
-};
-
-export type MentionSkillExtensionApi = Pick<ExtensionAPI, "getCommands"> & {
-    on<TKey extends keyof MentionSkillHandlerMap>(
-        event: TKey,
-        handler: MentionSkillHandlerMap[TKey],
-    ): void;
-};
-
-export function createSkillMentionContextHandler(
-    skillSource: Pick<SkillCommandSource, "getSkillCommands">,
-    loadSkillExpansion: SkillExpansionLoader,
-): SkillMentionContextHandler {
-    return async (event, ctx) => {
-        const { trigger } = loadMentionSkillSettings(ctx);
-        if (!contextContainsSkillMentionTrigger(event.messages, trigger)) return;
-
-        const messages = await expandSkillMentionsInMessages(
-            event.messages,
-            skillSource.getSkillCommands(),
-            trigger,
-            loadSkillExpansion,
-        );
-        if (messages === event.messages) return;
-        return { messages };
-    };
-}
+export type MentionSkillExtensionApi = Pick<ExtensionAPI, "getCommands"> & MentionExtensionApi;
 
 export default function (pi: MentionSkillExtensionApi): void {
     const loadSkillExpansion = createCachedSkillExpansionLoader();
-    const skillSource = createSkillCommandSource(pi);
-    let selectionHistory: SelectionHistory | undefined;
+    const settingsByContext = new WeakMap<
+        object,
+        ReturnType<typeof loadMentionSkillSettingsResult>
+    >();
+    const settingsFor = (ctx: Parameters<typeof loadMentionSkillSettingsResult>[0]) => {
+        const cached = settingsByContext.get(ctx);
+        if (cached !== undefined) return cached;
 
-    pi.on("session_start", async (_event, ctx) => {
-        if (!ctx.hasUI) return;
-        await selectionHistory?.flush();
-        const settings = loadMentionSkillSettings(ctx);
-        const history = createLazySelectionHistory({
-            onError: (message) => ctx.ui.notify(message, "warning"),
-        });
-        selectionHistory = history;
-        skillSource.refresh();
-        applyMentionSkillEditor(ctx, settings.trigger, () => skillSource.getCachedSkillNames());
-        ctx.ui.addAutocompleteProvider((current) =>
-            createSkillMentionProvider(
-                current,
-                settings,
-                () => skillSource.getSkillCommands(),
-                history,
-            ),
-        );
+        const loaded = loadMentionSkillSettingsResult(ctx);
+        settingsByContext.set(ctx, loaded);
+        return loaded;
+    };
+
+    pi.on("session_start", (_event, ctx) => {
+        const loaded = settingsFor(ctx);
+        if (ctx.hasUI) {
+            for (const diagnostic of loaded.diagnostics) {
+                ctx.ui.notify(diagnostic.message, diagnostic.severity);
+            }
+        }
+        if (ctx.hasUI && loaded.settings.hideSlashSkills) {
+            ctx.ui.addAutocompleteProvider(createSlashSkillFilter);
+        }
     });
 
-    pi.on("session_shutdown", async () => {
-        const history = selectionHistory;
-        await history?.flush();
-        if (selectionHistory === history) selectionHistory = undefined;
+    registerMention(pi, {
+        id: "skill",
+        configuration(ctx) {
+            const { settings } = settingsFor(ctx);
+            return {
+                trigger: settings.trigger,
+                completionSuffix: settings.completionSuffix,
+                initialSuggestions: settings.initialSuggestions,
+                expansionPolicy: "selected-or-resolved",
+            };
+        },
+        provider(ctx) {
+            const { settings } = settingsFor(ctx);
+
+            return createSkillProvider(() => getSkillCommands(pi), loadSkillExpansion, {
+                projectSkillsFirst: settings.initialSuggestions.projectSkillsFirst,
+            });
+        },
+        async replacement(candidatePath, _ctx, options) {
+            return resolveSkillCandidate(candidatePath, loadSkillExpansion, options.signal);
+        },
     });
-    pi.on("context", createSkillMentionContextHandler(skillSource, loadSkillExpansion));
 }

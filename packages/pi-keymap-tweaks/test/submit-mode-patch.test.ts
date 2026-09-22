@@ -58,7 +58,6 @@ test("submit-mode patches transform input once and restore both predecessors", (
         handle = applySubmitModeKeymap();
         void agentPrototype.prompt("hello", { streamingBehavior: "steer" });
         editorPrototype.handleInput("\n");
-
         assert.deepEqual(receivedOptions, { streamingBehavior: "followUp" });
         assert.deepEqual(receivedInput, ["\r"]);
         assert.equal(applySubmitModeKeymap(), handle);
@@ -75,12 +74,14 @@ test("submit-mode patches transform input once and restore both predecessors", (
         if (!isPromptMethod(restoredPrompt) || !isHandleInputMethod(restoredHandleInput)) {
             assert.fail("Expected restored Pi methods");
         }
+
         assert.equal(restoredPrompt, prompt);
         assert.equal(restoredHandleInput, handleInput);
     } finally {
         handle?.dispose();
         restoreProperty(agentPrototype, "prompt", promptDescriptor);
         restoreProperty(editorPrototype, "handleInput", handleInputDescriptor);
+
         if (previousTmux === undefined) delete process.env.TMUX;
         else process.env.TMUX = previousTmux;
     }

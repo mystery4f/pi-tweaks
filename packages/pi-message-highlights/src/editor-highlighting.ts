@@ -29,6 +29,7 @@ function getEditorPaddingX(target: EditorHighlightTarget, width: number): number
     if (isFiniteNumber(rawPadding)) {
         padding = Math.max(0, Math.floor(rawPadding));
     }
+
     const maxPadding = Math.max(0, Math.floor((width - 1) / 2));
     return Math.min(padding, maxPadding);
 }
@@ -107,7 +108,6 @@ function highlightEditorContentLine(
         logicalEnd,
         content.lineTextStart,
     );
-
     return {
         line: highlightMessageLineRanges(line, lineRanges),
         searchStart: logicalEnd,

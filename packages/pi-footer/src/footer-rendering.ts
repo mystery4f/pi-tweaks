@@ -18,6 +18,7 @@ import type {
     FooterSide,
     FooterVariant,
 } from "./footer-model.ts";
+
 const ACTIVE_FOOTER_VARIANT = "plain" as const;
 const BRANCH_ICON = "";
 
@@ -45,6 +46,7 @@ function collapseHome(path: string): string {
     if (home !== undefined && home.length > 0 && path.startsWith(home)) {
         return `~${path.slice(home.length)}`;
     }
+
     return path;
 }
 
@@ -98,6 +100,7 @@ function getContextText(usage: ContextUsage, fallbackWindow?: number): string {
     if (contextPercent === null || contextPercent === undefined) {
         return `?/${formatTokens(contextWindow)}`;
     }
+
     return `${contextPercent.toFixed(1)}%/${formatTokens(contextWindow)}`;
 }
 
@@ -119,15 +122,12 @@ function getMcpText(ctx: FooterContext, footerData: FooterData): string | null {
 
 function getSeparator(
     variant: FooterVariant,
-    side: FooterSide,
     config: FooterConfig,
     theme: PlainFooterTheme | undefined,
 ): string {
     if (variant === "blocks") return "";
-    if (side === "left") {
-        return renderThemeText(` ${config.separator} `, "dim", theme);
-    }
-    return renderThemeText("  ", "dim", theme);
+
+    return renderThemeText(` ${config.separator} `, "dim", theme);
 }
 
 function renderItem(
@@ -138,17 +138,17 @@ function renderItem(
     if (variant === "blocks") {
         return renderBlockItem(item);
     }
+
     return renderPlainItem(item, theme);
 }
 
 function joinRenderedItems(
     rendered: string[],
     variant: FooterVariant,
-    side: FooterSide,
     config: FooterConfig,
     theme: PlainFooterTheme | undefined,
 ): string {
-    return rendered.join(getSeparator(variant, side, config, theme));
+    return rendered.join(getSeparator(variant, config, theme));
 }
 
 function buildSideVariants(
@@ -174,7 +174,6 @@ function buildSideVariants(
             const rendered = joinRenderedItems(
                 items.slice(0, count).map((item) => renderItem(item, variant, theme)),
                 variant,
-                side,
                 config,
                 theme,
             );
@@ -188,7 +187,6 @@ function buildSideVariants(
             const rendered = joinRenderedItems(
                 items.slice(start).map((item) => renderItem(item, variant, theme)),
                 variant,
-                side,
                 config,
                 theme,
             );
@@ -197,6 +195,7 @@ function buildSideVariants(
                 variants.push(rendered);
             }
         }
+
         variants.push("");
     }
 
@@ -209,10 +208,12 @@ function renderPadding(
     theme: PlainFooterTheme | undefined,
 ): string {
     if (width <= 0) return "";
+
     const padding = " ".repeat(width);
     if (variant === "plain") {
         return renderThemeText(padding, "muted", theme);
     }
+
     return padding;
 }
 
@@ -231,7 +232,6 @@ function buildFooterItems(
     const usage = ctx.getContextUsage();
     const contextText = getContextText(usage, ctx.model?.contextWindow);
     const mcpText = getMcpText(ctx, footerData);
-
     const items = new Map<FooterSlotId, FooterItem>();
     items.set("path", {
         key: "path",
@@ -265,6 +265,7 @@ function buildFooterItems(
         if (gitAheadBehind !== undefined) {
             branchText += ` ${formatGitAheadBehind(gitAheadBehind)}`;
         }
+
         items.set("branch", {
             key: "branch",
             text: branchText,
@@ -304,6 +305,7 @@ function resolveFooterLayout(
             left.push(slotId);
         }
     }
+
     for (const slotId of configLayout.right) {
         if (!hiddenIds.has(slotId)) {
             right.push(slotId);
@@ -320,6 +322,7 @@ function resolveFooterLayout(
         } else {
             right.push(slot.id);
         }
+
         configuredIds.add(slot.id);
     }
 
@@ -340,6 +343,7 @@ export function createFooterComponent(
         activeGitAheadBehindSource = gitAheadBehindSource;
         activeGitAheadBehindSource ??= createGitAheadBehindTracker(ctx.cwd, requestRender);
     }
+
     const unsubscribeBranchChange = footerData.onBranchChange(() => {
         activeGitAheadBehindSource?.refresh();
         requestRender();
@@ -360,6 +364,7 @@ export function createFooterComponent(
             // blank line and make the bottom chrome jump during heavy tool output.
             const renderWidth = Math.max(0, width - 2);
             if (renderWidth === 0) return [""];
+
             const variant: FooterVariant = ACTIVE_FOOTER_VARIANT;
             const customSlots = getFooterSlotSnapshots();
             const layout = resolveFooterLayout(config.layout, customSlots);
@@ -396,6 +401,7 @@ export function createFooterComponent(
                     if (right.length > 0) {
                         minimumInnerGap = 1;
                     }
+
                     const requiredWidth =
                         edgePaddingWidth + leftWidth + minimumInnerGap + rightWidth;
 
@@ -411,6 +417,7 @@ export function createFooterComponent(
                     if (right.length > 0) {
                         return [truncateToWidth(` ${left}${padding}${right} `, renderWidth, "")];
                     }
+
                     return [truncateToWidth(` ${left}${padding} `, renderWidth, "")];
                 }
             }

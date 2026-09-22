@@ -21,7 +21,6 @@ test("loadMessageHighlightsSettings scaffolds missing global config and schema",
             "pi-message-highlights.schema.json",
         );
         const loaded = loadMessageHighlightsSettings(cwd, false);
-
         assert.deepEqual(loaded.errors, []);
         assert.deepEqual(loaded.config.urlColor, { kind: "hex", color: "#87d7ff" });
         assert.deepEqual(JSON.parse(await readFile(configPath, "utf8")), {
@@ -29,18 +28,17 @@ test("loadMessageHighlightsSettings scaffolds missing global config and schema",
             urlColor: "#87d7ff",
         });
         assert.match(await readFile(schemaPath, "utf8"), /Pi Message Highlights settings/);
-
         const customConfig = JSON.stringify({ urlColor: "mdLink" });
         await writeFile(configPath, customConfig, "utf8");
         await writeFile(schemaPath, "stale schema", "utf8");
         const loadedAgain = loadMessageHighlightsSettings(cwd, false);
-
         assert.deepEqual(loadedAgain.config.urlColor, { kind: "theme", color: "mdLink" });
         assert.equal(await readFile(configPath, "utf8"), customConfig);
         assert.match(await readFile(schemaPath, "utf8"), /Pi Message Highlights settings/);
     } finally {
         await rm(agentDir, { recursive: true, force: true });
         await rm(cwd, { recursive: true, force: true });
+
         if (originalAgentDir === undefined) {
             delete process.env.PI_CODING_AGENT_DIR;
         } else {
@@ -51,7 +49,6 @@ test("loadMessageHighlightsSettings scaffolds missing global config and schema",
 
 test("resolveMessageHighlightsConfig defaults URL color to the original blue hex", () => {
     const loaded = resolveMessageHighlightsConfig([]);
-
     assert.deepEqual(loaded.config.urlColor, { kind: "hex", color: "#87d7ff" });
     assert.deepEqual(loaded.errors, []);
 });

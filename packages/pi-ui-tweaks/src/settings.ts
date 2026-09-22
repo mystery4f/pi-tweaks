@@ -103,18 +103,19 @@ const uiTweaksSettingsParser = {
                 if (errors.length > messages.length) {
                     suffix = `; and ${errors.length - messages.length} more`;
                 }
+
                 throw new Error(`${label} is invalid: ${messages.join("; ")}${suffix}`);
             }
-            const parsed: unknown = Value.Parse(UiTweaksConfigSchema, settings);
-            // SAFETY: Value.Errors validated the same schema and input immediately
-            // above, so TypeBox returns UiTweaksSettings here.
+
+            const parsed = Value.Parse(UiTweaksConfigSchema, settings);
             return {
-                settings: parsed as UiTweaksSettings,
+                settings: parsed,
                 errors: [],
             } satisfies ParsedUiTweaksSettingsResult;
         } catch (cause: unknown) {
             let message = String(cause);
             if (cause instanceof Error) message = cause.message;
+
             return { settings: {}, errors: [message] } satisfies ParsedUiTweaksSettingsResult;
         }
     },
@@ -234,6 +235,7 @@ export function loadUiTweaksSettings(cwd: string, projectTrusted: boolean): Load
             settings: settings.globalSettingsLayer,
         });
     }
+
     if (settings.projectSettingsLayer !== undefined && settings.projectConfigPath !== undefined) {
         settingsSources.push({
             label: settings.projectConfigPath,
@@ -242,6 +244,7 @@ export function loadUiTweaksSettings(cwd: string, projectTrusted: boolean): Load
     }
 
     const loaded = resolveUiTweaksConfig(settingsSources);
+
     return {
         config: loaded.config,
         errors: [...settings.diagnostics.map((diagnostic) => diagnostic.message), ...loaded.errors],

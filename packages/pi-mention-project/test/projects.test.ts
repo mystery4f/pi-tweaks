@@ -4,11 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "vitest";
 
-import {
-    createProjectDirectorySource,
-    listProjectDirectories,
-    resolveProjectRoot,
-} from "../src/projects.ts";
+import { listProjectDirectories, resolveProjectRoot } from "../src/projects.ts";
 import type { MentionProjectSettings } from "../src/settings.ts";
 
 function settings(
@@ -136,77 +132,6 @@ test("listProjectDirectories returns no projects when already aborted", async ()
         });
 
         assert.deepEqual(projects, []);
-    } finally {
-        await rm(dir, { recursive: true, force: true });
-    }
-});
-
-test("createProjectDirectorySource serves warm cache until refresh or ttl expiry", async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), "pi-mention-project-cache-"));
-    try {
-        const root = path.join(dir, "root");
-        const alpha = path.join(root, "alpha");
-        const beta = path.join(root, "beta");
-        await mkdir(alpha, { recursive: true });
-        await markGitRepo(alpha);
-
-        const projectSource = createProjectDirectorySource(settings([root]), dir, 60_000);
-        const initialProjects = await projectSource.refresh();
-        assert.deepEqual(
-            initialProjects.map((project) => project.name),
-            ["alpha"],
-        );
-        assert.deepEqual([...projectSource.getCachedProjectNames()], ["alpha"]);
-
-        await mkdir(beta, { recursive: true });
-        await markGitRepo(beta);
-
-        const cachedProjects = await projectSource.getProjects();
-        assert.deepEqual(
-            cachedProjects.map((project) => project.name),
-            ["alpha"],
-        );
-        assert.deepEqual([...projectSource.getCachedProjectNames()], ["alpha"]);
-
-        const refreshedProjects = await projectSource.refresh();
-        assert.deepEqual(
-            refreshedProjects.map((project) => project.name),
-            ["alpha", "beta"],
-        );
-        assert.deepEqual([...projectSource.getCachedProjectNames()], ["alpha", "beta"]);
-    } finally {
-        await rm(dir, { recursive: true, force: true });
-    }
-});
-
-test("createProjectDirectorySource serves cached projects when a request is aborted", async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), "pi-mention-project-aborted-cache-"));
-    try {
-        const root = path.join(dir, "root");
-        const alpha = path.join(root, "alpha");
-        const beta = path.join(root, "beta");
-        await mkdir(alpha, { recursive: true });
-        await markGitRepo(alpha);
-
-        const projectSource = createProjectDirectorySource(settings([root]), dir, 0);
-        const initialProjects = await projectSource.refresh();
-        assert.deepEqual(
-            initialProjects.map((project) => project.name),
-            ["alpha"],
-        );
-        assert.deepEqual([...projectSource.getCachedProjectNames()], ["alpha"]);
-
-        await mkdir(beta, { recursive: true });
-        await markGitRepo(beta);
-        const controller = new AbortController();
-        controller.abort();
-
-        const abortedProjects = await projectSource.getProjects({ signal: controller.signal });
-        assert.deepEqual(
-            abortedProjects.map((project) => project.name),
-            ["alpha"],
-        );
-        assert.deepEqual([...projectSource.getCachedProjectNames()], ["alpha"]);
     } finally {
         await rm(dir, { recursive: true, force: true });
     }

@@ -27,6 +27,7 @@ export function applyProviderDisplayName(
 ): ModelSelectorItem {
     const alias = getProviderAlias(item.model.provider, settings);
     if (alias === undefined) return item;
+
     return { ...item, provider: alias.name };
 }
 

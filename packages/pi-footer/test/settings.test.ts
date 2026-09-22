@@ -21,7 +21,6 @@ test("loadFooterSettings scaffolds missing global config and schema", async () =
             "pi-footer.schema.json",
         );
         const loaded = loadFooterSettings(cwd, false);
-
         assert.deepEqual(loaded.errors, []);
         assert.equal(loaded.config.separator, "·");
         assert.deepEqual(JSON.parse(await readFile(configPath, "utf8")), {
@@ -35,18 +34,17 @@ test("loadFooterSettings scaffolds missing global config and schema", async () =
             },
         });
         assert.match(await readFile(schemaPath, "utf8"), /Pi Footer settings/);
-
         const customConfig = JSON.stringify({ separator: "/" });
         await writeFile(configPath, customConfig, "utf8");
         await writeFile(schemaPath, "stale schema", "utf8");
         const loadedAgain = loadFooterSettings(cwd, false);
-
         assert.equal(loadedAgain.config.separator, "/");
         assert.equal(await readFile(configPath, "utf8"), customConfig);
         assert.match(await readFile(schemaPath, "utf8"), /Pi Footer settings/);
     } finally {
         await rm(agentDir, { recursive: true, force: true });
         await rm(cwd, { recursive: true, force: true });
+
         if (originalAgentDir === undefined) {
             delete process.env.PI_CODING_AGENT_DIR;
         } else {
@@ -57,7 +55,6 @@ test("loadFooterSettings scaffolds missing global config and schema", async () =
 
 test("resolveFooterConfig defaults to middle-dot separator", () => {
     const loaded = resolveFooterConfig([]);
-
     assert.equal(loaded.config.separator, "·");
     assert.equal(loaded.config.showGitAheadBehind, false);
     assert.deepEqual(loaded.config.layout, {

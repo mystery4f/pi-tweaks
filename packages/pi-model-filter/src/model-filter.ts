@@ -28,6 +28,7 @@ function findMatchingRule(
         if (!rule.providerRegex.test(model.provider)) continue;
         if (rule.modelRegexes.some((regex) => regex.test(model.id))) return rule;
     }
+
     return undefined;
 }
 
@@ -46,6 +47,7 @@ export function globToRegex(pattern: string): RegExp {
             regex += character.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
         }
     }
+
     return new RegExp(`^${regex}$`);
 }
 

@@ -30,6 +30,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
     await rm(agentDir, { recursive: true, force: true });
+
     if (originalAgentDir === undefined) {
         delete process.env.PI_CODING_AGENT_DIR;
     } else {
@@ -82,7 +83,6 @@ test("loadMentionProjectSettings uses defaults and scaffolds global config", asy
             initialSuggestions: { strategy: "frecency", pinned: [] },
         });
         assert.match(await readFile(globalSchemaPath, "utf8"), /Pi Mention Project settings/);
-
         const customConfig = JSON.stringify({ trigger: "@@", roots: ["~/Projects"] });
         await writeFile(globalConfigPath, customConfig, "utf8");
         await writeFile(globalSchemaPath, "stale schema", "utf8");

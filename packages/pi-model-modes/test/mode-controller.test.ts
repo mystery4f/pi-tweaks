@@ -18,7 +18,6 @@ test("mode controllers own independent runtime state", () => {
     first.setEditorRenderRequest(() => {});
     first.setUseThinkingBorderColors(true);
     first.setShowThinkingLevelStatus(true);
-
     assert.equal(first.currentMode, "default");
     assert.equal(second.currentMode, "default");
     assert.notEqual(first.modes, second.modes);

@@ -8,6 +8,7 @@ const RIGHT_MESSAGES_CONFIG_KEY = Symbol.for("zigai.pi-status-bar.right-messages
 type RightMessageState = typeof globalThis & {
     [RIGHT_MESSAGES_CONFIG_KEY]?: RightMessagesConfig;
 };
+
 // SAFETY: This intersection only adds one optional symbol-keyed slot to the
 // existing global object and does not change its runtime representation.
 const rightMessageState = globalThis as RightMessageState;
@@ -39,6 +40,7 @@ function getSafeScrollColumnIntervalMs(config: RightMessagesConfig): number {
     if (Number.isFinite(config.scrollColumnIntervalMs) && config.scrollColumnIntervalMs > 0) {
         return config.scrollColumnIntervalMs;
     }
+
     return DEFAULT_RIGHT_MESSAGES_CONFIG.scrollColumnIntervalMs;
 }
 
@@ -46,6 +48,7 @@ function getSafeMinScrollCycles(config: RightMessagesConfig): number {
     if (Number.isFinite(config.minScrollCycles) && config.minScrollCycles > 0) {
         return config.minScrollCycles;
     }
+
     return DEFAULT_RIGHT_MESSAGES_CONFIG.minScrollCycles;
 }
 
@@ -84,7 +87,7 @@ function selectRightMessage(
     elapsedMs: number,
     viewportWidth: number,
 ): SelectedRightMessage | undefined {
-    if (config.enabled !== true || config.messages.length === 0 || viewportWidth <= 0) {
+    if (!config.enabled || config.messages.length === 0 || viewportWidth <= 0) {
         return undefined;
     }
 
@@ -97,14 +100,16 @@ function selectRightMessage(
     let elapsedInRotation = elapsedMs % totalDurationMs;
     for (let index = 0; index < config.messages.length; index += 1) {
         const duration = durations[index] ?? 0;
-        const message = config.messages[index];
+        const message = config.messages.at(index);
         if (message === undefined) continue;
         if (elapsedInRotation < duration) return { elapsedMs: elapsedInRotation, message };
+
         elapsedInRotation -= duration;
     }
 
-    const message = config.messages[0];
+    const message = config.messages.at(0);
     if (message === undefined) return undefined;
+
     return { elapsedMs: 0, message };
 }
 
@@ -112,6 +117,7 @@ function applyRightMessageStyle(message: string, config: RightMessagesConfig): s
     let styled = message;
     if (config.dimmed) styled = `\x1b[2m${styled}\x1b[22m`;
     if (config.italic) styled = `\x1b[3m${styled}\x1b[23m`;
+
     return styled;
 }
 
@@ -136,14 +142,16 @@ function applySegmentStyle(segment: StatusBarSegmentSnapshot): string {
     let styled = segment.text;
     if (segment.dimmed) styled = `\x1b[2m${styled}\x1b[22m`;
     if (segment.italic) styled = `\x1b[3m${styled}\x1b[23m`;
+
     return styled;
 }
 
 function selectRightStatusSegment(): string | undefined {
     for (const segment of getStatusBarSnapshot().segments) {
-        if (segment.side !== "right" || !segment.states.includes("active")) continue;
+        if (!segment.states.includes("active")) continue;
         return applySegmentStyle(segment);
     }
+
     return undefined;
 }
 
@@ -157,6 +165,7 @@ export function renderRightMessage(
         const text = sliceByColumn(statusSegment, 0, viewportWidth);
         const width = visibleWidth(text);
         if (width === 0) return undefined;
+
         return { text: color(text), width };
     }
 
@@ -167,5 +176,6 @@ export function renderRightMessage(
     const segment = renderRightMessageSegment(selected, viewportWidth, config);
     const width = visibleWidth(segment);
     if (width === 0) return undefined;
+
     return { text: color(applyRightMessageStyle(segment, config)), width };
 }

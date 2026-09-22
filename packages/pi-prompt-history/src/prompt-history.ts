@@ -33,6 +33,7 @@ export function collectUserPromptsFromEntries(entries: SessionEntry[]): string[]
 
     for (const entry of entries) {
         if (!isUserMessageEntry(entry)) continue;
+
         const text = extractText(entry.message.content);
         if (text.length === 0) continue;
         prompts.push(text);

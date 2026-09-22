@@ -15,7 +15,7 @@ const styles: HighlightStyles = {
 };
 
 function readEscapeSequence(text: string, start: number): string {
-    const introducer = text[start + 1];
+    const introducer = text.at(start + 1);
     if (introducer === undefined) return text.slice(start, start + 1);
 
     if (introducer === "[") {
@@ -23,6 +23,7 @@ function readEscapeSequence(text: string, start: number): string {
             const code = text.charCodeAt(index);
             if (code >= 0x40 && code <= 0x7e) return text.slice(start, index + 1);
         }
+
         return text.slice(start);
     }
 
@@ -43,16 +44,17 @@ function stripAnsi(text: string): string {
             index += readEscapeSequence(text, index).length;
             continue;
         }
+
         output.push(text[index] ?? "");
         index += 1;
     }
+
     return output.join("").replace(/<url>|<path>/g, "");
 }
 
 test("highlights URLs and file paths without changing visible text", () => {
     const line = "Open https://example.com/docs and packages/pi-footer/src/index.ts.";
     const highlighted = highlightMessageLine(line, styles);
-
     assert.equal(stripAnsi(highlighted), line);
     assert.equal(highlighted.includes(`<url>https://example.com/docs${ESC}[39m`), true);
     assert.equal(highlighted.includes(`<path>packages/pi-footer/src/index.ts${ESC}[39m.`), true);
@@ -61,7 +63,6 @@ test("highlights URLs and file paths without changing visible text", () => {
 test("highlights common bare filenames", () => {
     const line = "Edit README.md, query.sql, and package.json:12 next.";
     const highlighted = highlightMessageLine(line, styles);
-
     assert.equal(stripAnsi(highlighted), line);
     assert.equal(highlighted.includes(`<path>README.md${ESC}[39m`), true);
     assert.equal(highlighted.includes(`<path>query.sql${ESC}[39m`), true);
@@ -73,7 +74,6 @@ test("does not highlight code value property access as a bare filename", () => {
 
     for (const line of lines) {
         const highlighted = highlightMessageLine(line, styles);
-
         assert.equal(highlighted, line);
     }
 });
@@ -88,7 +88,6 @@ test("does not highlight slash-separated prose as a file path", () => {
 
     for (const line of lines) {
         const highlighted = highlightMessageLine(line, styles);
-
         assert.equal(highlighted, line);
     }
 });
@@ -96,7 +95,6 @@ test("does not highlight slash-separated prose as a file path", () => {
 test("highlights absolute paths when they are specific enough", () => {
     const line = "Open /home/zigai/Projects/pi-tweaks and /tmp/file.ts next.";
     const highlighted = highlightMessageLine(line, styles);
-
     assert.equal(stripAnsi(highlighted), line);
     assert.equal(highlighted.includes(`<path>/home/zigai/Projects/pi-tweaks${ESC}[39m`), true);
     assert.equal(highlighted.includes(`<path>/tmp/file.ts${ESC}[39m`), true);
@@ -105,7 +103,6 @@ test("highlights absolute paths when they are specific enough", () => {
 test("highlights absolute file paths with spaced directory segments", () => {
     const line = "Use /mnt/d/Software/Linux Distros/Fedora-Server-dvd-x86_64-44-1.7.iso for setup.";
     const highlighted = highlightMessageLine(line, styles);
-
     assert.equal(stripAnsi(highlighted), line);
     assert.equal(
         highlighted.includes(
@@ -121,8 +118,8 @@ test("highlights file paths split across rendered message lines", () => {
         "   Distros/Fedora-Server-dvd-x86_64-",
         "   44-1.7.iso it should             ",
     ];
-    const highlighted = highlightMessageLines(lines, styles);
 
+    const highlighted = highlightMessageLines(lines, styles);
     assert.deepEqual(highlighted.map(stripAnsi), lines);
     assert.equal(highlighted[0]?.includes(`from this <path>/mnt/d/Software/Linux${ESC}[39m`), true);
     assert.equal(
@@ -139,8 +136,8 @@ test("does not join prose before an absolute wrapped path", () => {
         "   Distros/Fedora-Server-dvd-x86_64-4 ",
         "   4-1.7.iso it should                ",
     ];
-    const highlighted = highlightMessageLines(lines, styles);
 
+    const highlighted = highlightMessageLines(lines, styles);
     assert.deepEqual(highlighted.map(stripAnsi), lines);
     assert.equal(highlighted[0]?.includes("<path>this"), false);
     assert.equal(highlighted[1]?.includes(`   <path>/mnt/d/Software/Linux${ESC}[39m`), true);
@@ -153,7 +150,6 @@ test("does not join prose before an absolute wrapped path", () => {
 
 test("does not highlight path-like text inside a URL twice", () => {
     const highlighted = highlightMessageLine("See https://example.com/src/index.ts", styles);
-
     assert.equal((highlighted.match(/<url>/g) ?? []).length, 1);
     assert.equal((highlighted.match(/<path>/g) ?? []).length, 0);
 });
@@ -162,7 +158,6 @@ test("restores the previous foreground after a highlighted path", () => {
     const dim = `${ESC}[38;5;8m`;
     const line = `${dim}Read src/config.ts next${ESC}[39m`;
     const highlighted = highlightMessageLine(line, styles);
-
     assert.equal(stripAnsi(highlighted), "Read src/config.ts next");
     assert.equal(highlighted.includes(`<path>src/config.ts${ESC}[38;5;8m next`), true);
 });
@@ -170,7 +165,6 @@ test("restores the previous foreground after a highlighted path", () => {
 test("ignores URLs inside OSC control sequences", () => {
     const line = `${ESC}]8;;https://example.com${BEL}link${ESC}]8;;${BEL} and ./local/file.ts`;
     const highlighted = highlightMessageLine(line, styles);
-
     assert.equal(stripAnsi(highlighted), "link and ./local/file.ts");
     assert.equal(highlighted.includes("<url>"), false);
     assert.equal(highlighted.includes(`<path>./local/file.ts${ESC}[39m`), true);

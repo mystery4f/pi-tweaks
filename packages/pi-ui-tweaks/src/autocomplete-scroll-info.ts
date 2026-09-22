@@ -32,12 +32,20 @@ type AutocompleteScrollInfoPatchRecord = {
 };
 
 type RenderView = {
-    readonly render?: SelectListScrollInfoTarget["render"];
+    render?: SelectListScrollInfoTarget["render"];
+    [AUTOCOMPLETE_SCROLL_INFO_PATCH]?: AutocompleteScrollInfoPatchRecord;
 };
+
+function hasRender(
+    target: RenderView,
+): target is RenderView & { render: SelectListScrollInfoTarget["render"] } {
+    return typeof target.render === "function";
+}
 
 function warnAutocompleteScrollInfoPatchUnavailable(reason?: string): void {
     let suffix = "";
     if (reason !== undefined) suffix = `: ${reason}`;
+
     console.warn(
         `[pi-ui-tweaks] autocomplete scroll info patch unavailable; Pi internals may have changed${suffix}`,
     );
@@ -45,6 +53,7 @@ function warnAutocompleteScrollInfoPatchUnavailable(reason?: string): void {
 
 function shouldRenderScrollInfo(target: SelectListScrollInfoTarget): boolean {
     if (target.filteredItems.length === 0) return false;
+
     const startIndex = Math.max(
         0,
         Math.min(
@@ -69,14 +78,13 @@ export function installAutocompleteScrollInfoPatch(
         warnAutocompleteScrollInfoPatchUnavailable();
         return inactiveAutocompleteScrollInfoHandle();
     }
-    const render = target.render;
-    if (typeof render !== "function") {
+
+    if (!hasRender(target)) {
         warnAutocompleteScrollInfoPatchUnavailable("missing render");
         return inactiveAutocompleteScrollInfoHandle();
     }
-    // SAFETY: The callable check proves the private render method. The remaining
-    // fields are SelectList instance state read only by the patched receiver.
-    const prototype = target as SelectListScrollInfoTarget;
+
+    const prototype = target;
     const installed = prototype[AUTOCOMPLETE_SCROLL_INFO_PATCH];
     if (installed !== undefined) {
         installed.handle.update(config);
@@ -94,6 +102,7 @@ export function installAutocompleteScrollInfoPatch(
                 const lines = predecessor.call(this, width);
                 if (!current.hideAutocompleteScrollInfo || !shouldRenderScrollInfo(this))
                     return lines;
+
                 return lines.slice(0, -1);
             },
     );
@@ -104,13 +113,16 @@ export function installAutocompleteScrollInfoPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
+
             if (prototype[AUTOCOMPLETE_SCROLL_INFO_PATCH]?.handle === handle) {
                 delete prototype[AUTOCOMPLETE_SCROLL_INFO_PATCH];
             }
         },
     };
+
     prototype[AUTOCOMPLETE_SCROLL_INFO_PATCH] = { original: patch.predecessor, patch, handle };
     return handle;
 }

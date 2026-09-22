@@ -1,23 +1,14 @@
-import { getPiGlobalSettingsPath, loadPiExtensionSettings } from "@zigai/pi-extension-settings/pi";
+import {
+    loadPiExtensionSettings,
+    updatePiExtensionSettings,
+    type LoadedPiExtensionSettings,
+} from "@zigai/pi-extension-settings/pi";
 
 import {
     SettingsManager,
     getAgentDir,
     type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-
-import {
-    closeSync,
-    mkdirSync,
-    openSync,
-    readFileSync,
-    renameSync,
-    statSync,
-    unlinkSync,
-    writeFileSync,
-} from "node:fs";
-
-import { dirname, join } from "node:path";
 
 import { Value } from "typebox/value";
 
@@ -30,10 +21,7 @@ import {
     PiThemeSettings,
     PiThemeSettingsSchema,
     SETTINGS_KEY,
-    SETTINGS_LOCK_TIMEOUT_MS,
-    STALE_SETTINGS_LOCK_MS,
     SettingsObject,
-    SettingsObjectSchema,
     TreeTimestampModeSchema,
     extensionSettingsInput,
 } from "./settings-input.ts";
@@ -49,14 +37,13 @@ export const treeSettingsDefinition = definePrevalidatedExtensionSettings(
 
 export default treeSettingsDefinition;
 
-const EXTENSION_ID = "pi-tree";
-
 type SettingsReadContext = {
     cwd: string;
     projectTrusted: boolean;
 };
 
 let settingsReadContext: SettingsReadContext | undefined;
+let cachedSettings: LoadedPiExtensionSettings<typeof extensionSettingsInput.schema> | undefined;
 let cachedMode: TreeTimestampMode | null = null;
 let cachedPreviewEnabled: boolean | null = null;
 let cachedMaxVisibleLines: number | null | undefined;
@@ -71,6 +58,7 @@ function isProjectTrusted(ctx: TreeSettingsContext): boolean {
 }
 
 function clearReadCaches(): void {
+    cachedSettings = undefined;
     cachedMode = null;
     cachedPreviewEnabled = null;
     cachedMaxVisibleLines = undefined;
@@ -80,30 +68,23 @@ function clearReadCaches(): void {
 }
 
 export function setSettingsContext(ctx: TreeSettingsContext): void {
-    const next: SettingsReadContext = {
+    settingsReadContext = {
         cwd: ctx.cwd,
         projectTrusted: isProjectTrusted(ctx),
     };
-    if (
-        settingsReadContext?.cwd !== next.cwd ||
-        settingsReadContext.projectTrusted !== next.projectTrusted
-    ) {
-        settingsReadContext = next;
-        clearReadCaches();
-    }
+    clearReadCaches();
 }
 
 export function isTreeTimestampMode(value: unknown): value is TreeTimestampMode {
     return Value.Check(TreeTimestampModeSchema, value);
 }
 
-function getSettingsPath(): string {
-    return getPiGlobalSettingsPath(EXTENSION_ID);
-}
-
-export function loadTreeSettings() {
+export function loadTreeSettings(): LoadedPiExtensionSettings<
+    typeof extensionSettingsInput.schema
+> {
     const context = settingsReadContext ?? { cwd: process.cwd(), projectTrusted: false };
-    return loadPiExtensionSettings(
+
+    cachedSettings ??= loadPiExtensionSettings(
         treeSettingsDefinition,
         {
             cwd: context.cwd,
@@ -116,65 +97,7 @@ export function loadTreeSettings() {
             },
         },
     );
-}
-
-function isErrnoException(cause: unknown): cause is NodeJS.ErrnoException {
-    if (!(cause instanceof Error)) return false;
-    return typeof Object.getOwnPropertyDescriptor(cause, "code")?.value === "string";
-}
-
-function throwCause(cause: unknown): never {
-    if (cause instanceof Error) throw cause;
-    throw new Error(String(cause));
-}
-
-function sleepSync(ms: number): void {
-    const buffer = new SharedArrayBuffer(4);
-    Atomics.wait(new Int32Array(buffer), 0, 0, ms);
-}
-
-function formatSchemaPath(instancePath: string): string {
-    if (instancePath.length === 0) return "root";
-    return instancePath
-        .slice(1)
-        .split("/")
-        .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"))
-        .join(".");
-}
-
-const settingsObjectParser = {
-    parse(value: unknown, settingsPath: string): SettingsObject {
-        const errors = [...Value.Errors(SettingsObjectSchema, value)];
-        if (errors.length > 0) {
-            const messages = errors
-                .slice(0, 5)
-                .map((error) => `${formatSchemaPath(error.instancePath)} ${error.message}`);
-            let suffix = "";
-            if (errors.length > messages.length) {
-                suffix = `; and ${errors.length - messages.length} more`;
-            }
-            throw new Error(
-                `${settingsPath} must contain a JSON object: ${messages.join("; ")}${suffix}`,
-            );
-        }
-        return Value.Parse(SettingsObjectSchema, value);
-    },
-};
-
-function readSettingsObject(
-    settingsPath: string,
-    options?: { throwOnInvalid?: boolean },
-): SettingsObject {
-    try {
-        const raw = readFileSync(settingsPath, "utf8");
-        const parsedJson: unknown = JSON.parse(raw);
-        return settingsObjectParser.parse(parsedJson, settingsPath);
-    } catch (cause: unknown) {
-        if (isErrnoException(cause) && cause.code === "ENOENT") return {};
-        if (options?.throwOnInvalid === true) throwCause(cause);
-    }
-
-    return {};
+    return cachedSettings;
 }
 
 function readMergedSettingsObject(): SettingsObject {
@@ -198,100 +121,32 @@ function readMergedPiSettingsObject(): PiThemeSettings {
     });
 }
 
-function withSettingsLock<T>(settingsPath: string, fn: () => T): T {
-    const lockPath = `${settingsPath}.lock`;
-    mkdirSync(dirname(lockPath), { recursive: true });
-
-    const start = Date.now();
-    while (true) {
-        try {
-            const fd = openSync(lockPath, "wx");
-            try {
-                writeFileSync(
-                    fd,
-                    `${JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() })}\n`,
-                    "utf8",
-                );
-            } catch {
-                // Ignore best-effort lock metadata.
-            }
-
-            try {
-                return fn();
-            } finally {
-                try {
-                    closeSync(fd);
-                } catch {
-                    // Ignore cleanup failures.
-                }
-                try {
-                    unlinkSync(lockPath);
-                } catch {
-                    // Ignore cleanup failures.
-                }
-            }
-        } catch (cause: unknown) {
-            if (!isErrnoException(cause) || cause.code !== "EEXIST") throwCause(cause);
-
-            try {
-                const stat = statSync(lockPath);
-                if (Date.now() - stat.mtimeMs > STALE_SETTINGS_LOCK_MS) {
-                    unlinkSync(lockPath);
-                    continue;
-                }
-            } catch {
-                // Ignore stale-lock checks.
-            }
-
-            if (Date.now() - start > SETTINGS_LOCK_TIMEOUT_MS) {
-                throw new Error(`Timed out waiting for lock: ${lockPath}`);
-            }
-            sleepSync(40 + Math.random() * 80);
-        }
-    }
-}
-
-function atomicWriteUtf8Sync(filePath: string, content: string): void {
-    mkdirSync(dirname(filePath), { recursive: true });
-
-    const tempPath = join(
-        dirname(filePath),
-        `.${filePath.split(/[\\/]/).pop() ?? "settings.json"}.tmp.${process.pid}.${Math.random()
-            .toString(16)
-            .slice(2)}`,
-    );
-
-    writeFileSync(tempPath, content, "utf8");
-
-    try {
-        renameSync(tempPath, filePath);
-    } catch (cause: unknown) {
-        if (isErrnoException(cause) && (cause.code === "EEXIST" || cause.code === "EPERM")) {
-            try {
-                unlinkSync(filePath);
-            } catch {
-                // Ignore missing target before retrying the rename.
-            }
-            renameSync(tempPath, filePath);
-            return;
-        }
-        try {
-            unlinkSync(tempPath);
-        } catch {
-            // Ignore cleanup failures.
-        }
-        throwCause(cause);
-    }
-}
-
-function updateSettingsObject(update: (settings: SettingsObject) => void): void {
+async function updateSettingsObject(update: (settings: SettingsObject) => void): Promise<void> {
+    const context = settingsReadContext ?? { cwd: process.cwd(), projectTrusted: false };
     loadTreeSettings();
-    const settingsPath = getSettingsPath();
-    withSettingsLock(settingsPath, () => {
-        const settings = readSettingsObject(settingsPath, { throwOnInvalid: true });
-        update(settings);
-        atomicWriteUtf8Sync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
-    });
+
+    const result = await updatePiExtensionSettings(
+        treeSettingsDefinition,
+        { cwd: context.cwd, isProjectTrusted: () => context.projectTrusted },
+        {
+            scope: "global",
+            update: (settings) => {
+                update(settings);
+                return settings;
+            },
+        },
+    );
+    switch (result.status) {
+        case "updated":
+        case "unchanged":
+            return;
+        case "blocked":
+        case "conflict":
+        case "failed":
+        case "invalid-existing":
+        case "invalid-update":
+            throw new Error(result.message);
+    }
 }
 
 export function getPersistedMode(): TreeTimestampMode {
@@ -319,6 +174,7 @@ export function getPersistedMaxVisibleLines(): number | null {
     if (configured !== undefined && Number.isFinite(configured)) {
         cachedMaxVisibleLines = Math.max(MIN_VISIBLE_LINES, Math.floor(configured));
     }
+
     return cachedMaxVisibleLines;
 }
 
@@ -339,32 +195,47 @@ export function getConfiguredThemeName(): string | undefined {
     return cachedThemeName;
 }
 
+const pendingSettingsWrites = new Set<Promise<void>>();
+
+function trackSettingsWrite(write: Promise<void>): void {
+    pendingSettingsWrites.add(write);
+    void write.then(
+        () => pendingSettingsWrites.delete(write),
+        () => pendingSettingsWrites.delete(write),
+    );
+}
+
+export async function flushSettingsWrites(): Promise<void> {
+    await Promise.allSettled(pendingSettingsWrites);
+}
+
 function warnSettingsWriteFailed(cause: unknown): void {
     let suffix = "";
     if (cause instanceof Error && cause.message.length > 0) {
         suffix = `: ${cause.message}`;
     }
+
     console.warn(`[pi-tree] settings update was not saved${suffix}`);
 }
 
 export function persistPreviewEnabled(enabled: boolean): void {
-    try {
-        updateSettingsObject((settings) => {
-            settings[PREVIEW_SETTINGS_KEY] = enabled;
-        });
-        cachedPreviewEnabled = enabled;
-    } catch (cause: unknown) {
-        warnSettingsWriteFailed(cause);
-    }
+    const write = updateSettingsObject((settings) => {
+        settings[PREVIEW_SETTINGS_KEY] = enabled;
+    })
+        .then(() => {
+            cachedPreviewEnabled = enabled;
+        })
+        .catch(warnSettingsWriteFailed);
+    trackSettingsWrite(write);
 }
 
 export function persistMode(mode: TreeTimestampMode): void {
-    try {
-        updateSettingsObject((settings) => {
-            settings[SETTINGS_KEY] = mode;
-        });
-        cachedMode = mode;
-    } catch (cause: unknown) {
-        warnSettingsWriteFailed(cause);
-    }
+    const write = updateSettingsObject((settings) => {
+        settings[SETTINGS_KEY] = mode;
+    })
+        .then(() => {
+            cachedMode = mode;
+        })
+        .catch(warnSettingsWriteFailed);
+    trackSettingsWrite(write);
 }

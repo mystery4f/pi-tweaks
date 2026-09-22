@@ -1,3 +1,4 @@
+import { AliasPolicy } from "../src/alias-policy.ts";
 import assert from "node:assert/strict";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { test } from "vitest";
@@ -26,8 +27,7 @@ import {
 import type { ProviderRowComponent } from "../src/provider-row.ts";
 import {
     installRegistryPatch,
-    loadConfigForRegistry,
-    type ModelAliasRuntimeState,
+    getNativeModels,
     type PatchedModelRegistry,
 } from "../src/registry-patch.ts";
 import type { LoadedModelAliasSettings } from "../src/settings.ts";
@@ -45,6 +45,7 @@ function loadedConfig(
             settings: { aliases, providerAliases, stableProviderColumn },
         };
     }
+
     return {
         path: "model-aliases.json",
         mtimeMs: 1,
@@ -116,6 +117,7 @@ function renderableTextComponent(text: string): RenderableTestTextComponent {
 function textValues(children: ProviderRowComponent[]): string[] {
     return children.flatMap((child) => {
         if (isTextFixture(child)) return [child.text];
+
         return [];
     });
 }
@@ -128,18 +130,16 @@ test("aliases models without mutating unrelated models", () => {
         { provider: "openai", id: "fast", name: "Fast" },
         { provider: "anthropic", id: "smart", name: "Claude Opus" },
     ]);
-    assert.equal(nativeModels[0]?.id, "gpt-5");
+    assert.equal(nativeModels.at(0)?.id, "gpt-5");
 });
 
 test("does not apply aliases when config has a load error", () => {
     const loaded = loadedConfig(aliases, "invalid config");
-
     assert.deepEqual(aliasModels(nativeModels, loaded.settings), nativeModels);
 });
 
 test("resolves provider display aliases without changing provider ids", () => {
     const loaded = loadedConfig([], undefined, [{ provider: "openai", name: "OpenAI Work" }]);
-
     assert.equal(getProviderDisplayName("openai", "OpenAI", loaded.settings), "OpenAI Work");
     assert.equal(getProviderDisplayName("anthropic", "Anthropic", loaded.settings), "Anthropic");
 });
@@ -161,7 +161,6 @@ test("detects alias collisions with native model ids per provider", () => {
 
 test("finds aliases by model and by provider lookup", () => {
     const loaded = loadedConfig(aliases);
-
     assert.deepEqual(getAliasForModel(nativeModels[0], loaded.settings), aliases[0]);
     assert.deepEqual(getAliasForLookup("anthropic", "smart", loaded.settings), aliases[1]);
     assert.equal(getAliasForLookup("openai", "missing", loaded.settings), undefined);
@@ -186,26 +185,27 @@ test("resolves provider request aliases from selected model or request payload",
         aliases[0],
     );
     assert.deepEqual(
-        aliasForProviderRequest({ model: "smart" }, nativeModels[1], loaded.settings),
+        aliasForProviderRequest({ model: "smart" }, nativeModels.at(1), loaded.settings),
         aliases[1],
     );
     assert.equal(
-        aliasForProviderRequest({ model: "claude-opus" }, nativeModels[1], loaded.settings),
+        aliasForProviderRequest({ model: "claude-opus" }, nativeModels.at(1), loaded.settings),
         undefined,
     );
     assert.equal(aliasForProviderRequest({ model: "fast" }, undefined, loaded.settings), undefined);
 });
 
 test("model selector patch aliases snapshot display and search while preserving native models", () => {
-    const state: ModelAliasRuntimeState = {
+    const state: AliasPolicy = new AliasPolicy({
         loadSettings: () =>
             loadedConfig([aliases[0]], undefined, [{ provider: "openai", name: "OpenAI Work" }]),
-    };
-    const openaiModel = nativeModels[0];
-    const anthropicModel = nativeModels[1];
+    });
+    const openaiModel = nativeModels.at(0);
+    const anthropicModel = nativeModels.at(1);
     if (openaiModel === undefined || anthropicModel === undefined) {
         throw new Error("missing model fixture");
     }
+
     const modelItems: ModelSelectorMockItem[] = [
         {
             provider: "openai",
@@ -218,6 +218,7 @@ test("model selector patch aliases snapshot display and search while preserving 
             model: anthropicModel,
         },
     ];
+
     const successCheckmark = "\x1b[32m ✓\x1b[39m";
     const prototype = {
         allModels: Array<ModelSelectorMockItem>(),
@@ -254,6 +255,7 @@ test("model selector patch aliases snapshot display and search while preserving 
                     prefix = "→ ";
                     checkmark = successCheckmark;
                 }
+
                 return textComponent(`${prefix}${item.id} [${item.provider}]${checkmark}`);
             });
             this.listContainer.children.push(
@@ -269,7 +271,6 @@ test("model selector patch aliases snapshot display and search while preserving 
     installModelSelectorProviderPatch(state, prototype);
     prototype.loadModelsFromSnapshot();
     prototype.updateList();
-
     assert.equal(prototype.allModels[0]?.provider, "OpenAI Work");
     assert.equal(prototype.allModels[0]?.model, openaiModel);
     assert.equal(prototype.allModels[0]?.id, "fast");
@@ -281,28 +282,25 @@ test("model selector patch aliases snapshot display and search while preserving 
     ]);
     assert.equal(prototype.listContainer.children.length, 3);
     assert.equal(prototype.searchInput.render(20)[0], ">              (1/2)");
-
     prototype.filterModels("gpt-5");
     assert.equal(prototype.filteredModels.length, 1);
     assert.equal(prototype.filteredModels[0], prototype.allModels[0]);
     assert.equal(prototype.filteredModels[0]?.model, openaiModel);
-
     prototype.filterModels("OpenAI Work");
     assert.equal(prototype.filteredModels.length, 1);
     assert.equal(prototype.filteredModels[0], prototype.allModels[0]);
-
     prototype.filterModels("Fast");
     assert.equal(prototype.filteredModels.length, 1);
     assert.equal(prototype.filteredModels[0], prototype.allModels[0]);
 });
 
 test("model selector patch reapplies aliases after a refreshed snapshot", () => {
-    let snapshot: ModelLike[] = [nativeModels[0]].filter(
+    let snapshot: ModelLike[] = [nativeModels.at(0)].filter(
         (model): model is ModelLike => model !== undefined,
     );
-    const state: ModelAliasRuntimeState = {
+    const state: AliasPolicy = new AliasPolicy({
         loadSettings: () => loadedConfig(aliases),
-    };
+    });
     const prototype = {
         allModels: Array<ModelSelectorMockItem>(),
         scopedModelItems: Array<ModelSelectorMockItem>(),
@@ -349,6 +347,7 @@ test("model selector provider patch can align providers to all filtered model na
         id: "long",
         name: "Extremely Long Model Name",
     };
+
     const modelItems = [
         { provider: "p", id: "short", model: shortModel },
         ...Array.from({ length: 9 }, (_unused, index) => {
@@ -381,22 +380,23 @@ test("model selector provider patch can align providers to all filtered model na
                     if (index === this.selectedIndex) {
                         prefix = "→ ";
                     }
+
                     return textComponent(`${prefix}${item.id} [${item.provider}]`);
                 });
             },
         };
     }
 
-    const stableState: ModelAliasRuntimeState = {
+    const stableState: AliasPolicy = new AliasPolicy({
         loadSettings: () => loadedConfig([], undefined, [], true),
-    };
+    });
     const stablePrototype = createPrototype();
     installModelSelectorProviderPatch(stableState, stablePrototype);
     stablePrototype.updateList();
 
-    const visibleState: ModelAliasRuntimeState = {
+    const visibleState: AliasPolicy = new AliasPolicy({
         loadSettings: () => loadedConfig([], undefined, [], false),
-    };
+    });
     const visiblePrototype = createPrototype();
     installModelSelectorProviderPatch(visibleState, visiblePrototype);
     visiblePrototype.updateList();
@@ -428,6 +428,7 @@ test("model selector provider rows stay single-line at narrow widths", () => {
             },
         },
     ];
+
     const prototype = {
         allModels: modelItems,
         scopedModelItems: [],
@@ -442,19 +443,20 @@ test("model selector provider rows stay single-line at narrow widths", () => {
             this.listContainer.children = this.filteredModels.map((item, index) => {
                 let prefix = "  ";
                 if (index === this.selectedIndex) prefix = "→ ";
+
                 return renderableTextComponent(`${prefix}${item.id} [${item.provider}]`);
             });
         },
     };
-    const state: ModelAliasRuntimeState = {
+    const state: AliasPolicy = new AliasPolicy({
         loadSettings: () => loadedConfig([], undefined, [], true),
-    };
+    });
 
     installModelSelectorProviderPatch(state, prototype);
     prototype.updateList();
 
-    const first = prototype.listContainer.children[0];
-    const second = prototype.listContainer.children[1];
+    const first = prototype.listContainer.children.at(0);
+    const second = prototype.listContainer.children.at(1);
     if (
         first === undefined ||
         second === undefined ||
@@ -463,11 +465,13 @@ test("model selector provider rows stay single-line at narrow widths", () => {
     ) {
         throw new Error("missing renderable model row fixture");
     }
+
     for (const component of [first, second]) {
         const lines = component.render(40);
         assert.equal(lines.length, 1);
         assert.ok(visibleWidth(lines[0] ?? "") <= 40);
     }
+
     assert.match(first.render(40)[0] ?? "", /openai-codex$/);
     const narrowLongModel = second.render(40)[0] ?? "";
     assert.match(narrowLongModel, /…/);
@@ -478,20 +482,23 @@ test("scoped models patch aliases rendered and searched models without changing 
     let currentLoaded = loadedConfig([aliases[0]], undefined, [
         { provider: "openai", name: "OpenAI Work" },
     ]);
-    const state: ModelAliasRuntimeState = {
+    const state: AliasPolicy = new AliasPolicy({
         loadSettings: () => currentLoaded,
-    };
+    });
+
     type ScopedMockItem = {
         fullId: string;
         model: ModelLike;
         enabled: boolean;
     };
+
     let query = "";
     const footerTexts: string[] = [];
-    const openaiModel = nativeModels[0];
+    const openaiModel = nativeModels.at(0);
     if (openaiModel === undefined) {
         throw new Error("missing openai model fixture");
     }
+
     const originalItems: ScopedMockItem[] = [
         {
             fullId: "openai/gpt-5",
@@ -499,6 +506,7 @@ test("scoped models patch aliases rendered and searched models without changing 
             enabled: true,
         },
     ];
+
     const successCheckmark = "\x1b[32m ✓\x1b[39m";
     const prototype = {
         filteredItems: originalItems,
@@ -530,11 +538,13 @@ test("scoped models patch aliases rendered and searched models without changing 
         updateList(this: ScopedModelsSelectorPatchTarget) {
             const container = this.listContainer;
             if (container === undefined) throw new Error("missing list container fixture");
+
             container.children = this.filteredItems.map((item, index) => {
                 let prefix = "  ";
                 if (index === this.selectedIndex) {
                     prefix = "→ ";
                 }
+
                 return textComponent(
                     `${prefix}${item.model.id} [${item.model.provider}]${successCheckmark}`,
                 );
@@ -569,9 +579,9 @@ test("scoped models patch aliases rendered and searched models without changing 
 
 test("registry patch aliases list and lookup methods and updates config at runtime", () => {
     let loaded = loadedConfig([aliases[0]]);
-    const state: ModelAliasRuntimeState = {
+    const state: AliasPolicy = new AliasPolicy({
         loadSettings: () => loaded,
-    };
+    });
     const registry: PatchedModelRegistry = {
         getAll() {
             return nativeModels;
@@ -605,7 +615,6 @@ test("registry patch aliases list and lookup methods and updates config at runti
         name: "Fast",
     });
     assert.equal(registry.getProviderDisplayName("openai"), "OPENAI");
-
     loaded = loadedConfig([], undefined, [{ provider: "openai", name: "OpenAI Work" }]);
     installRegistryPatch(registry, state);
 
@@ -613,7 +622,7 @@ test("registry patch aliases list and lookup methods and updates config at runti
         registry.getAll().map((model) => model.id),
         ["gpt-5", "claude-opus"],
     );
-    assert.deepEqual(registry.find("openai", "gpt-5"), nativeModels[0]);
+    assert.deepEqual(registry.find("openai", "gpt-5"), nativeModels.at(0));
     assert.equal(registry.getProviderDisplayName("openai"), "OpenAI Work");
 });
 
@@ -621,7 +630,7 @@ test("registry reuses collision validation until an explicit model refresh", () 
     const loaded = loadedConfig([
         { provider: "openai", model: "gpt-5", alias: "fast", name: "Fast" },
     ]);
-    const state: ModelAliasRuntimeState = { loadSettings: () => loaded };
+    const state: AliasPolicy = new AliasPolicy({ loadSettings: () => loaded });
     let getAllCalls = 0;
     const registry: PatchedModelRegistry = {
         getAll() {
@@ -638,8 +647,7 @@ test("registry reuses collision validation until an explicit model refresh", () 
     registry.getAvailable();
     registry.getAvailable();
     assert.equal(getAllCalls, 1);
-
-    loadConfigForRegistry(state, registry, true);
+    state.load(() => getNativeModels(registry), true);
     assert.equal(getAllCalls, 2);
 });
 
@@ -649,7 +657,7 @@ test("registry collision disables model and provider aliases and reports a diagn
         undefined,
         [{ provider: "openai", name: "OpenAI Work" }],
     );
-    const state: ModelAliasRuntimeState = { loadSettings: () => loaded };
+    const state: AliasPolicy = new AliasPolicy({ loadSettings: () => loaded });
     const registry: PatchedModelRegistry = {
         getAll: () => nativeModels,
         getAvailable: () => nativeModels,
@@ -659,8 +667,7 @@ test("registry collision disables model and provider aliases and reports a diagn
     };
     installRegistryPatch(registry, state);
 
-    const resolved = loadConfigForRegistry(state, registry);
-
+    const resolved = state.load(() => getNativeModels(registry));
     assert.deepEqual(resolved.settings.aliases, []);
     assert.deepEqual(resolved.settings.providerAliases, []);
     assert.match(resolved.diagnostic ?? "", /conflicts with an existing model id/);

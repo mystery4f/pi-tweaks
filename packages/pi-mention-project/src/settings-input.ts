@@ -23,6 +23,7 @@ export const legacyTriggerSchema = Type.String({
     minLength: 1,
     pattern: "^[^/\\s]+$",
 });
+
 export const legacyRootsSchema = Type.Union([
     Type.String({ minLength: 1 }),
     Type.Array(Type.String({ minLength: 1 })),
@@ -118,9 +119,11 @@ export const mentionProjectSettingsSchema = Type.Object(
 );
 
 type DecodedMentionProjectSettings = StaticDecode<typeof mentionProjectSettingsSchema>;
+
 export type MentionProjectSettings = Omit<DecodedMentionProjectSettings, "roots"> & {
     roots: string[];
 };
+
 export type InitialSuggestionsSettings = MentionProjectSettings["initialSuggestions"];
 
 export const extensionSettingsInput = {

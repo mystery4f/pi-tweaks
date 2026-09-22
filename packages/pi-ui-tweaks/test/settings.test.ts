@@ -21,7 +21,6 @@ test("loadUiTweaksSettings scaffolds missing global config and schema", async ()
             "pi-ui-tweaks.schema.json",
         );
         const loaded = loadUiTweaksSettings(cwd, false);
-
         assert.deepEqual(loaded.errors, []);
         assert.equal(loaded.config.autocompleteAboveInput, true);
         assert.deepEqual(JSON.parse(await readFile(configPath, "utf8")), {
@@ -48,18 +47,17 @@ test("loadUiTweaksSettings scaffolds missing global config and schema", async ()
             selectedOptionPrefix: "→ ",
         });
         assert.match(await readFile(schemaPath, "utf8"), /Pi UI Tweaks settings/);
-
         const customConfig = JSON.stringify({ enabled: false, selectedOptionPrefix: ">> " });
         await writeFile(configPath, customConfig, "utf8");
         await writeFile(schemaPath, "stale schema", "utf8");
         const loadedAgain = loadUiTweaksSettings(cwd, false);
-
         assert.equal(loadedAgain.config.autocompleteAboveInput, false);
         assert.equal(await readFile(configPath, "utf8"), customConfig);
         assert.match(await readFile(schemaPath, "utf8"), /Pi UI Tweaks settings/);
     } finally {
         await rm(agentDir, { recursive: true, force: true });
         await rm(cwd, { recursive: true, force: true });
+
         if (originalAgentDir === undefined) {
             delete process.env.PI_CODING_AGENT_DIR;
         } else {
@@ -70,7 +68,6 @@ test("loadUiTweaksSettings scaffolds missing global config and schema", async ()
 
 test("ui tweaks settings default to enabled tweaks", () => {
     const loaded = resolveUiTweaksConfig([]);
-
     assert.equal(loaded.config.autocompleteAboveInput, true);
     assert.equal(loaded.config.anchorInputToBottom, false);
     assert.equal(loaded.config.bashExecPromptSpacing, true);

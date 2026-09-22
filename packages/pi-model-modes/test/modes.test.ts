@@ -76,7 +76,6 @@ test("mode thinking levels follow the selected model's capabilities", () => {
 test("computeModesPatch returns null when there are no persisted changes", () => {
     const base = baseModesFile();
     const next = baseModesFile();
-
     assert.equal(computeModesPatch(base, next, true), null);
 });
 
@@ -133,7 +132,6 @@ test("computeModesPatch can omit current mode so runtime-only switches are not w
     const base = baseModesFile();
     const next = baseModesFile();
     next.currentMode = "docs";
-
     assert.equal(computeModesPatch(base, next, false), null);
 });
 
@@ -233,9 +231,9 @@ test("applyModesPatch merges into the latest file without deleting unrelated mod
     });
 
     assert.equal(latest.currentMode, "review");
-    assert.equal(latest.modes.default?.provider, "openai");
-    assert.equal(latest.modes.default?.modelId, "gpt-5");
-    assert.equal(latest.modes.default?.thinkingLevel, undefined);
+    assert.equal(latest.modes.default.provider, "openai");
+    assert.equal(latest.modes.default.modelId, "gpt-5");
+    assert.equal(latest.modes.default.thinkingLevel, undefined);
     assert.equal(latest.modes.docs, undefined);
     assert.deepEqual(latest.modes.local, {
         provider: "ollama",

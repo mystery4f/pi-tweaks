@@ -5,7 +5,7 @@ import {
     type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 
-import { installRegistryPatch, type ModelFilterRuntimeState } from "./model-registry-patch.ts";
+import { installRegistryPatch } from "./model-registry-patch.ts";
 import { installModelRuntimePatch } from "./model-runtime-patch.ts";
 import {
     loadModelFilterSettings,
@@ -13,7 +13,7 @@ import {
     type ModelFilterSettingsLoadState,
 } from "./settings.ts";
 
-type ModelFilterExtensionState = ModelFilterRuntimeState & ModelFilterSettingsLoadState;
+type ModelFilterExtensionState = ModelFilterSettingsLoadState & { reportedDiagnosticKey?: string };
 
 function setConfigContext(state: ModelFilterExtensionState, ctx: ExtensionContext): void {
     const projectTrusted = ctx.isProjectTrusted();
@@ -42,21 +42,19 @@ function reportConfigDiagnostic(
 }
 
 export default function providerModelFilterExtension(pi: ExtensionAPI): void {
-    const state: ModelFilterExtensionState = {
-        loadSettings: () => loadModelFilterSettings(state),
-    };
-
-    installModelRuntimePatch(ModelRuntime.prototype, state);
-    installRegistryPatch(ModelRegistry.prototype, state);
+    const state: ModelFilterExtensionState = {};
+    const getSettings = () => loadModelFilterSettings(state).settings;
+    installModelRuntimePatch(ModelRuntime.prototype, getSettings);
+    installRegistryPatch(ModelRegistry.prototype, getSettings);
 
     pi.on("session_start", async (_event, ctx) => {
         setConfigContext(state, ctx);
-        installRegistryPatch(ctx.modelRegistry, state);
-        reportConfigDiagnostic(state, ctx, state.loadSettings());
+        installRegistryPatch(ctx.modelRegistry, getSettings);
+        reportConfigDiagnostic(state, ctx, loadModelFilterSettings(state));
     });
 
     pi.on("turn_start", (_event, ctx) => {
         setConfigContext(state, ctx);
-        reportConfigDiagnostic(state, ctx, state.loadSettings());
+        reportConfigDiagnostic(state, ctx, loadModelFilterSettings(state));
     });
 }

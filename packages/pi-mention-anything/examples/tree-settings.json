@@ -1,0 +1,25 @@
+{
+  "mentions": [
+    {
+      "id": "targets",
+      "trigger": "target:",
+      "separator": ":",
+      "replacementTemplate": "Selected target {{id}} at {{path}}",
+      "source": {
+        "type": "static",
+        "items": [
+          { "id": "team-1", "name": "platform", "navigable": true },
+          {
+            "id": "service-1",
+            "name": "api",
+            "parentPath": ["team-1"],
+            "navigable": true,
+            "selectable": true
+          },
+          { "id": "env-1", "name": "staging", "parentPath": ["team-1", "service-1"] },
+          { "id": "env-2", "name": "production", "parentPath": ["team-1", "service-1"] }
+        ]
+      }
+    }
+  ]
+}

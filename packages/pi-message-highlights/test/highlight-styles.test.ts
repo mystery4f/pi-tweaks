@@ -22,7 +22,6 @@ function theme(colorMode: "truecolor" | "256color" = "truecolor"): HighlightThem
 
 test("buildHighlightStyles defaults URLs to the original blue", () => {
     const styles = buildHighlightStyles(undefined, DEFAULT_MESSAGE_HIGHLIGHTS_CONFIG);
-
     assert.equal(styles.url, `${ESC}[38;2;135;215;255m`);
     assert.equal(styles.filepath, "");
 });
@@ -32,7 +31,6 @@ test("buildHighlightStyles resolves URL theme colors from the active theme", () 
         urlColor: { kind: "theme", color: "mdLink" },
     };
     const styles = buildHighlightStyles(theme(), config);
-
     assert.equal(styles.url, "<mdLink>");
     assert.equal(styles.filepath, "<accent>");
 });
@@ -51,7 +49,6 @@ test("buildHighlightStyles can disable URL coloring", () => {
         urlColor: { kind: "none" },
     };
     const styles = buildHighlightStyles(theme(), config);
-
     assert.equal(styles.url, "");
     assert.equal(styles.filepath, "<accent>");
 });

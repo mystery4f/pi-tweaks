@@ -81,6 +81,7 @@ function getLinkedPredecessor<Instance, Args extends unknown[], Result>(
         if (isNumber(version)) versionLabel = version.toString();
         throw new Error(`Unsupported linked method patch protocol version ${versionLabel}`);
     }
+
     const predecessor = getOwnDataDescriptor(method, PATCH_PREDECESSOR)?.value;
     if (typeof predecessor !== "function") {
         return undefined;
@@ -88,6 +89,7 @@ function getLinkedPredecessor<Instance, Args extends unknown[], Result>(
 
     // SAFETY: installLinkedMethodPatch writes only a method with the same signature under
     // this process-wide symbol, and the runtime check proves the reflected value is callable.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SAFETY: The versioned linked-patch protocol stores the same method signature; the callable check validates the reflected value, but TypeScript cannot retain generics through symbol descriptors.
     return predecessor as LinkedMethod<Instance, Args, Result>;
 }
 
@@ -96,16 +98,12 @@ function getPredecessorDescriptor<Instance, Args extends unknown[], Result>(
 ): PropertyDescriptor | undefined {
     const descriptor = getOwnDataDescriptor(method, PATCH_PREDECESSOR_DESCRIPTOR)?.value;
     if (descriptor === undefined) return undefined;
+
     if (!isNonNullObject(descriptor)) {
         throw new Error("Linked method patch has invalid predecessor descriptor metadata");
     }
-    return descriptor;
-}
 
-function clearLinkedMetadata<Method extends object>(method: Method): void {
-    Reflect.deleteProperty(method, PATCH_PREDECESSOR);
-    Reflect.deleteProperty(method, PATCH_PREDECESSOR_DESCRIPTOR);
-    Reflect.deleteProperty(method, PATCH_PROTOCOL);
+    return descriptor;
 }
 
 function defineLinkedMetadata<Instance, Args extends unknown[], Result>(
@@ -124,7 +122,10 @@ function defineLinkedMetadata<Instance, Args extends unknown[], Result>(
     ];
     for (const [metadataKey, descriptor] of metadata) {
         if (!Reflect.defineProperty(method, metadataKey, descriptor)) {
-            clearLinkedMetadata(method);
+            Reflect.deleteProperty(method, PATCH_PREDECESSOR);
+            Reflect.deleteProperty(method, PATCH_PREDECESSOR_DESCRIPTOR);
+            Reflect.deleteProperty(method, PATCH_PROTOCOL);
+
             throw new TypeError(`Unable to attach linked patch metadata for ${String(key)}`);
         }
     }
@@ -174,6 +175,7 @@ export function installLinkedMethodPatch<Target extends object, Key extends keyo
     // SAFETY: Target[Key] determines Method's this, arguments, and result types, while the
     // runtime check proves the indexed value is callable. TypeScript cannot retain that
     // conditional relationship after narrowing an indexed generic property.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SAFETY: Target[Key] supplies the exact method signature and candidate is checked callable; TypeScript loses that conditional indexed relationship after the unknown boundary.
     const original = candidate as Method;
     const originalDescriptor = Object.getOwnPropertyDescriptor(target, key);
     let patched: Method;
@@ -182,17 +184,16 @@ export function installLinkedMethodPatch<Target extends object, Key extends keyo
         if (predecessor === undefined) {
             throw new Error("Linked method patch lost its predecessor");
         }
+
         return predecessor.apply(this, args);
     };
 
-    const transformed: unknown = transform(dynamicPredecessor);
+    const transformed = transform(dynamicPredecessor);
     if (typeof transformed !== "function") {
         throw new TypeError(`Method transform for ${String(key)} returned a non-function`);
     }
-    // SAFETY: The public transform contract returns the exact method extracted from Target[Key],
-    // and the runtime check proves the boundary value is callable. TypeScript does not normalize
-    // that conditional return type to this function body's equivalent local Method alias.
-    patched = transformed as Method;
+
+    patched = transformed;
     if (
         patched === original ||
         Object.hasOwn(patched, PATCH_PREDECESSOR) ||
@@ -201,25 +202,33 @@ export function installLinkedMethodPatch<Target extends object, Key extends keyo
     ) {
         throw new TypeError(`Method transform for ${String(key)} returned an installed method`);
     }
+
     if (!Object.isExtensible(patched)) {
         throw new TypeError(
             `Method transform for ${String(key)} returned a non-extensible function`,
         );
     }
+
     defineLinkedMetadata(patched, original, originalDescriptor, key);
+
     let installed = false;
+
     try {
         installed = Reflect.set(target, key, patched) && target[key] === patched;
     } finally {
         if (!installed) {
-            clearLinkedMetadata(patched);
+            Reflect.deleteProperty(patched, PATCH_PREDECESSOR);
+            Reflect.deleteProperty(patched, PATCH_PREDECESSOR_DESCRIPTOR);
+            Reflect.deleteProperty(patched, PATCH_PROTOCOL);
         }
     }
+
     if (!installed) {
         throw new TypeError(`Unable to patch method ${String(key)}`);
     }
 
     let disposed = false;
+
     return {
         predecessor: original,
         patched,
@@ -230,6 +239,7 @@ export function installLinkedMethodPatch<Target extends object, Key extends keyo
             if (predecessor === undefined) {
                 throw new Error("Linked method patch lost its predecessor");
             }
+
             const predecessorDescriptor = getPredecessorDescriptor(patched);
 
             if (target[key] === patched) {
@@ -239,9 +249,11 @@ export function installLinkedMethodPatch<Target extends object, Key extends keyo
                 } else {
                     restored = Reflect.defineProperty(target, key, predecessorDescriptor);
                 }
+
                 if (!restored) {
                     throw new Error(`Unable to restore method ${String(key)}`);
                 }
+
                 disposed = true;
                 return;
             }
@@ -254,25 +266,30 @@ export function installLinkedMethodPatch<Target extends object, Key extends keyo
             // SAFETY: A callable value at the patched key participates in the linked-method
             // protocol only through getLinkedPredecessor's symbol validation. This cast lets
             // that validation preserve Method's signature across the dynamically linked chain.
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SAFETY: This callable is only traversed through version-checked linked metadata, never invoked; TypeScript cannot carry the installed method's signature through a reflected successor.
             let current = successor as Method;
             const visited = new Set<Method>();
-            while (true) {
+            for (;;) {
                 if (visited.has(current)) {
                     throw new Error(
                         `Unable to dispose cyclic method patch chain for ${String(key)}`,
                     );
                 }
+
                 visited.add(current);
+
                 const next = getLinkedPredecessor(current);
                 if (next === undefined) {
                     disposed = true;
                     return;
                 }
+
                 if (next === patched) {
                     updateLinkedPredecessor(current, predecessor, predecessorDescriptor);
                     disposed = true;
                     return;
                 }
+
                 current = next;
             }
         },
@@ -313,9 +330,11 @@ function readKeyedPatchHandle<Policy, Instance, Args extends unknown[], Result>(
         if (isNumber(version)) versionLabel = version.toString();
         throw new TypeError(`Unsupported keyed method patch protocol version ${versionLabel}`);
     }
+
     if (getOwnDataDescriptor(record, "methodKey")?.value !== methodKey) {
         throw new TypeError("Keyed method patch marker is already used for another method");
     }
+
     const handle = getOwnDataDescriptor(record, "handle")?.value;
     if (
         !isNonNullObject(handle) ||
@@ -327,6 +346,7 @@ function readKeyedPatchHandle<Policy, Instance, Args extends unknown[], Result>(
         throw new TypeError("Incompatible keyed method patch handle");
     }
     // SAFETY: The shared record version and complete callable handle shape were validated.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SAFETY: Protocol version, method key and every callable handle member are validated; the globally keyed installer owns the policy/signature relationship that TypeScript cannot recover from descriptors.
     return handle as KeyedLinkedMethodPatchHandle<Policy, Instance, Args, Result>;
 }
 /* oxlint-enable antislop/no-object-parameters */
@@ -363,13 +383,16 @@ export function installKeyedLinkedMethodPatch<
     type Instance = MethodInstance<Target, Target[Key]>;
     type Args = MethodArgs<Target[Key]>;
     type Result = MethodResult<Target[Key]>;
+
     const installedRecord = getOwnDataDescriptor(target, marker)?.value;
     if (installedRecord !== undefined) {
         if (!isNonNullObject(installedRecord)) {
             throw new TypeError("Incompatible keyed method patch record");
         }
+
         const handle = readKeyedPatchHandle<Policy, Instance, Args, Result>(installedRecord, key);
         handle.update(initialPolicy);
+
         return handle;
     }
 
@@ -387,16 +410,20 @@ export function installKeyedLinkedMethodPatch<
         },
         dispose(): void {
             if (disposed) return;
+
             patch.dispose();
+
             if (
                 getOwnDataDescriptor(target, marker)?.value === record &&
                 !Reflect.deleteProperty(target, marker)
             ) {
                 throw new TypeError(`Unable to remove keyed method patch ${String(marker)}`);
             }
+
             disposed = true;
         },
     };
+
     record = {
         [KEYED_PATCH_PROTOCOL]: KEYED_PATCH_PROTOCOL_VERSION,
         methodKey: key,
@@ -411,6 +438,7 @@ export function installKeyedLinkedMethodPatch<
         patch.dispose();
         throw new TypeError(`Unable to store keyed method patch ${String(marker)}`);
     }
+
     return handle;
 }
 

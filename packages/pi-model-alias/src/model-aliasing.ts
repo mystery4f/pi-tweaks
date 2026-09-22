@@ -30,8 +30,10 @@ function buildModelIdSetByProvider(models: readonly ModelLike[]): Map<string, Se
             providerModels = new Set<string>();
             modelIds.set(model.provider, providerModels);
         }
+
         providerModels.add(model.id);
     }
+
     return modelIds;
 }
 
@@ -45,6 +47,7 @@ export function getAliasModelIdCollision(
             return `alias "${alias.alias}" for provider "${alias.provider}" conflicts with an existing model id; choose an alias that is not already registered by that provider.`;
         }
     }
+
     return undefined;
 }
 
@@ -73,6 +76,7 @@ export function applyAlias(model: ModelLike, alias: AliasConfig): ModelLike {
     if (alias.name !== undefined) {
         aliased.name = alias.name;
     }
+
     return aliased;
 }
 

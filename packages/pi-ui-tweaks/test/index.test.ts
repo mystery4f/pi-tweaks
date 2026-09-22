@@ -13,6 +13,7 @@ import {
     type UiTweaksLifecycleContext,
 } from "../src/index.ts";
 import { captureConsoleWarnings } from "./capture-console-warnings.ts";
+
 type SelectListPrototypeFixture = {
     readonly render?: (width: number) => string[];
 };
@@ -33,6 +34,7 @@ function registerLifecycleHandlers(): Map<string, LifecycleHandler> {
         },
     };
     registerUiTweaksLifecycle(api);
+
     return handlers;
 }
 
@@ -77,13 +79,10 @@ test("session shutdown disposes installed patches and a later start installs onc
         await start(sessionStart, context);
         const firstPatchedRender = selectListPrototype.render;
         assert.notEqual(firstPatchedRender, originalRender);
-
         await start(sessionStart, context);
         assert.equal(selectListPrototype.render, firstPatchedRender);
-
         await shutdown(sessionShutdown, context);
         assert.equal(selectListPrototype.render, originalRender);
-
         await start(sessionStart, context);
         assert.notEqual(selectListPrototype.render, originalRender);
         await shutdown(sessionShutdown, context);

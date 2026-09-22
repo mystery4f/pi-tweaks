@@ -11,5 +11,6 @@ test("package root exposes only supported runtime capabilities", () => {
         "registerEditorEnhancer",
         "warnPiInternalPatchUnavailable",
     ]);
+
     expect("resolvePiInternalModuleUrl" in internals).toBe(false);
 });

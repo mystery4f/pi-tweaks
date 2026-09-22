@@ -18,6 +18,7 @@ import {
 } from "./modes.ts";
 import { getMtimeMs, ModesStore } from "./modes-store.ts";
 import type { SettingsReadContext } from "./settings.ts";
+
 type ModeControllerPi = Pick<ExtensionAPI, "getThinkingLevel" | "setThinkingLevel" | "setModel">;
 
 export type ModeRuntime = {
@@ -101,11 +102,13 @@ export class ModeController {
         fallbackBorderColor?: (text: string) => string,
     ): (text: string) => string {
         const theme = ctx.ui.theme;
-        const spec = this.runtime.data.modes[mode];
+        const spec = modeSpec(this.runtime.data.modes, mode);
         if (spec?.color !== undefined && spec.color.length > 0) {
             const color = spec.color;
+
             try {
                 theme.getFgAnsi(color);
+
                 return (text: string) => theme.fg(color, text);
             } catch {
                 // Fall through to the configured fallback border color.
@@ -115,6 +118,7 @@ export class ModeController {
         if (!this.useThinkingBorderColors) {
             return fallbackBorderColor ?? ((text: string) => theme.fg("borderMuted", text));
         }
+
         return theme.getThinkingBorderColor(this.pi.getThinkingLevel());
     }
 
@@ -126,9 +130,11 @@ export class ModeController {
         });
         const mtimeMs = await getMtimeMs(filePath);
         const filePathChanged = this.runtime.filePath !== filePath;
+
         if (filePathChanged || this.runtime.fileMtimeMs !== mtimeMs) {
             this.runtime.filePath = filePath;
             this.runtime.fileMtimeMs = mtimeMs;
+
             const loaded = await this.store.load(filePath, fallbackMode);
             ensureDefaultModeEntries(loaded, fallbackMode);
             this.runtime.data = loaded;
@@ -146,6 +152,7 @@ export class ModeController {
             ) {
                 this.runtime.currentMode = this.runtime.data.currentMode;
             }
+
             if (
                 this.runtime.lastRealMode.length === 0 ||
                 !(this.runtime.lastRealMode in this.runtime.data.modes)
@@ -157,7 +164,9 @@ export class ModeController {
 
     async persist(ctx: ExtensionContext): Promise<void> {
         if (this.runtime.filePath.length === 0) return;
+
         this.runtime.baseline ??= cloneModesFile(this.runtime.data);
+
         try {
             const saved = await this.store.saveChanges(
                 this.runtime.filePath,
@@ -174,6 +183,7 @@ export class ModeController {
             if (ctx.hasUI) {
                 ctx.ui.notify(`Mode settings were not saved: ${errorMessage(cause)}`, "error");
             }
+
             throw cause;
         }
     }
@@ -192,9 +202,11 @@ export class ModeController {
 
     async applyMode(ctx: ExtensionContext, mode: string): Promise<void> {
         await this.ensure(ctx);
+
         if (mode === CUSTOM_MODE_NAME) {
             this.runtime.currentMode = CUSTOM_MODE_NAME;
             this.customOverlay = this.getCurrentSelection();
+
             if (ctx.hasUI) this.requestEditorRender?.();
             return;
         }
@@ -209,7 +221,9 @@ export class ModeController {
         this.runtime.lastRealMode = mode;
         this.customOverlay = null;
         this.runtime.applying = true;
+
         let modelApplied = true;
+
         try {
             if (
                 spec.provider !== undefined &&
@@ -220,6 +234,7 @@ export class ModeController {
                 const model = ctx.modelRegistry.find(spec.provider, spec.modelId);
                 if (model === undefined) {
                     modelApplied = false;
+
                     if (ctx.hasUI) {
                         ctx.ui.notify(
                             `Mode "${mode}" references unknown model ${spec.provider}/${spec.modelId}`,
@@ -236,6 +251,7 @@ export class ModeController {
                     }
                 }
             }
+
             if (spec.thinkingLevel !== undefined) this.pi.setThinkingLevel(spec.thinkingLevel);
         } finally {
             this.runtime.applying = false;
@@ -245,12 +261,15 @@ export class ModeController {
             this.runtime.currentMode = CUSTOM_MODE_NAME;
             this.customOverlay = this.getCurrentSelection();
         }
+
         if (ctx.hasUI) this.requestEditorRender?.();
     }
 
     async storeSelection(ctx: ExtensionContext, mode: string, selection: ModeSpec): Promise<void> {
         if (mode === CUSTOM_MODE_NAME) return;
+
         await this.ensure(ctx);
+
         const next: ModeSpec = { ...this.runtime.data.modes[mode] };
         if (
             selection.provider !== undefined &&
@@ -261,6 +280,7 @@ export class ModeController {
             next.provider = selection.provider;
             next.modelId = selection.modelId;
         }
+
         if (selection.thinkingLevel !== undefined) next.thinkingLevel = selection.thinkingLevel;
         this.runtime.data.modes[mode] = next;
         await this.persist(ctx);
@@ -278,8 +298,10 @@ export class ModeController {
             if (name === oldName) targetName = newName;
             renamed[targetName] = spec;
         }
+
         this.runtime.data.modes = renamed;
         await this.persist(ctx);
+
         if (this.runtime.currentMode === oldName) this.runtime.currentMode = newName;
         if (this.runtime.lastRealMode === oldName) this.runtime.lastRealMode = newName;
         this.requestEditorRender?.();
@@ -299,29 +321,37 @@ export class ModeController {
     async deleteMode(ctx: ExtensionContext, name: string): Promise<void> {
         delete this.runtime.data.modes[name];
         await this.persist(ctx);
+
         if (this.runtime.currentMode === name) {
             this.runtime.currentMode = CUSTOM_MODE_NAME;
             this.customOverlay = this.getCurrentSelection();
         }
+
         if (this.runtime.lastRealMode === name) {
             this.runtime.lastRealMode = orderedModeNames(this.runtime.data.modes)[0] ?? "";
         }
+
         this.requestEditorRender?.();
     }
 
     async cycle(ctx: ExtensionContext, direction: 1 | -1 = 1): Promise<void> {
         if (!ctx.hasUI) return;
+
         await this.ensure(ctx);
+
         const names = orderedModeNames(this.runtime.data.modes);
         if (names.length === 0) return;
+
         let baseMode =
             findModeForModel(this.runtime.data.modes, ctx.model?.provider, ctx.model?.id) ??
             this.runtime.currentMode;
         if (this.runtime.currentMode === CUSTOM_MODE_NAME && baseMode === CUSTOM_MODE_NAME) {
             baseMode = this.runtime.lastRealMode;
         }
-        const fallbackMode = names[0];
+
+        const fallbackMode = names.at(0);
         if (fallbackMode === undefined) return;
+
         const index = Math.max(0, names.indexOf(baseMode));
         await this.applyMode(
             ctx,
@@ -331,11 +361,14 @@ export class ModeController {
 
     async handleSessionActivated(ctx: ExtensionContext, event: SessionStartEvent): Promise<void> {
         await this.ensure(ctx);
+
         if (shouldApplyDefaultModel(event, ctx.sessionManager.getEntries())) {
             await this.applyConfiguredDefaultModel(ctx);
         }
+
         this.lastObservedModel = { provider: ctx.model?.provider, modelId: ctx.model?.id };
         this.customOverlay = null;
+
         const inferred = findModeForModel(
             this.runtime.data.modes,
             ctx.model?.provider,
@@ -348,6 +381,7 @@ export class ModeController {
             this.runtime.currentMode = CUSTOM_MODE_NAME;
             this.customOverlay = this.getCurrentSelection();
         }
+
         if (ctx.hasUI) this.requestEditorRender?.();
     }
 
@@ -357,7 +391,9 @@ export class ModeController {
     ): Promise<void> {
         this.lastObservedModel = { provider: event.model.provider, modelId: event.model.id };
         if (this.runtime.applying) return;
+
         await this.ensure(ctx);
+
         if (this.runtime.currentMode !== CUSTOM_MODE_NAME) {
             this.runtime.lastRealMode = this.runtime.currentMode;
         }
@@ -381,6 +417,7 @@ export class ModeController {
     private async applyConfiguredDefaultModel(ctx: ExtensionContext): Promise<void> {
         const spec = this.runtime.data.defaultModel;
         if (spec === undefined) return;
+
         const model = ctx.modelRegistry.find(spec.provider, spec.modelId);
         if (model === undefined) {
             if (ctx.hasUI) {
@@ -389,9 +426,12 @@ export class ModeController {
                     "warning",
                 );
             }
+
             return;
         }
+
         this.runtime.applying = true;
+
         try {
             const applied = await this.pi.setModel(model);
             if (!applied) {
@@ -401,8 +441,10 @@ export class ModeController {
                         "warning",
                     );
                 }
+
                 return;
             }
+
             if (spec.thinkingLevel !== undefined) this.pi.setThinkingLevel(spec.thinkingLevel);
         } finally {
             this.runtime.applying = false;

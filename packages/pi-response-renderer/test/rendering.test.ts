@@ -1,62 +1,12 @@
 import assert from "node:assert/strict";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Markdown, type MarkdownTheme } from "@earendil-works/pi-tui";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { test } from "vitest";
 
+import { assistantMessageRuntime } from "../src/assistant-message-runtime.ts";
 import assistantRenderingExtension from "../src/index.ts";
-
-type AssistantMessageComponent = {
-    render(width: number): string[];
-    updateContent(message: AssistantMessage): void;
-};
-
-type AssistantMessageComponentPrototype = {
-    render: (this: AssistantMessageComponent, width: number) => string[];
-    updateContent: (this: AssistantMessageComponent, message: AssistantMessage) => void;
-};
-
-type AssistantMessageComponentConstructor = {
-    new (
-        message?: AssistantMessage,
-        hideThinkingBlock?: boolean,
-        theme?: MarkdownTheme,
-        hiddenThinkingLabel?: string,
-        outputPad?: number,
-    ): AssistantMessageComponent;
-    readonly prototype: AssistantMessageComponentPrototype;
-};
-type AssistantMessageModuleView = {
-    readonly AssistantMessageComponent?: AssistantMessageComponentConstructor;
-};
-type ParsedAssistantMessageModule = {
-    readonly AssistantMessageComponent: AssistantMessageComponentConstructor;
-};
-
-function isAssistantMessageComponentConstructor(
-    value: unknown,
-): value is AssistantMessageComponentConstructor {
-    if (typeof value !== "function") return false;
-    // SAFETY: The callable check permits reading the constructor prototype, whose two
-    // lifecycle methods are verified before this predicate claims the component contract.
-    const constructor = value as AssistantMessageComponentConstructor;
-    return (
-        typeof constructor.prototype.render === "function" &&
-        typeof constructor.prototype.updateContent === "function"
-    );
-}
-
-function isAssistantMessageModule(value: unknown): value is ParsedAssistantMessageModule {
-    if ((typeof value !== "object" && typeof value !== "function") || value === null) {
-        return false;
-    }
-    // SAFETY: The namespace-object check permits reading only the dynamic component export,
-    // which is parsed by the complete constructor predicate.
-    const module = value as AssistantMessageModuleView;
-    return isAssistantMessageComponentConstructor(module.AssistantMessageComponent);
-}
 
 const identity = (text: string): string => text;
 const markdownTheme = {
@@ -80,12 +30,14 @@ const codingAgentEntry = fileURLToPath(import.meta.resolve("@earendil-works/pi-c
 const componentUrl = pathToFileURL(
     join(dirname(codingAgentEntry), "modes/interactive/components/assistant-message.js"),
 ).href;
+
 // This test intentionally resolves Pi's private runtime module, which has no public export.
 const componentModule: unknown = await import(componentUrl);
-if (!isAssistantMessageModule(componentModule)) {
+const componentValue = assistantMessageRuntime.parse(componentModule);
+if (componentValue === undefined) {
     assert.fail("missing assistant message module");
 }
-const componentValue = componentModule.AssistantMessageComponent;
+
 const AssistantMessageComponent = componentValue;
 const assistantMessagePrototype = componentValue.prototype;
 const originalAssistantRender = assistantMessagePrototype.render;
@@ -108,21 +60,6 @@ function renderPlainLines(markdown: string): string[] {
 
 function renderVisibleLines(markdown: string, theme: MarkdownTheme): string[] {
     return new Markdown(markdown, 1, 0, theme).render(80).map((line) => stripAnsi(line).trim());
-}
-
-function assertHeadingKeepsParagraphGaps(
-    markdownHeading: string,
-    renderedHeading: string,
-    theme: MarkdownTheme,
-): void {
-    const beforeHeading = "The summary starts with a short lead-in.";
-    const afterHeading = "The next paragraph should stay visually separated.";
-    const lines = renderVisibleLines(
-        [beforeHeading, "", markdownHeading, "", afterHeading].join("\n"),
-        theme,
-    );
-
-    assert.deepEqual(lines, [beforeHeading, "", renderedHeading, "", afterHeading]);
 }
 
 // Level 1-2 headings need style detection because Pi strips their `#` prefix.
@@ -212,32 +149,40 @@ test("preserves the blank line before a rendered Markdown table", () => {
     assert.ok(lines[2].startsWith("┌"), "expected a rendered table top border");
 });
 
-test("preserves blanks around a styled level-2 heading without # prefix", () => {
-    assertHeadingKeepsParagraphGaps(
-        "## Release readiness?",
-        "Release readiness?",
-        boldHeadingTheme,
+test.each([
+    {
+        title: "preserves blanks around a styled level-2 heading without # prefix",
+        markdownHeading: "## Release readiness?",
+        renderedHeading: "Release readiness?",
+        theme: boldHeadingTheme,
+    },
+    {
+        title: "detects color-only heading styles",
+        markdownHeading: "## Rollout status?",
+        renderedHeading: "Rollout status?",
+        theme: colorHeadingTheme,
+    },
+    {
+        title: "preserves blanks around an inline-code level-2 heading without # prefix",
+        markdownHeading: "## `render()` behavior?",
+        renderedHeading: "render() behavior?",
+        theme: codeColorTheme,
+    },
+    {
+        title: "preserves blanks around a bold level-2 heading without # prefix",
+        markdownHeading: "## **API compatibility?**",
+        renderedHeading: "API compatibility?",
+        theme: colorHeadingBoldTheme,
+    },
+])("$title", ({ markdownHeading, renderedHeading, theme }) => {
+    const beforeHeading = "The summary starts with a short lead-in.";
+    const afterHeading = "The next paragraph should stay visually separated.";
+    const lines = renderVisibleLines(
+        [beforeHeading, "", markdownHeading, "", afterHeading].join("\n"),
+        theme,
     );
-});
 
-test("detects color-only heading styles", () => {
-    assertHeadingKeepsParagraphGaps("## Rollout status?", "Rollout status?", colorHeadingTheme);
-});
-
-test("preserves blanks around an inline-code level-2 heading without # prefix", () => {
-    assertHeadingKeepsParagraphGaps(
-        "## `render()` behavior?",
-        "render() behavior?",
-        codeColorTheme,
-    );
-});
-
-test("preserves blanks around a bold level-2 heading without # prefix", () => {
-    assertHeadingKeepsParagraphGaps(
-        "## **API compatibility?**",
-        "API compatibility?",
-        colorHeadingBoldTheme,
-    );
+    assert.deepEqual(lines, [beforeHeading, "", renderedHeading, "", afterHeading]);
 });
 
 test("collapses blanks around a fully-bold standalone line (not a heading)", () => {
@@ -310,8 +255,7 @@ test("assistant message updates render through the patch and shutdown restores i
         shutdownHandlers[0]?.();
     });
 
-    // SAFETY: The extension reads only the on method implemented by this lifecycle seam.
-    await assistantRenderingExtension(api as ExtensionAPI);
+    await assistantRenderingExtension(api);
     const prototype = assistantMessagePrototype;
     const patchedRender = prototype.render;
     const patchedUpdateContent = prototype.updateContent;
@@ -358,14 +302,17 @@ test("assistant message updates render through the patch and shutdown restores i
         ...message,
         content: [{ type: "text", text: "Updated paragraph.\n\n## Updated heading" }],
     });
+
     assert.deepEqual(
         component.render(80).map((line) => stripAnsi(line).trim()),
         ["", "Updated paragraph.", "", "Updated heading"],
     );
+
     component.updateContent({
         ...message,
         content: [{ type: "text", text: "Before shutdown.\n\n```ts\nconst restored = true;\n```" }],
     });
+
     assert.equal(
         component.render(80).some((line) => line.includes("```")),
         false,

@@ -30,7 +30,7 @@ export type TokenThroughputResult =
 
 type StepState =
     | { readonly status: "idle" }
-    | { readonly status: "active"; firstOutputAtMs?: number };
+    | { readonly status: "active"; readonly startedAtMs?: number; firstOutputAtMs?: number };
 
 type StepSample = {
     readonly visibleOutputTokens: number;
@@ -79,11 +79,17 @@ export class TurnTokenThroughputTracker {
         this.hasIncompleteStep = false;
     }
 
-    startStep(): void {
+    startStep(atMs?: number): void {
         if (this.step.status === "active") {
             this.hasIncompleteStep = true;
         }
-        this.step = { status: "active" };
+
+        let startedAtMs: number | undefined;
+        if (atMs !== undefined && Number.isFinite(atMs)) {
+            startedAtMs = atMs;
+        }
+
+        this.step = { status: "active", startedAtMs };
     }
 
     markOutput(atMs: number): void {
@@ -91,33 +97,40 @@ export class TurnTokenThroughputTracker {
             this.hasIncompleteStep = true;
             return;
         }
+
         if (this.step.firstOutputAtMs !== undefined) return;
+
         if (!Number.isFinite(atMs)) {
             this.hasIncompleteStep = true;
             return;
         }
+
         this.step.firstOutputAtMs = atMs;
     }
 
-    finishStep(endedAtMs: number, usage: OutputTokenUsage): void {
+    finishStep(endedAtMs: number, usage: OutputTokenUsage, stopReason?: string): void {
         const visibleOutputTokens = getVisibleOutputTokens(usage);
-        if (this.step.status !== "active") {
+        if (this.step.status !== "active" || stopReason === "error" || stopReason === "aborted") {
             if (visibleOutputTokens > 0) {
                 this.hasIncompleteStep = true;
             }
+
             this.samples.push({ visibleOutputTokens, streamDurationMs: 0 });
+
             return;
         }
 
         let streamDurationMs = 0;
-        if (this.step.firstOutputAtMs === undefined) {
+        const stepStartMs = this.step.startedAtMs ?? this.step.firstOutputAtMs;
+
+        if (stepStartMs === undefined) {
             if (visibleOutputTokens > 0) {
                 this.hasIncompleteStep = true;
             }
-        } else if (!Number.isFinite(endedAtMs) || endedAtMs < this.step.firstOutputAtMs) {
+        } else if (!Number.isFinite(endedAtMs) || endedAtMs < stepStartMs) {
             this.hasIncompleteStep = true;
         } else {
-            streamDurationMs = endedAtMs - this.step.firstOutputAtMs;
+            streamDurationMs = endedAtMs - stepStartMs;
         }
 
         this.samples.push({ visibleOutputTokens, streamDurationMs });
@@ -128,6 +141,7 @@ export class TurnTokenThroughputTracker {
         if (this.samples.length === 0) {
             return { status: "unavailable", reason: "no-steps" };
         }
+
         if (this.step.status === "active" || this.hasIncompleteStep) {
             return { status: "unavailable", reason: "incomplete-step" };
         }
@@ -142,6 +156,7 @@ export class TurnTokenThroughputTracker {
         if (visibleOutputTokens <= 0) {
             return { status: "unavailable", reason: "no-visible-output" };
         }
+
         if (streamDurationMs <= 0) {
             return { status: "unavailable", reason: "zero-duration" };
         }

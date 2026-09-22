@@ -63,6 +63,7 @@ const BUILTIN_FOOTER_SLOT_IDS = new Set([
     "mcp",
     "context",
 ]);
+
 const FOOTER_CUSTOM_SLOT_ID_REGEX = new RegExp(FOOTER_CUSTOM_SLOT_ID_PATTERN);
 
 export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
@@ -110,6 +111,7 @@ function parseSlotIds(values: readonly string[]): FooterSlotId[] {
             slotIds.push(value);
         }
     }
+
     return slotIds;
 }
 
@@ -132,6 +134,7 @@ function findSharedVisibleSlotId(
         if (hiddenIds.has(slotId)) continue;
         if (leftIds.has(slotId)) return slotId;
     }
+
     return undefined;
 }
 
@@ -144,9 +147,11 @@ function parseFooterLayoutSettings(
     if (layout.left !== undefined) {
         settings.left = parseSlotIds(layout.left);
     }
+
     if (layout.right !== undefined) {
         settings.right = parseSlotIds(layout.right);
     }
+
     if (layout.hidden !== undefined) {
         settings.hidden = parseSlotIds(layout.hidden);
     }
@@ -194,6 +199,7 @@ function buildParsedFooterSettings(
         if (parsedLayout.layout !== undefined) {
             nextSettings.layout = parsedLayout.layout;
         }
+
         errors.push(...parsedLayout.errors);
     }
 
@@ -254,9 +260,11 @@ export function resolveFooterConfig(
                 if (schemaErrors.length > messages.length) {
                     suffix = `; and ${schemaErrors.length - messages.length} more`;
                 }
+
                 errors.push(`${source.label} is invalid: ${messages.join("; ")}${suffix}`);
                 continue;
             }
+
             const parsed = buildParsedFooterSettings(settings, source.label);
             mergedSettings = mergeFooterSettings(mergedSettings, parsed.settings);
             errors.push(...parsed.errors);
@@ -267,6 +275,7 @@ export function resolveFooterConfig(
             } else {
                 message = String(error);
             }
+
             errors.push(message);
         }
     }
@@ -305,6 +314,7 @@ export function loadFooterSettings(cwd: string, projectTrusted: boolean): Loaded
             settings: settings.globalSettingsLayer,
         });
     }
+
     if (settings.projectSettingsLayer !== undefined && settings.projectConfigPath !== undefined) {
         settingsSources.push({
             label: settings.projectConfigPath,
@@ -313,6 +323,7 @@ export function loadFooterSettings(cwd: string, projectTrusted: boolean): Loaded
     }
 
     const loaded = resolveFooterConfig(settingsSources);
+
     return {
         config: loaded.config,
         errors: [...settings.diagnostics.map((diagnostic) => diagnostic.message), ...loaded.errors],

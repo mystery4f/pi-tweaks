@@ -10,15 +10,32 @@ import {
     isProviderPayloadObject,
     rewritePayloadModel,
 } from "./provider-payload.ts";
+import { installRegistryPatch, getNativeModels } from "./registry-patch.ts";
+import { AliasPolicy } from "./alias-policy.ts";
 import {
-    installRegistryPatch,
-    loadConfigForRegistry,
-    reportConfigError,
-    type ModelAliasRuntimeState,
-} from "./registry-patch.ts";
-import { loadModelAliasSettings, type ModelAliasSettingsLoadState } from "./settings.ts";
+    loadModelAliasSettings,
+    type LoadedModelAliasSettings,
+    type ModelAliasSettingsLoadState,
+} from "./settings.ts";
 
-type ModelAliasExtensionState = ModelAliasRuntimeState & ModelAliasSettingsLoadState;
+type ModelAliasExtensionState = ModelAliasSettingsLoadState & { reportedDiagnosticKey?: string };
+
+function reportConfigError(
+    state: ModelAliasExtensionState,
+    ctx: ExtensionContext,
+    loaded: LoadedModelAliasSettings,
+): void {
+    if (loaded.diagnostic === undefined) {
+        state.reportedDiagnosticKey = undefined;
+        return;
+    }
+
+    const diagnosticKey = `${loaded.path}:${loaded.mtimeMs}:${loaded.diagnostic}`;
+    if (state.reportedDiagnosticKey === diagnosticKey) return;
+
+    state.reportedDiagnosticKey = diagnosticKey;
+    ctx.ui.notify(loaded.diagnostic, "error");
+}
 
 function setConfigContext(state: ModelAliasExtensionState, ctx: ExtensionContext): void {
     const projectTrusted = ctx.isProjectTrusted();
@@ -30,30 +47,40 @@ function setConfigContext(state: ModelAliasExtensionState, ctx: ExtensionContext
 }
 
 export default async function modelAliasExtension(pi: ExtensionAPI): Promise<void> {
-    const state: ModelAliasExtensionState = {
-        loadSettings: () => loadModelAliasSettings(state),
-    };
-
-    installRegistryPatch(ModelRegistry.prototype, state);
-    await installProviderAliasUiPatches(state);
+    const state: ModelAliasExtensionState = {};
+    const policy = new AliasPolicy({ loadSettings: () => loadModelAliasSettings(state) });
+    installRegistryPatch(ModelRegistry.prototype, policy);
+    await installProviderAliasUiPatches(policy);
 
     pi.on("session_start", async (_event, ctx) => {
         setConfigContext(state, ctx);
+
         const registry = ctx.modelRegistry;
-        installRegistryPatch(registry, state);
-        reportConfigError(state, ctx, loadConfigForRegistry(state, registry, true));
+        installRegistryPatch(registry, policy);
+        reportConfigError(
+            state,
+            ctx,
+            policy.load(() => getNativeModels(registry), true),
+        );
     });
 
     pi.on("turn_start", (_event, ctx) => {
         setConfigContext(state, ctx);
-        reportConfigError(state, ctx, loadConfigForRegistry(state, ctx.modelRegistry, true));
+        reportConfigError(
+            state,
+            ctx,
+            policy.load(() => getNativeModels(ctx.modelRegistry), true),
+        );
     });
 
     pi.on("before_provider_request", (event, ctx) => {
         setConfigContext(state, ctx);
-        const loaded = loadConfigForRegistry(state, ctx.modelRegistry, true);
+
+        const loaded = policy.load(() => getNativeModels(ctx.modelRegistry), true);
         reportConfigError(state, ctx, loaded);
+
         if (!isProviderPayloadObject(event.payload)) return undefined;
+
         const alias = aliasForProviderRequest(event.payload, ctx.model, loaded.settings);
         if (alias === undefined) return undefined;
         return rewritePayloadModel(event.payload, alias.model);

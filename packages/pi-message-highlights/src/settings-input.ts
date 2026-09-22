@@ -19,6 +19,8 @@ export const THEME_FOREGROUND_COLORS = defineThemeColors([
     "dim",
     "text",
     "thinkingText",
+    "scrollbarTrack",
+    "scrollbarThumb",
     "searchMatchText",
     "userMessageText",
     "customMessageText",
@@ -58,6 +60,7 @@ export const THEME_FOREGROUND_COLORS = defineThemeColors([
 ] as const);
 
 export type ThemeForegroundColor = (typeof THEME_FOREGROUND_COLORS)[number];
+
 export const DEFAULT_URL_COLOR_SETTING = "#87d7ff";
 
 export const themeForegroundColorSchema = Type.Union(
@@ -68,6 +71,7 @@ export const themeForegroundColorSchema = Type.Union(
         description: "Pi theme foreground color name.",
     },
 );
+
 export const ansiColorSettingSchema = Type.Integer({
     title: "ANSI 256 color",
     minimum: 0,
@@ -75,6 +79,7 @@ export const ansiColorSettingSchema = Type.Integer({
     "x-control": "slider",
     description: "ANSI 256 color index.",
 });
+
 export const urlColorSettingSchema = Type.Union([
     ansiColorSettingSchema,
     Type.Literal("", { title: "Disabled", description: "Disable URL highlighting." }),

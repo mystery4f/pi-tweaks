@@ -26,16 +26,27 @@ class FakeTerminal implements Terminal {
     }
 
     start(): void {}
+
     stop(): void {}
+
     async drainInput(): Promise<void> {}
+
     write(): void {}
+
     moveBy(): void {}
+
     hideCursor(): void {}
+
     showCursor(): void {}
+
     clearLine(): void {}
+
     clearFromCursor(): void {}
+
     clearScreen(): void {}
+
     setTitle(): void {}
+
     setProgress(): void {}
 }
 
@@ -77,6 +88,7 @@ function createEditorTestContext(branch: SessionEntry[] = [], hasUI = true): Edi
         editor.addToHistory = (text): void => {
             addedPrompts.push(text);
         };
+
         return editor;
     };
     const ctx = {
@@ -111,7 +123,7 @@ test("prompt history preloads prompts from the current branch in branch order", 
 
     applyPromptHistoryEditor(context.ctx);
     assert.equal(context.installedFactories.length, 1);
-    const factory = context.installedFactories[0];
+    const factory = context.installedFactories.at(0);
     if (factory === undefined) assert.fail("Expected installed editor factory");
     factory(...editorFactoryArgs());
     assert.deepEqual(context.addedPrompts, ["older current prompt", "newer current prompt"]);
@@ -122,6 +134,7 @@ test("prompt history preserves a configured host editor and its rendering", () =
     const hostEditor = {
         render(width: number) {
             if (width <= 0) return [];
+
             return ["<magic>workflowz</magic>"];
         },
         invalidate() {},
@@ -159,7 +172,6 @@ test("prompt history preserves a configured host editor and its rendering", () =
     const [tui, theme, keybindings] = editorFactoryArgs();
     tui.setFocus(hostEditor);
     const editor = installedFactory(tui, theme, keybindings);
-
     assert.equal(editor, hostEditor);
     assert.deepEqual(editor.render(80), ["<magic>workflowz</magic>"]);
     assert.deepEqual(addedPrompts, ["current prompt"]);
@@ -192,14 +204,12 @@ test("prompt history keeps Pi's default editor shortcut hook non-recursive", () 
     const defaultEditor = new CustomEditor(testTui, theme, keybindings);
     testTui.setFocus(defaultEditor);
     const editor = installedFactory(testTui, theme, keybindings);
-
     assert.equal(editor instanceof CustomEditor, true);
     if (!(editor instanceof CustomEditor)) return;
 
     // Pi 0.84.3 delegates custom-editor shortcuts to its default editor. Returning that same
     // instance makes the delegate call itself for every key pressed during startup.
     editor.onExtensionShortcut ??= (data) => defaultEditor.onExtensionShortcut?.(data) ?? false;
-
     assert.doesNotThrow(() => editor.onExtensionShortcut?.("/"));
     assert.notEqual(editor, defaultEditor);
 });
@@ -208,6 +218,5 @@ test("prompt history does not install an editor without a UI", () => {
     const context = createEditorTestContext([], false);
 
     applyPromptHistoryEditor(context.ctx);
-
     assert.equal(context.installedFactories.length, 0);
 });

@@ -23,6 +23,7 @@ function parseHexColor(hex: `#${string}`): RgbColor {
     if (!/^[0-9a-fA-F]{6}$/.test(value)) {
         throw new Error(`Invalid hex color: ${hex}`);
     }
+
     return {
         red: parseInt(value.slice(0, 2), 16),
         green: parseInt(value.slice(2, 4), 16),
@@ -55,6 +56,7 @@ function findClosestCubeIndex(value: number): number {
             minimumIndex = index;
         }
     }
+
     return minimumIndex;
 }
 
@@ -69,6 +71,7 @@ function findClosestGrayIndex(gray: number): number {
             minimumIndex = index;
         }
     }
+
     return minimumIndex;
 }
 
@@ -81,22 +84,22 @@ function rgbToAnsi256({ red, green, blue }: RgbColor): number {
     const cubeGreen = CUBE_VALUES[greenIndex] ?? 0;
     const cubeBlue = CUBE_VALUES[blueIndex] ?? 0;
     const cubeDistance = colorDistance(red, green, blue, cubeRed, cubeGreen, cubeBlue);
-
     const gray = Math.round(0.299 * red + 0.587 * green + 0.114 * blue);
     const grayIndex = findClosestGrayIndex(gray);
     const grayValue = GRAY_VALUES[grayIndex] ?? 0;
     const grayColorIndex = 232 + grayIndex;
     const grayDistance = colorDistance(red, green, blue, grayValue, grayValue, grayValue);
     const spread = Math.max(red, green, blue) - Math.min(red, green, blue);
-
     if (spread < 10 && grayDistance < cubeDistance) {
         return grayColorIndex;
     }
+
     return cubeIndex;
 }
 
 function getHexPrefix(color: `#${string}`, theme: HighlightTheme | undefined): string {
     const rgb = parseHexColor(color);
+
     try {
         if (theme?.getColorMode() === "256color") {
             return `${ESC}[38;5;${rgbToAnsi256(rgb)}m`;
@@ -104,6 +107,7 @@ function getHexPrefix(color: `#${string}`, theme: HighlightTheme | undefined): s
     } catch {
         return `${ESC}[38;2;${rgb.red};${rgb.green};${rgb.blue}m`;
     }
+
     return `${ESC}[38;2;${rgb.red};${rgb.green};${rgb.blue}m`;
 }
 
@@ -120,16 +124,23 @@ function getThemePrefix(theme: HighlightTheme | undefined, color: ThemeForegroun
 }
 
 function getColorPrefix(color: HighlightColor, theme: HighlightTheme | undefined): string {
+    let prefix: string;
     switch (color.kind) {
         case "none":
-            return "";
+            prefix = "";
+            break;
         case "theme":
-            return getThemePrefix(theme, color.color);
+            prefix = getThemePrefix(theme, color.color);
+            break;
         case "ansi256":
-            return `${ESC}[38;5;${color.color}m`;
+            prefix = `${ESC}[38;5;${color.color}m`;
+            break;
         case "hex":
-            return getHexPrefix(color.color, theme);
+            prefix = getHexPrefix(color.color, theme);
+            break;
     }
+
+    return prefix;
 }
 
 export function buildHighlightStyles(

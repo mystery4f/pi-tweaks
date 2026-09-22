@@ -2,7 +2,6 @@ import { keyText } from "@earendil-works/pi-coding-agent";
 
 const TREE_TITLE_PATCH_KEY = Symbol.for("zigai.pi.tree-timestamps.title-patched");
 const PREVIEW_TOGGLE_HINT = "shift+p";
-
 const TREE_TITLE_TEXT = "  Session Tree";
 const LEGACY_TREE_HELP_TEXT = "↑/↓: move.";
 
@@ -49,11 +48,13 @@ function getTreeHeaderPatch(): TreeHeaderPatchRecord | true | undefined {
     if (isTreeHeaderPatchRecord(descriptor.value)) return descriptor.value;
     return undefined;
 }
+
 function setTreeHeaderPatch(value: TreeHeaderPatchRecord | undefined): void {
     if (value === undefined) {
         Reflect.deleteProperty(globalThis, TREE_TITLE_PATCH_KEY);
         return;
     }
+
     Object.defineProperty(globalThis, TREE_TITLE_PATCH_KEY, {
         configurable: true,
         value,
@@ -103,6 +104,7 @@ function isTreeTitle(component: ComponentLike): boolean {
 
 function updateLegacyTreeHelp(component: ComponentLike): void {
     if (!hasText(component) || !component.text.includes(LEGACY_TREE_HELP_TEXT)) return;
+
     component.text = `  ${getTreeHelpText()}`;
 }
 
@@ -113,6 +115,7 @@ export function patchTreeHeaderText(prototype: TreeHeaderPatchTarget): void {
     const originalAddChild = prototype.addChild;
     const patchedAddChild: AddChild = function patchedTreeSelectorAddChild(component): void {
         if (isTreeTitle(component)) return;
+
         updateLegacyTreeHelp(component);
         originalAddChild.call(this, component);
     };
@@ -129,5 +132,6 @@ export function restoreTreeHeaderText(): void {
     if (patch.prototype.addChild === patch.patchedAddChild) {
         patch.prototype.addChild = patch.originalAddChild;
     }
+
     setTreeHeaderPatch(undefined);
 }

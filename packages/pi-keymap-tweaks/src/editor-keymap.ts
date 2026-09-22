@@ -1,3 +1,5 @@
+import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import {
     copyToClipboard,
     CustomEditor,
@@ -5,11 +7,15 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { registerEditorEnhancer, type EditorEnhancerHandle } from "@zigai/pi-extension-internals";
 
+import type { KeymapTweaksConfig } from "./settings-input.ts";
+import { cycleThinkingLevelBackward, isThinkingBackwardKeyMatch } from "./thinking-cycle.ts";
+
 const KEYMAP_EDITOR_ENHANCER = Symbol.for("zigai.pi-keymap-tweaks.editor-enhancer");
 
-type EditorFactory = NonNullable<ReturnType<ExtensionContext["ui"]["getEditorComponent"]>>;
+export type EditorFactory = NonNullable<ReturnType<ExtensionContext["ui"]["getEditorComponent"]>>;
 type EditorFactoryArgs = Parameters<EditorFactory>;
 type EditorComponent = ReturnType<EditorFactory>;
+
 type EditorState = {
     lines: string[];
     cursorLine: number;
@@ -29,10 +35,18 @@ type EditorInternals = {
 
 type ClipboardWriter = (text: string) => Promise<void>;
 type Notifier = (message: string, type?: "info" | "warning" | "error") => void;
+type ModelProvider = () => Model<Api> | undefined;
+type ThinkingLevelProvider = () => ThinkingLevel | undefined;
+type ThinkingLevelSetter = (level: ThinkingLevel) => void;
+type SettingsProvider = () => KeymapTweaksConfig;
 
 type KeymapEditorOptions = {
     readonly writeClipboard?: ClipboardWriter;
     readonly notify?: Notifier;
+    readonly getSettings?: SettingsProvider;
+    readonly getModel?: ModelProvider;
+    readonly getThinkingLevel?: ThinkingLevelProvider;
+    readonly setThinkingLevel?: ThinkingLevelSetter;
 };
 
 type EditorLike = ReturnType<EditorFactory> &
@@ -93,6 +107,7 @@ function hasEditorInternals(editor: EditorLike): editor is EditorLike & EditorIn
     ) {
         return false;
     }
+
     if (
         "pushUndoSnapshot" in editor &&
         editor.pushUndoSnapshot !== undefined &&
@@ -100,6 +115,7 @@ function hasEditorInternals(editor: EditorLike): editor is EditorLike & EditorIn
     ) {
         return false;
     }
+
     return (
         !("exitHistoryBrowsing" in editor) ||
         editor.exitHistoryBrowsing === undefined ||
@@ -127,29 +143,34 @@ function isEditorLike(value: ReturnType<EditorFactory>): value is EditorLike {
 
 function moveToCodexLineStart(editor: EditorLike): void {
     if (!hasEditorInternals(editor)) return;
-    const state = editor.state;
 
+    const state = editor.state;
     editor.lastAction = null;
+
     if (state.cursorCol === 0 && state.cursorLine > 0) {
         state.cursorLine -= 1;
     }
+
     editor.setCursorCol(0);
     editor.requestRenderNow?.();
 }
 
 function moveToCodexLineEnd(editor: EditorLike): void {
     if (!hasEditorInternals(editor)) return;
+
     const state = editor.state;
     const currentLine = state.lines[state.cursorLine] || "";
 
     editor.lastAction = null;
     if (state.cursorCol >= currentLine.length && state.cursorLine < state.lines.length - 1) {
         state.cursorLine += 1;
+
         const nextLine = state.lines[state.cursorLine] || "";
         editor.setCursorCol(nextLine.length);
         editor.requestRenderNow?.();
         return;
     }
+
     editor.setCursorCol(currentLine.length);
     editor.requestRenderNow?.();
 }
@@ -175,7 +196,9 @@ function deleteCurrentLine(
     notify: Notifier,
 ): void {
     if (!hasEditorInternals(editor)) return;
+
     const currentLine = editor.state.lines[editor.state.cursorLine] ?? "";
+
     if (editor.pushUndoSnapshot === undefined) return;
 
     editor.pushUndoSnapshot();
@@ -207,11 +230,41 @@ function enhanceEditor(
 ): EditorLike {
     const writeClipboard = options.writeClipboard ?? copyToClipboard;
     const notify = options.notify ?? (() => undefined);
+
     editor.requestRenderNow ??= requestRender;
 
     const originalHandleInput = editor.handleInput.bind(editor);
+
     editor.handleInput = (data: string) => {
         if (editor.onExtensionShortcut?.(data) === true) return;
+
+        let configuredThinkingKey: string | null | undefined;
+        if (options.getSettings !== undefined) {
+            configuredThinkingKey = options.getSettings().cycleThinkingBackwardKey;
+        }
+
+        const userBindings = keybindings.getUserBindings();
+        const userKeybinding = userBindings["app.thinking.cycleBackward"];
+        if (isThinkingBackwardKeyMatch(data, configuredThinkingKey, userKeybinding)) {
+            if (
+                options.getModel !== undefined &&
+                options.getThinkingLevel !== undefined &&
+                options.setThinkingLevel !== undefined
+            ) {
+                const newLevel = cycleThinkingLevelBackward(
+                    options.getModel(),
+                    options.getThinkingLevel(),
+                    options.setThinkingLevel,
+                );
+                if (newLevel === undefined) {
+                    notify("Current model does not support thinking", "warning");
+                } else {
+                    editor.requestRenderNow?.();
+                }
+
+                return;
+            }
+        }
 
         if (keybindings.matches(data, "app.models.clearAll")) {
             deleteCurrentLine(editor, writeClipboard, notify);

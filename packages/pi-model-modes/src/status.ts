@@ -42,7 +42,9 @@ function isStatusPatchState(value: unknown): value is StatusPatchState {
     ) {
         return false;
     }
+
     const { predicate, handle } = value;
+
     return (
         typeof predicate === "object" &&
         predicate !== null &&
@@ -63,7 +65,9 @@ function isInteractiveModeModule(value: unknown): value is InteractiveModeModule
     if ((typeof value !== "object" || value === null) && typeof value !== "function") {
         return false;
     }
+
     if (!("InteractiveMode" in value)) return false;
+
     const { InteractiveMode } = value;
     if (
         (typeof InteractiveMode !== "object" || InteractiveMode === null) &&
@@ -71,7 +75,9 @@ function isInteractiveModeModule(value: unknown): value is InteractiveModeModule
     ) {
         return false;
     }
+
     if (!("prototype" in InteractiveMode)) return false;
+
     const { prototype } = InteractiveMode;
     return (
         ((typeof prototype === "object" && prototype !== null) ||
@@ -94,11 +100,13 @@ async function loadInteractiveModePrototype(): Promise<InteractiveModePrototype 
 
 export function restoreThinkingLevelStatusPatch(prototype?: InteractiveModePrototype): void {
     if (prototype === undefined) return;
+
     const state: unknown = prototype[STATUS_PATCH_MARKER];
     if (!isStatusPatchState(state)) {
         delete prototype[STATUS_PATCH_MARKER];
         return;
     }
+
     state.handle.dispose();
     delete prototype[STATUS_PATCH_MARKER];
 }
@@ -115,10 +123,12 @@ export async function applyThinkingLevelStatusPatch(
             prototype = loadedModule.InteractiveMode.prototype;
         }
     }
+
     if (prototype === undefined) {
         if (options.loadInteractiveModeModule !== undefined) {
             warnPiInternalPatchUnavailable(PATCH_SCOPE, PATCH_FEATURE);
         }
+
         return () => {};
     }
 
@@ -126,8 +136,10 @@ export async function applyThinkingLevelStatusPatch(
     if (isStatusPatchState(existing)) {
         existing.predicate.current =
             options.shouldShowThinkingLevelStatus ?? existing.predicate.current;
+
         return () => restoreThinkingLevelStatusPatch(prototype);
     }
+
     if (existing !== undefined) {
         delete prototype[STATUS_PATCH_MARKER];
     }
@@ -140,15 +152,15 @@ export async function applyThinkingLevelStatusPatch(
         "showStatus",
         (predecessor): ShowStatus =>
             function patchedShowStatus(message: string): void {
-                if (
-                    message.startsWith(THINKING_LEVEL_STATUS_PREFIX) &&
-                    predicate.current() === false
-                ) {
+                if (message.startsWith(THINKING_LEVEL_STATUS_PREFIX) && !predicate.current()) {
                     return;
                 }
+
                 predecessor.call(this, message);
             },
     );
+
     prototype[STATUS_PATCH_MARKER] = { predicate, handle };
+
     return () => restoreThinkingLevelStatusPatch(prototype);
 }

@@ -5,36 +5,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { loadWorkspacePackages } from "./workspace-packages.ts";
+
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const extensionPackages = [
-    "pi-model-filter",
-    "pi-ui-tweaks",
-    "pi-model-alias",
-    "pi-tree",
-    "pi-footer",
-    "pi-response-renderer",
-    "pi-plain-user-messages",
-    "pi-message-highlights",
-    "pi-status-bar",
-    "pi-keymap-tweaks",
-    "pi-model-modes",
-    "pi-prompt-history",
-    "pi-mention-skill",
-    "pi-mention-project",
-    "pi-trust-all-folders",
-];
-const schemaPackages = [
-    "pi-footer",
-    "pi-mention-project",
-    "pi-mention-skill",
-    "pi-message-highlights",
-    "pi-model-alias",
-    "pi-model-filter",
-    "pi-model-modes",
-    "pi-status-bar",
-    "pi-tree",
-    "pi-ui-tweaks",
-];
+const workspaces = loadWorkspacePackages(packageRoot);
 
 /**
  * @param {string} cwd
@@ -54,16 +28,19 @@ function pack(cwd, destination) {
     if (filename === undefined || filename.length === 0) {
         throw new Error(`npm pack did not report a tarball for ${cwd}`);
     }
+
     return path.join(destination, filename);
 }
 
 const temporaryRoot = mkdtempSync(path.join(tmpdir(), "pi-tweaks-package-check-"));
+
 try {
     const tarballDirectory = path.join(temporaryRoot, "tarballs");
     const installRoot = path.join(temporaryRoot, "install");
     const agentDirectory = path.join(temporaryRoot, "agent");
     const sessionDirectory = path.join(temporaryRoot, "sessions");
     const projectDirectory = path.join(temporaryRoot, "project");
+
     for (const directory of [
         tarballDirectory,
         installRoot,
@@ -74,9 +51,8 @@ try {
         mkdirSync(directory, { recursive: true });
     }
 
-    const workspacePackages = ["pi-extension-internals", ...extensionPackages];
-    const tarballs = workspacePackages.map((packageName) =>
-        pack(path.join(packageRoot, "packages", packageName), tarballDirectory),
+    const tarballs = workspaces.packages.map((workspace) =>
+        pack(workspace.directory, tarballDirectory),
     );
     tarballs.push(
         pack(
@@ -99,29 +75,31 @@ try {
         { cwd: packageRoot, encoding: "utf8", stdio: "pipe" },
     );
 
-    const installedScope = path.join(installRoot, "node_modules", "@zigai");
+    const installedModules = path.join(installRoot, "node_modules");
+
     assert.equal(
         existsSync(path.join(installRoot, "node_modules", "@earendil-works")),
         false,
         "managed-install check must not install Pi host peers",
     );
 
-    const extensionEntries = extensionPackages.map((packageName) => {
-        const entry = path.join(installedScope, packageName, "src", "index.ts");
-        assert.ok(existsSync(entry), `${packageName} must contain its extension entry`);
-        return entry;
+    const extensionEntries = workspaces.extensions.map(({ workspace, entry }) => {
+        const installedEntry = path.join(installedModules, workspace.manifest.name, entry);
+        assert.ok(
+            existsSync(installedEntry),
+            `${workspace.manifest.name} must contain its extension entry`,
+        );
+        return installedEntry;
     });
-    for (const packageName of schemaPackages) {
-        const installedPackage = path.join(installedScope, packageName);
-        for (const relativePath of [
-            "config.schema.json",
-            "README.md",
-            "src/settings-input.ts",
-            "src/settings.prevalidated.ts",
-        ]) {
+
+    for (const { manifest } of workspaces.packages) {
+        if (manifest.piExtensionSettings === undefined) continue;
+
+        const installedPackage = path.join(installedModules, manifest.name);
+        for (const relativePath of Object.values(manifest.piExtensionSettings)) {
             assert.ok(
                 existsSync(path.join(installedPackage, relativePath)),
-                `${packageName} must contain ${relativePath}`,
+                `${manifest.name} must contain ${relativePath}`,
             );
         }
     }
@@ -166,6 +144,7 @@ try {
             timeout: 120_000,
         },
     );
+
     assert.equal(loaded.error, undefined, loaded.error?.message);
     assert.equal(
         loaded.status,

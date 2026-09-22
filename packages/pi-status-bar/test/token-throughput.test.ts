@@ -40,7 +40,6 @@ test("aggregates the OpenCode reference turn without counting its tool gap", () 
     tracker.startStep();
     tracker.markOutput(1_000);
     tracker.finishStep(3_000, { output: 20 });
-
     tracker.startStep();
     tracker.markOutput(20_000);
     tracker.finishStep(23_000, { output: 30 });
@@ -149,6 +148,38 @@ test("rejects malformed or unfinished step lifecycles", () => {
     tracker.startStep();
     tracker.markOutput(3_000);
     tracker.finishStep(2_500, { output: 100 });
+
+    assert.deepEqual(tracker.result(), {
+        status: "unavailable",
+        reason: "incomplete-step",
+    });
+});
+
+test("startStep timestamp measures full step duration for non-streaming or late-burst responses", () => {
+    const tracker = new TurnTokenThroughputTracker();
+
+    tracker.startStep(1_000);
+    // Late output delta right before step completion
+    tracker.markOutput(4_990);
+    tracker.finishStep(5_000, { output: 200 });
+
+    assert.deepEqual(tracker.result(), {
+        status: "available",
+        measurement: {
+            tokensPerSecond: 50,
+            visibleOutputTokens: 200,
+            streamDurationMs: 4_000,
+            stepCount: 1,
+        },
+    });
+});
+
+test("errored or aborted steps invalidate token throughput", () => {
+    const tracker = new TurnTokenThroughputTracker();
+
+    tracker.startStep(1_000);
+    tracker.markOutput(1_100);
+    tracker.finishStep(2_000, { output: 50 }, "error");
 
     assert.deepEqual(tracker.result(), {
         status: "unavailable",

@@ -3,7 +3,6 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { projectNameSet } from "./mention-syntax.ts";
 import type { MentionProjectSettings } from "./settings.ts";
 
 export type ProjectDirectory = {
@@ -20,18 +19,13 @@ export type ProjectDirectoryLoadOptions = {
     readonly signal?: AbortSignal;
 };
 
-export type ProjectDirectorySource = {
-    getCachedProjects(): ProjectDirectory[];
-    getCachedProjectNames(): ReadonlySet<string>;
-    getProjects(options?: ProjectDirectoryLoadOptions): Promise<ProjectDirectory[]>;
-    refresh(options?: ProjectDirectoryLoadOptions): Promise<ProjectDirectory[]>;
-};
-
 function expandHome(root: string): string {
     if (root === "~") return os.homedir();
+
     if (root.startsWith("~/") || root.startsWith("~\\")) {
         return path.join(os.homedir(), root.slice(2));
     }
+
     return root;
 }
 
@@ -70,6 +64,7 @@ async function directoryEntryIsDirectory(
 
     try {
         const stats = await fs.stat(path.join(root, entry.name));
+
         if (isAborted(options)) return false;
         return stats.isDirectory();
     } catch {
@@ -84,6 +79,7 @@ async function isGitRepository(
     if (isAborted(options)) return false;
     try {
         const stats = await fs.stat(path.join(projectPath, ".git"));
+
         if (isAborted(options)) return false;
         return stats.isDirectory() || stats.isFile();
     } catch {
@@ -117,17 +113,20 @@ async function listRootProjectDirectories(
     } catch {
         return [];
     }
+
     if (isAborted(options)) return [];
 
     const projects: ProjectDirectory[] = [];
     for (const entry of entries) {
         if (isAborted(options)) break;
         if (!(await directoryEntryMatchesSettings(root, entry, settings, options))) continue;
+
         const projectPath = path.join(root, entry.name);
         projects.push({ name: entry.name, path: projectPath, root });
     }
 
     projects.sort((left, right) => compareProjectNames(left.name, right.name));
+
     return projects;
 }
 
@@ -154,53 +153,9 @@ export async function listProjectDirectories(
     const projects: ProjectDirectory[] = [];
     for (const root of uniqueResolvedRoots(settings.roots, cwd)) {
         if (isAborted(options)) break;
+
         projects.push(...(await listRootProjectDirectories(root, settings, options)));
     }
+
     return uniqueProjectsByName(projects);
-}
-
-export function createProjectDirectorySource(
-    settings: MentionProjectSettings,
-    cwd: string,
-    ttlMs = 5_000,
-): ProjectDirectorySource {
-    let cachedProjects: ProjectDirectory[] = [];
-    let cachedProjectNames: ReadonlySet<string> = new Set();
-    let lastRefreshMs: number | undefined;
-    let refreshInFlight: Promise<ProjectDirectory[]> | undefined;
-
-    const refresh = (options?: ProjectDirectoryLoadOptions): Promise<ProjectDirectory[]> => {
-        if (isAborted(options)) return Promise.resolve([...cachedProjects]);
-        if (refreshInFlight !== undefined) return refreshInFlight;
-
-        refreshInFlight = listProjectDirectories(settings, cwd, options)
-            .then((projects) => {
-                if (isAborted(options)) return [...cachedProjects];
-                cachedProjects = projects;
-                cachedProjectNames = projectNameSet(cachedProjects);
-                lastRefreshMs = Date.now();
-                return [...cachedProjects];
-            })
-            .finally(() => {
-                refreshInFlight = undefined;
-            });
-        return refreshInFlight;
-    };
-
-    return {
-        getCachedProjects() {
-            return [...cachedProjects];
-        },
-        getCachedProjectNames() {
-            return cachedProjectNames;
-        },
-        getProjects(options?: ProjectDirectoryLoadOptions) {
-            if (isAborted(options)) return Promise.resolve([...cachedProjects]);
-            if (lastRefreshMs !== undefined && Date.now() - lastRefreshMs < ttlMs) {
-                return Promise.resolve([...cachedProjects]);
-            }
-            return refresh(options);
-        },
-        refresh,
-    };
 }

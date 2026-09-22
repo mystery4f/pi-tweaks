@@ -7,6 +7,7 @@ A collection of small Pi extensions for improving interaction, display, and mode
 | Package                                                          | What it does                                                          | Install                                        |
 | ---------------------------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------- |
 | [@zigai/pi-footer](packages/pi-footer)                           | A minimalistic, single-line replacement for Pi's footer.              | `pi install npm:@zigai/pi-footer`              |
+| [@zigai/pi-mention-anything](packages/pi-mention-anything)       | Define arbitrary mention sources and triggers for Pi.                 | `pi install npm:@zigai/pi-mention-anything`    |
 | [@zigai/pi-mention-skill](packages/pi-mention-skill)             | Move Pi skill selection from slash autocomplete to `$` mentions.      | `pi install npm:@zigai/pi-mention-skill`       |
 | [@zigai/pi-mention-project](packages/pi-mention-project)         | Adds fuzzy `#` mentions for configured Git project directories.       | `pi install npm:@zigai/pi-mention-project`     |
 | [@zigai/pi-response-renderer](packages/pi-response-renderer)     | Compact assistant response rendering for Pi.                          | `pi install npm:@zigai/pi-response-renderer`   |

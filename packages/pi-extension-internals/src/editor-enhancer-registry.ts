@@ -7,6 +7,7 @@ export type EditorEnhancer<Args extends readonly unknown[], Editor> = (
 
 export type EditorEnhancerContext<Args extends readonly unknown[], Editor> = {
     readonly hasUI: boolean;
+
     readonly ui: {
         getEditorComponent(): EditorFactory<Args, Editor> | undefined;
         setEditorComponent(factory: EditorFactory<Args, Editor> | undefined): void;
@@ -20,7 +21,6 @@ export type EditorEnhancerHandle<Args extends readonly unknown[], Editor> = {
 
 const EDITOR_ENHANCER_PROTOCOL_VERSION = 1;
 const EDITOR_ENHANCER_PROTOCOL = Symbol.for("zigai.pi-tweaks.editor-enhancer-protocol-version");
-
 const EDITOR_ENHANCER_REGISTRY = Symbol.for("zigai.pi-tweaks.editor-enhancer-registry");
 const EDITOR_ENHANCER_FACTORY = Symbol.for("zigai.pi-tweaks.editor-enhancer-factory");
 
@@ -51,6 +51,7 @@ function getOwnDataDescriptor(target: object, key: PropertyKey): UnknownDataDesc
     if (!isUnknownDataDescriptor(descriptor)) return undefined;
     return descriptor;
 }
+
 function isNonNullObject(value: unknown): value is object {
     return typeof value === "object" && value !== null;
 }
@@ -71,6 +72,7 @@ function isGlobalSymbol(value: unknown): value is symbol {
 function hasOwnFunctionProperty(target: object, key: PropertyKey): boolean {
     const descriptor = Object.getOwnPropertyDescriptor(target, key);
     if (descriptor === undefined || !Object.hasOwn(descriptor, "value")) return false;
+
     const value: unknown = descriptor.value;
     return typeof value === "function";
 }
@@ -82,9 +84,11 @@ function hasValidEnhancerEntries(entries: ReadonlyMap<unknown, unknown>, legacy:
         } else if (!isGlobalSymbol(key)) {
             return false;
         }
+
         if (!isNonNullObject(entry)) return false;
         if (!hasOwnFunctionProperty(entry, "enhancer")) return false;
     }
+
     return true;
 }
 
@@ -93,21 +97,24 @@ function readRegistry<Args extends readonly unknown[], Editor>(
 ): EditorEnhancerRegistry<Args, Editor> | undefined {
     const recordValue = getOwnDataDescriptor(ui, EDITOR_ENHANCER_REGISTRY)?.value;
     if (recordValue === undefined) return undefined;
+
     if (!isNonNullObject(recordValue)) {
         throw new TypeError("Incompatible editor enhancer registry");
     }
-    const record = recordValue;
 
+    const record = recordValue;
     const version = getOwnDataDescriptor(record, EDITOR_ENHANCER_PROTOCOL)?.value;
     if (version !== undefined && version !== EDITOR_ENHANCER_PROTOCOL_VERSION) {
         let versionLabel = `invalid-${Object.prototype.toString.call(version).slice(8, -1).toLowerCase()}`;
         if (isNumber(version)) versionLabel = version.toString();
         throw new TypeError(`Unsupported editor enhancer protocol version ${versionLabel}`);
     }
+
     const baseFactory = getOwnDataDescriptor(record, "baseFactory")?.value;
     const defaultFactory = getOwnDataDescriptor(record, "defaultFactory")?.value;
     const enhancers = getOwnDataDescriptor(record, "enhancers")?.value;
     const factory = getOwnDataDescriptor(record, "factory")?.value;
+
     if (
         (baseFactory !== undefined && typeof baseFactory !== "function") ||
         typeof defaultFactory !== "function" ||
@@ -118,6 +125,7 @@ function readRegistry<Args extends readonly unknown[], Editor>(
     ) {
         throw new TypeError("Incompatible editor enhancer registry");
     }
+
     if (
         version === undefined &&
         !Reflect.defineProperty(record, EDITOR_ENHANCER_PROTOCOL, {
@@ -130,6 +138,7 @@ function readRegistry<Args extends readonly unknown[], Editor>(
 
     // SAFETY: The checks above validate every runtime field shared between independently
     // bundled protocol copies. Generic arguments are fixed by the owning Pi UI instance.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SAFETY: Version, factories, map entries and factory marker are checked; the owning UI fixes generic editor arguments, which TypeScript cannot recover from cross-bundle symbol descriptors.
     return record as EditorEnhancerRegistry<Args, Editor>;
 }
 
@@ -161,11 +170,10 @@ function activateRegistry<Args extends readonly unknown[], Editor>(
     registry: EditorEnhancerRegistry<Args, Editor>,
 ): void {
     const current = ui.getEditorComponent();
-    if (isCurrentSharedFactory(current, registry)) {
-        return;
+    if (!isCurrentSharedFactory(current, registry)) {
+        registry.baseFactory = current;
     }
 
-    registry.baseFactory = current;
     ui.setEditorComponent(registry.factory);
 }
 
@@ -185,6 +193,7 @@ export function registerEditorEnhancer<Args extends readonly unknown[], Editor>(
     if (Symbol.keyFor(key) === undefined) {
         throw new TypeError("Editor enhancer keys must be created with Symbol.for(...)");
     }
+
     if (!ctx.hasUI) {
         return {
             update() {},
@@ -208,10 +217,13 @@ export function registerEditorEnhancer<Args extends readonly unknown[], Editor>(
                 for (const entry of enhancers.values()) {
                     editor = entry.enhancer(editor, ...args);
                 }
+
                 return editor;
             },
         };
+
         markSharedFactory(createdRegistry.factory);
+
         if (
             !Reflect.defineProperty(ctx.ui, EDITOR_ENHANCER_REGISTRY, {
                 configurable: true,
@@ -220,13 +232,24 @@ export function registerEditorEnhancer<Args extends readonly unknown[], Editor>(
         ) {
             throw new TypeError("Unable to store the editor enhancer registry");
         }
+
         registry = createdRegistry;
         created = true;
     }
 
+    const previousEntry = registry.enhancers.get(key);
+    const previousBase = registry.baseFactory;
+    const entry: EnhancerEntry<Args, Editor> = { enhancer };
+    registry.enhancers.set(key, entry);
+
     try {
         activateRegistry(ctx.ui, registry);
     } catch (cause: unknown) {
+        if (previousEntry === undefined) registry.enhancers.delete(key);
+        else registry.enhancers.set(key, previousEntry);
+
+        registry.baseFactory = previousBase;
+
         if (
             created &&
             getOwnDataDescriptor(ctx.ui, EDITOR_ENHANCER_REGISTRY)?.value === registry &&
@@ -234,14 +257,14 @@ export function registerEditorEnhancer<Args extends readonly unknown[], Editor>(
         ) {
             throw new TypeError("Unable to roll back the editor enhancer registry", { cause });
         }
+
         if (cause instanceof Error) {
             throw cause;
         }
+
         throw new Error("Unable to activate the editor enhancer registry", { cause });
     }
 
-    const entry: EnhancerEntry<Args, Editor> = { enhancer };
-    registry.enhancers.set(key, entry);
     let disposed = false;
 
     return {
@@ -249,20 +272,48 @@ export function registerEditorEnhancer<Args extends readonly unknown[], Editor>(
             if (disposed || registry.enhancers.get(key) !== entry) {
                 return;
             }
+
+            const previousEnhancer = entry.enhancer;
+            const previousBase = registry.baseFactory;
             entry.enhancer = nextEnhancer;
-            activateRegistry(ctx.ui, registry);
+
+            try {
+                activateRegistry(ctx.ui, registry);
+            } catch (cause: unknown) {
+                entry.enhancer = previousEnhancer;
+                registry.baseFactory = previousBase;
+                throw cause;
+            }
         },
         dispose(): void {
             if (disposed) {
                 return;
             }
+
             if (registry.enhancers.get(key) !== entry) {
                 disposed = true;
                 return;
             }
 
             if (registry.enhancers.size !== 1) {
+                const previousEntries = new Map(registry.enhancers);
+
                 registry.enhancers.delete(key);
+
+                try {
+                    if (isCurrentSharedFactory(ctx.ui.getEditorComponent(), registry)) {
+                        activateRegistry(ctx.ui, registry);
+                    }
+                } catch (cause: unknown) {
+                    registry.enhancers.clear();
+
+                    for (const [previousKey, previousEntry] of previousEntries) {
+                        registry.enhancers.set(previousKey, previousEntry);
+                    }
+
+                    throw cause;
+                }
+
                 disposed = true;
                 return;
             }
@@ -270,12 +321,14 @@ export function registerEditorEnhancer<Args extends readonly unknown[], Editor>(
             if (isCurrentSharedFactory(ctx.ui.getEditorComponent(), registry)) {
                 ctx.ui.setEditorComponent(registry.baseFactory);
             }
+
             if (
                 getOwnDataDescriptor(ctx.ui, EDITOR_ENHANCER_REGISTRY)?.value === registry &&
                 !Reflect.deleteProperty(ctx.ui, EDITOR_ENHANCER_REGISTRY)
             ) {
                 throw new TypeError("Unable to remove the editor enhancer registry");
             }
+
             registry.enhancers.delete(key);
             disposed = true;
         },

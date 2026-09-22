@@ -3,24 +3,29 @@ import { execFile } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { promisify } from "node:util";
 import { test } from "vitest";
 
 import { createGitAheadBehindTracker, formatGitAheadBehind } from "../src/git-ahead-behind.ts";
 
-function waitForMicrotask(): Promise<void> {
+async function waitForMicrotask(): Promise<void> {
     return new Promise((resolve) => queueMicrotask(resolve));
 }
 
-const execFileAsync = promisify(execFile);
+async function getGitOutput(cwd: string, args: readonly string[]): Promise<string> {
+    return new Promise((resolve, reject) => {
+        execFile("git", args, { cwd, windowsHide: true }, (error, stdout) => {
+            if (error instanceof Error) {
+                reject(error);
+                return;
+            }
 
-async function runGit(cwd: string, args: readonly string[]): Promise<void> {
-    await execFileAsync("git", args, { cwd, windowsHide: true });
+            resolve(stdout);
+        });
+    });
 }
 
-async function getGitOutput(cwd: string, args: readonly string[]): Promise<string> {
-    const { stdout } = await execFileAsync("git", args, { cwd, windowsHide: true });
-    return stdout;
+async function runGit(cwd: string, args: readonly string[]): Promise<void> {
+    await getGitOutput(cwd, args);
 }
 
 test("formatGitAheadBehind displays both upstream commit counts", () => {
@@ -94,12 +99,14 @@ test("createGitAheadBehindTracker renders when its query returns a new status", 
         },
         {
             refreshIntervalMs: 0,
-            query() {
+            async query() {
                 if (resolveQueryStarted === undefined) {
                     throw new Error("Git ahead/behind query started more than once.");
                 }
+
                 resolveQueryStarted();
                 resolveQueryStarted = undefined;
+
                 return new Promise((resolve) => {
                     resolveQuery = resolve;
                 });
@@ -108,15 +115,15 @@ test("createGitAheadBehindTracker renders when its query returns a new status", 
     );
 
     await queryStarted;
+
     if (resolveQuery === undefined) {
         throw new Error("Git ahead/behind query did not provide a resolver.");
     }
+
     resolveQuery({ ahead: 2, behind: 1 });
     await waitForMicrotask();
-
     assert.deepEqual(tracker.getGitAheadBehind(), { ahead: 2, behind: 1 });
     assert.equal(renderRequests, 1);
-
     tracker.dispose();
 });
 
@@ -128,12 +135,14 @@ test("createGitAheadBehindTracker aborts its active query on disposal", async ()
     });
     const tracker = createGitAheadBehindTracker("/workspace/pi-tweaks", () => undefined, {
         refreshIntervalMs: 0,
-        query(_cwd, { signal }) {
+        async query(_cwd, { signal }) {
             if (resolveQueryStarted === undefined) {
                 throw new Error("Git ahead/behind query started more than once.");
             }
+
             resolveQueryStarted();
             resolveQueryStarted = undefined;
+
             return new Promise((resolve) => {
                 signal.addEventListener(
                     "abort",
@@ -149,6 +158,38 @@ test("createGitAheadBehindTracker aborts its active query on disposal", async ()
 
     await queryStarted;
     tracker.dispose();
-
     assert.equal(abortObserved, true);
+});
+
+test("query completion remains owned after disposal and never requests a stale render", async () => {
+    let complete: ((status: { ahead: number; behind: number }) => void) | undefined;
+    let queryCount = 0;
+    let renders = 0;
+    const tracker = createGitAheadBehindTracker(
+        "/workspace/pi-tweaks",
+        () => {
+            renders += 1;
+        },
+        {
+            refreshIntervalMs: 0,
+            async query() {
+                queryCount += 1;
+
+                return new Promise((resolve) => {
+                    complete = resolve;
+                });
+            },
+        },
+    );
+    await waitForMicrotask();
+    tracker.refresh();
+    tracker.refresh();
+    assert.equal(queryCount, 1);
+    tracker.dispose();
+    assert.ok(complete);
+    complete({ ahead: 3, behind: 2 });
+    await waitForMicrotask();
+    assert.equal(queryCount, 1);
+    assert.equal(renders, 0);
+    assert.equal(tracker.getGitAheadBehind(), undefined);
 });

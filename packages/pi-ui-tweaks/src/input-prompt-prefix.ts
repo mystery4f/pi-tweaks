@@ -13,16 +13,11 @@ type InputRenderTarget = {
     [INPUT_PROMPT_PATCH_KEY]?: InputPromptPrefixPatchRecord;
     render(width: number): string[];
 };
+
 type InputRenderState = {
     value: string;
     cursor: number;
     focused: boolean;
-};
-
-type InputStateView = {
-    readonly value?: unknown;
-    readonly cursor?: unknown;
-    readonly focused?: unknown;
 };
 
 type InputRenderView = {
@@ -33,9 +28,11 @@ function normalizeInputPromptPrefix(prefix: string): string {
     if (prefix.length === 0) {
         return DEFAULT_INPUT_PROMPT_PREFIX;
     }
+
     if (/\s$/u.test(prefix)) {
         return prefix;
     }
+
     return `${prefix} `;
 }
 
@@ -44,6 +41,7 @@ function warnInputPromptPrefixPatchUnavailable(reason?: string): void {
     if (reason !== undefined && reason.length > 0) {
         suffix = `: ${reason}`;
     }
+
     console.warn(
         `[pi-ui-tweaks] input prompt prefix patch unavailable; Pi internals may have changed${suffix}`,
     );
@@ -53,28 +51,33 @@ function isInputRenderTarget(value: unknown): value is InputRenderTarget {
     if (typeof value !== "object" || value === null) {
         return false;
     }
+
     // SAFETY: InputRenderView exposes only the render method validated below.
     const view = value as InputRenderView;
     return typeof view.render === "function";
 }
+
 function hasInputRenderState(
     target: InputRenderTarget,
 ): target is InputRenderTarget & InputRenderState {
-    // SAFETY: InputStateView exposes only the three private scalar fields validated below.
-    const view = target as InputStateView;
     return (
-        typeof view.value === "string" &&
-        typeof view.cursor === "number" &&
-        Number.isFinite(view.cursor) &&
-        typeof view.focused === "boolean"
+        "value" in target &&
+        typeof target.value === "string" &&
+        "cursor" in target &&
+        typeof target.cursor === "number" &&
+        Number.isFinite(target.cursor) &&
+        "focused" in target &&
+        typeof target.focused === "boolean"
     );
 }
 
 export type InputPromptPrefixConfig = { readonly inputPromptPrefix: string };
+
 export type InputPromptPrefixHandle = {
     update(config: InputPromptPrefixConfig): void;
     dispose(): void;
 };
+
 type InputPromptPrefixPatchRecord = {
     readonly original: InputRenderTarget["render"];
     readonly patch: LinkedMethodPatchHandle<InputRenderTarget, [number], string[]>;
@@ -88,21 +91,24 @@ export function installInputPromptPrefixPatch(
 ): InputPromptPrefixHandle {
     if (!isInputRenderTarget(target)) {
         warnInputPromptPrefixPatchUnavailable();
+
         return { update(): void {}, dispose(): void {} };
     }
+
     const installed = target[INPUT_PROMPT_PATCH_KEY];
     if (installed !== undefined) {
         installed.handle.update(config);
         return installed.handle;
     }
+
     let current = { inputPromptPrefix: normalizeInputPromptPrefix(config.inputPromptPrefix) };
     const patch = installLinkedRenderPatch(
         target,
         (predecessor) =>
             function inputPromptPrefixRender(this: InputRenderTarget, width: number): string[] {
                 if (!hasInputRenderState(this)) return predecessor.call(this, width);
-                const { value, cursor, focused } = this;
 
+                const { value, cursor, focused } = this;
                 const prompt = current.inputPromptPrefix;
                 const promptWidth = visibleWidth(prompt);
                 const availableWidth = width - promptWidth;
@@ -122,6 +128,7 @@ export function installInputPromptPrefixPatch(
                     } else {
                         scrollWidth = availableWidth;
                     }
+
                     const cursorCol = visibleWidth(value.slice(0, cursor));
                     if (scrollWidth > 0) {
                         const halfWidth = Math.floor(scrollWidth / 2);
@@ -133,7 +140,9 @@ export function installInputPromptPrefixPatch(
                         } else {
                             startCol = Math.max(0, cursorCol - halfWidth);
                         }
+
                         visibleText = sliceByColumn(value, startCol, scrollWidth, true);
+
                         const beforeCursor = sliceByColumn(
                             value,
                             startCol,
@@ -148,7 +157,7 @@ export function installInputPromptPrefixPatch(
                 }
 
                 const graphemes = [...graphemeSegmenter.segment(visibleText.slice(cursorDisplay))];
-                const cursorGrapheme = graphemes[0];
+                const cursorGrapheme = graphemes.at(0);
                 const beforeCursor = visibleText.slice(0, cursorDisplay);
                 const atCursor = cursorGrapheme?.segment ?? " ";
                 const afterCursor = visibleText.slice(cursorDisplay + atCursor.length);
@@ -156,6 +165,7 @@ export function installInputPromptPrefixPatch(
                 if (focused) {
                     marker = CURSOR_MARKER;
                 }
+
                 const cursorChar = `\x1b[7m${atCursor}\x1b[27m`;
                 const textWithCursor = beforeCursor + marker + cursorChar + afterCursor;
                 const visualLength = visibleWidth(textWithCursor);
@@ -171,12 +181,15 @@ export function installInputPromptPrefixPatch(
         },
         dispose(): void {
             if (disposed) return;
+
             disposed = true;
             patch.dispose();
+
             if (target[INPUT_PROMPT_PATCH_KEY]?.handle === handle)
                 delete target[INPUT_PROMPT_PATCH_KEY];
         },
     };
+
     target[INPUT_PROMPT_PATCH_KEY] = { original: patch.predecessor, patch, handle };
     return handle;
 }

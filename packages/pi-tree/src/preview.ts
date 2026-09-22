@@ -22,6 +22,7 @@ type PreviewContent =
     | { readonly kind: "text"; readonly text: string }
     | { readonly kind: "blocks"; readonly blocks: readonly TextContentBlock[] }
     | { readonly kind: "empty" };
+
 function isString(value: unknown): value is string {
     return typeof value === "string";
 }
@@ -38,6 +39,7 @@ const previewContentParser = {
     parse(content: unknown): PreviewContent {
         if (isString(content)) return { kind: "text", text: content };
         if (!Array.isArray(content)) return { kind: "empty" };
+
         return { kind: "blocks", blocks: content.filter(isTextContentBlock) };
     },
 };
@@ -51,6 +53,7 @@ function extractTextContent(content: PreviewContent, maxLength: number): string 
         result += block.text;
         if (result.length >= maxLength) return result.slice(0, maxLength);
     }
+
     return result;
 }
 
@@ -73,18 +76,23 @@ export function getPreviewText(node: TreeNode | undefined): string {
             if (textContent.length > 0) {
                 return textContent;
             }
+
             if (message?.role === "bashExecution") {
                 return normalizePreviewText(message.command ?? "");
             }
+
             if (message?.errorMessage !== undefined && message.errorMessage.length > 0) {
                 return normalizePreviewText(message.errorMessage);
             }
+
             if (message?.stopReason === "aborted") {
                 return "(aborted)";
             }
+
             if (message?.role === "toolResult") {
                 return `[${message.toolName ?? "tool"}]`;
             }
+
             return "(no content)";
         }
         case "custom_message":
@@ -95,6 +103,12 @@ export function getPreviewText(node: TreeNode | undefined): string {
             return normalizePreviewText(entry.summary ?? "");
         case "compaction":
             return `compaction: ${Math.round((entry.tokensBefore ?? 0) / 1000)}k tokens`;
+        case "context_edit": {
+            let action = "replace";
+            if (entry.replacement === null) action = "omit";
+
+            return `[context ${action}: ${entry.targetId ?? ""}]`;
+        }
         case "model_change":
             return `model: ${entry.modelId ?? ""}`;
         case "thinking_level_change":

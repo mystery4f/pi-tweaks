@@ -60,6 +60,7 @@ type MessageHighlightsSettings = {
 };
 
 type UrlColorSetting = Static<typeof urlColorSettingSchema>;
+
 const MessageHighlightsConfigSchema = Type.Object(
     {
         $schema: Type.Optional(Type.String()),
@@ -106,14 +107,17 @@ const messageHighlightsSettingsParser = {
             if (errors.length > messages.length) {
                 suffix = `; and ${errors.length - messages.length} more`;
             }
+
             return {
                 settings: {},
                 errors: [`${label} is invalid: ${messages.join("; ")}${suffix}`],
             };
         }
+
         if (!isMessageHighlightsSettings(settings)) {
             return { settings: {}, errors: [`${label} is invalid: root failed schema parsing`] };
         }
+
         return { settings, errors: [] };
     },
 };
@@ -134,15 +138,19 @@ function parseUrlColorSetting(setting: UrlColorSetting): HighlightColor {
     if (isAnsiColorSetting(setting)) {
         return { kind: "ansi256", color: setting };
     }
+
     if (setting === "") {
         return { kind: "none" };
     }
+
     if (isHexColor(setting)) {
         return { kind: "hex", color: setting };
     }
+
     if (isThemeForegroundColor(setting)) {
         return { kind: "theme", color: setting };
     }
+
     throw new Error(`Invalid parsed URL color: ${setting}`);
 }
 
@@ -150,6 +158,7 @@ function buildMessageHighlightsConfig(
     settings: MessageHighlightsSettings,
 ): MessageHighlightsConfig {
     if (settings.urlColor === undefined) return DEFAULT_MESSAGE_HIGHLIGHTS_CONFIG;
+
     return {
         urlColor: parseUrlColorSetting(settings.urlColor),
     };
@@ -194,6 +203,7 @@ export function loadMessageHighlightsSettings(
             settings: settings.globalSettingsLayer,
         });
     }
+
     if (settings.projectSettingsLayer !== undefined && settings.projectConfigPath !== undefined) {
         settingsSources.push({
             label: settings.projectConfigPath,
@@ -202,6 +212,7 @@ export function loadMessageHighlightsSettings(
     }
 
     const loaded = resolveMessageHighlightsConfig(settingsSources);
+
     return {
         config: loaded.config,
         errors: [...settings.diagnostics.map((diagnostic) => diagnostic.message), ...loaded.errors],

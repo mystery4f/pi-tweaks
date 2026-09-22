@@ -67,6 +67,7 @@ describe("linked method patches", () => {
                 return [`inherited:${width}`];
             }
         }
+
         class ChildRenderer extends BaseRenderer {}
 
         const lower = installLinkedRenderPatch(
@@ -164,6 +165,7 @@ describe("linked method patches", () => {
         expect(() => installLinkedRenderPatch(Renderer.prototype, () => frozenRender)).toThrow(
             "non-extensible",
         );
+
         expect(new Renderer().render(6)).toEqual(["base:6"]);
     });
 
@@ -184,10 +186,13 @@ describe("linked method patches", () => {
                 transformed = function (this: Renderer, width: number): string[] {
                     return [...predecessor.call(this, width), "unreachable"];
                 };
+
                 return transformed;
             }),
         ).toThrow("Unable to patch method render");
+
         if (transformed === undefined) throw new Error("Expected the transform to run");
+
         expect(Object.hasOwn(transformed, LINKED_PATCH_PREDECESSOR)).toBe(false);
         expect(Object.hasOwn(transformed, LINKED_PATCH_PREDECESSOR_DESCRIPTOR)).toBe(false);
         expect(Object.hasOwn(transformed, LINKED_PATCH_PROTOCOL)).toBe(false);
@@ -213,15 +218,19 @@ describe("linked method patches", () => {
                 transformed = function (this: Renderer, width: number): string[] {
                     return [...predecessor.call(this, width), "unreachable"];
                 };
+
                 return transformed;
             }),
         ).toThrow("setter failed");
+
         if (transformed === undefined) throw new Error("Expected the transform to run");
+
         expect(Object.hasOwn(transformed, LINKED_PATCH_PREDECESSOR)).toBe(false);
         expect(Object.hasOwn(transformed, LINKED_PATCH_PREDECESSOR_DESCRIPTOR)).toBe(false);
         expect(Object.hasOwn(transformed, LINKED_PATCH_PROTOCOL)).toBe(false);
         expect(target.render).toBe(original);
     });
+
     test("rejects incompatible keyed patch records before changing the method", () => {
         const marker = patchKey("incompatible-keyed");
         Reflect.defineProperty(Renderer.prototype, marker, {
@@ -243,10 +252,69 @@ describe("linked method patches", () => {
                     (predecessor) => predecessor,
                 ),
             ).toThrow("Unsupported keyed method patch protocol version 2");
+
             expect(new Renderer().render(6)).toEqual(["base:6"]);
         } finally {
             Reflect.deleteProperty(Renderer.prototype, marker);
         }
+    });
+
+    test.each([
+        {
+            name: "wrong method",
+            record: { [KEYED_PATCH_PROTOCOL]: 1, methodKey: "other", handle: {} },
+            message: "already used for another method",
+        },
+        {
+            name: "missing handle members",
+            record: { [KEYED_PATCH_PROTOCOL]: 1, methodKey: "render", handle: {} },
+            message: "Incompatible keyed method patch handle",
+        },
+        {
+            name: "non-callable handle member",
+            record: {
+                [KEYED_PATCH_PROTOCOL]: 1,
+                methodKey: "render",
+                handle: { predecessor() {}, patched() {}, update: false, dispose() {} },
+            },
+            message: "Incompatible keyed method patch handle",
+        },
+    ])("rejects $name in a version-compatible keyed record", ({ record, message }) => {
+        const target = new Renderer();
+        const marker = patchKey("malformed-record");
+        Reflect.defineProperty(target, marker, { value: record });
+        expect(() =>
+            installKeyedLinkedMethodPatch(
+                target,
+                "render",
+                marker,
+                undefined,
+                appendRender("unreachable"),
+            ),
+        ).toThrow(message);
+
+        expect(target.render(7)).toEqual(["base:7"]);
+    });
+
+    test("rejects a runtime-replaced non-callable target before transforming", () => {
+        const target = new Renderer();
+        Reflect.set(target, "render", 42);
+        expect(() => installLinkedRenderPatch(target, appendRender("unreachable"))).toThrow(
+            "non-function property render",
+        );
+
+        expect(Object.getOwnPropertyDescriptor(target, "render")?.value).toBe(42);
+    });
+
+    test("fails closed when predecessor metadata stops being callable", () => {
+        const target = new Renderer();
+        const patch = installLinkedRenderPatch(target, appendRender("patched"));
+        Reflect.set(patch.patched, LINKED_PATCH_PREDECESSOR, 42);
+        expect(() => target.render(4)).toThrow("lost its predecessor");
+        expect(() => patch.dispose()).toThrow("lost its predecessor");
+        Reflect.set(patch.patched, LINKED_PATCH_PREDECESSOR, patch.predecessor);
+        patch.dispose();
+        expect(target.render(4)).toEqual(["base:4"]);
     });
 
     test("accepts legacy unversioned patch metadata and rejects incompatible versions", () => {
@@ -259,9 +327,11 @@ describe("linked method patches", () => {
             configurable: true,
             value: 2,
         });
+
         expect(() => new Renderer().render(3)).toThrow(
             "Unsupported linked method patch protocol version 2",
         );
+
         expect(() => first.dispose()).toThrow("Unsupported linked method patch protocol version 2");
 
         Reflect.deleteProperty(first.patched, LINKED_PATCH_PROTOCOL);
